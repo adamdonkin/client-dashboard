@@ -288,7 +288,7 @@ def sync_client_data(service):
 
         client_events = events_result.get('items', [])
         
-        today = datetime.now(pytz.utc).date()
+        now_dt = datetime.now(pytz.utc)
         past_sessions = []
         future_sessions = []
 
@@ -296,23 +296,22 @@ def sync_client_data(service):
             start_iso = get_event_start_iso(e)
             event_dt = parse_datetime(start_iso)
             if event_dt:
-                event_date = event_dt.date()
-                if event_date < today:
+                if event_dt < now_dt:
                     past_sessions.append(e)
                 else:
                     future_sessions.append(e)
         
-        # Sort sessions by date
+        # Sort sessions to easily find the last and next
         past_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
         future_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
 
-        last_session_date = parse_datetime(get_event_start_iso(past_sessions[-1])) if past_sessions else None
-        next_session_date = parse_datetime(get_event_start_iso(future_sessions[0])) if future_sessions else None
+        last_session_iso = get_event_start_iso(past_sessions[-1]) if past_sessions else None
+        next_session_iso = get_event_start_iso(future_sessions[0]) if future_sessions else None
 
         update_data = {
-            'last_session': last_session_date.isoformat() if last_session_date else None,
-            'next_session': next_session_date.isoformat() if next_session_date else None,
-            'session_count': len(past_sessions),
+            'last_session': last_session_iso,
+            'next_session': next_session_iso,
+            'session_count': len(client_events), # Correctly count all sessions for the client
             'updated_at': datetime.now().isoformat()
         }
 
@@ -341,12 +340,16 @@ def get_google_calendar_service():
     return build('calendar', 'v3', credentials=credentials)
 
 def parse_datetime(datetime_str):
-    """Parses a datetime string from Google Calendar API into a datetime object."""
+    """Parses a datetime string from Google Calendar API into a timezone-aware datetime object."""
     if not datetime_str:
         return None
     try:
-        # Handles both date ('YYYY-MM-DD') and datetime strings
-        return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            # If the datetime is naive (from a 'YYYY-MM-DD' string), make it timezone-aware at UTC.
+            # This ensures all-day events are handled consistently.
+            return pytz.utc.localize(dt)
+        return dt
     except (ValueError, TypeError):
         return None
 
