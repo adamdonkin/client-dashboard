@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import ClientCard from '@/components/ClientCard'
-import StatsCard from '@/components/StatsCard'
-import { Client, StatsData } from '@/lib/types'
-import { getClients, getStats } from '@/lib/data'
+import ClientCard from '../components/ClientCard'
+import StatsCard from '../components/StatsCard'
+import { Client, StatsData } from '../lib/types'
+import { getClients, getStats } from '../lib/data'
 
 export default function Dashboard() {
   const [clients, setClients] = useState<Client[]>([])
