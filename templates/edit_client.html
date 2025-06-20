@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit {{ client.name }} - Client Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full">
+    <div class="min-h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-3xl font-bold text-slate-900">Client Dashboard</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="{{ url_for('client_detail', client_id=client.id) }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            &larr; Back to Client Details
+                        </a>
+                        <a href="/logout" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+                <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-white/50 overflow-hidden">
+                    <form action="{{ url_for('edit_client', client_id=client.id) }}" method="POST">
+                        <div class="px-4 py-5 sm:px-6">
+                            <h3 class="text-lg leading-6 font-medium text-slate-900">Edit {{ client.name }}</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-slate-500">Update the client's details below.</p>
+                        </div>
+                        <div class="border-t border-slate-200 px-4 py-5 sm:p-0">
+                            <dl class="sm:divide-y sm:divide-slate-200">
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Full name</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="text" name="name" id="name" value="{{ client.name }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Email address</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="email" name="email" id="email" value="{{ client.email }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Phone</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="text" name="phone" id="phone" value="{{ client.phone or '' }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Company</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="text" name="company_name" id="company_name" value="{{ client.company_name or '' }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Role</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="text" name="role" id="role" value="{{ client.role or '' }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">Slack</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <input type="text" name="slack" id="slack" value="{{ client.slack or '' }}" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">
+                                    </dd>
+                                </div>
+                                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-slate-500">About</dt>
+                                    <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                        <textarea name="notes" id="notes" rows="3" class="block w-full shadow-sm sm:text-sm border-slate-300 rounded-md">{{ client.notes or '' }}</textarea>
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                        <div class="px-4 py-3 bg-slate-50 text-right sm:px-6">
+                            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white/80 backdrop-blur-sm mt-8 border-t border-slate-200">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-sm text-slate-500">
+                <p>&copy; 2024 Coaching Dashboard. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html> 

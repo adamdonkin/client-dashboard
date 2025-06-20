@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ client.name }} - Client Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full">
+    <div class="min-h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-3xl font-bold text-slate-900">Client Dashboard</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="{{ url_for('index') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            &larr; Back to Dashboard
+                        </a>
+                        <a href="/logout" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+                <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-white/50 overflow-hidden">
+                    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-lg leading-6 font-medium text-slate-900">{{ client.name }}</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-slate-500">Personal and session details.</p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('edit_client', client_id=client.id) }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Edit Client
+                            </a>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-200 px-4 py-5 sm:p-0">
+                        <dl class="sm:divide-y sm:divide-slate-200">
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Email address</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.email }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Phone</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.phone or 'N/A' }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Company</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.company_name or 'N/A' }}</dd>
+                            </div>
+                             <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Role</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.role or 'N/A' }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Slack</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.slack or 'N/A' }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Total Sessions</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.session_count }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Last Session</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.last_session | format_date if client.last_session else 'None' }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">Next Session</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">{{ client.next_session | format_date if client.next_session else 'None' }}</dd>
+                            </div>
+                            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-slate-500">About</dt>
+                                <dd class="mt-1 text-sm text-slate-900 sm:mt-0 sm:col-span-2">
+                                    <div class="prose prose-sm max-w-none text-slate-600">
+                                        {{ client.notes or 'No notes for this client.' }}
+                                    </div>
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white/80 backdrop-blur-sm mt-8 border-t border-slate-200">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-sm text-slate-500">
+                <p>&copy; 2024 Coaching Dashboard. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html> 

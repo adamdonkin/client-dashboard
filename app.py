@@ -130,6 +130,67 @@ def clients():
     clients = get_clients_from_supabase()
     return render_template('clients.html', clients=clients)
 
+@app.route('/clients/<client_id>')
+def client_detail(client_id):
+    """Client detail page"""
+    if 'credentials' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        response = supabase.table(SUPABASE_TABLE).select("*").eq('id', client_id).single().execute()
+        client = response.data
+    except Exception as e:
+        print(f"Error fetching client from Supabase: {e}")
+        client = None
+
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(url_for('index'))
+
+    return render_template('client_detail.html', client=client)
+
+@app.route('/clients/<client_id>/edit', methods=['GET', 'POST'])
+def edit_client(client_id):
+    """Edit client page"""
+    if 'credentials' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        try:
+            # Create a mutable copy of the form data
+            form_data = request.form.to_dict()
+            update_data = {}
+            for key, value in form_data.items():
+                if value == '':
+                    update_data[key] = None
+                else:
+                    update_data[key] = value
+
+            # Update the record in Supabase
+            response = supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client_id).execute()
+
+            if response.data:
+                flash('Client updated successfully!', 'success')
+                return redirect(url_for('client_detail', client_id=client_id))
+            else:
+                 flash('Error updating client.', 'error')
+
+        except Exception as e:
+            flash(f"An error occurred: {e}", "error")
+
+    try:
+        response = supabase.table(SUPABASE_TABLE).select("*").eq('id', client_id).single().execute()
+        client = response.data
+    except Exception as e:
+        print(f"Error fetching client from Supabase: {e}")
+        client = None
+
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(url_for('index'))
+
+    return render_template('edit_client.html', client=client)
+
 @app.route('/api/clients', methods=['GET'])
 def api_get_clients():
     """API endpoint to get all clients"""
@@ -275,15 +336,10 @@ def format_date(value):
     if not value:
         return "None"
     try:
-        # Try parsing as datetime (with or without timezone)
-        if 'T' in value:
-            # Handle Zulu time (UTC)
-            if value.endswith('Z'):
-                value = value.replace('Z', '+00:00')
-            return datetime.fromisoformat(value).strftime('%b %d, %Y %I:%M%p')
-        else:
-            # Parse as date only
-            return datetime.strptime(value, '%Y-%m-%d').strftime('%b %d, %Y')
+        dt = parse_datetime(value)
+        if dt:
+            return dt.strftime('%b %d, %Y')
+        return "Invalid date"
     except Exception:
         return "Invalid date"
 
@@ -313,4 +369,4 @@ def parse_datetime(dt_str):
         return None
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5004)
