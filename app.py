@@ -407,5 +407,8 @@ def get_event_start_iso(event):
     # Return dateTime if available, otherwise date.
     return start.get('dateTime') or start.get('date')
 
+# Vercel requires this for serverless deployment
+app.debug = False
+
 if __name__ == '__main__':
     app.run(debug=True, port=5004)
