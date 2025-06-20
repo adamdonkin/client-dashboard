@@ -1,6 +1,10 @@
 # Configuration file for your coaching dashboard
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Supabase Configuration
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
