@@ -12,6 +12,7 @@ import secrets
 from config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, CALENDAR_ID
 from supabase import create_client, Client
 from cachelib import SimpleCache
+import pytz
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -53,9 +54,10 @@ def index():
 
     clients.sort(key=sort_key)
 
+    now = datetime.now(pytz.utc)
+
     total_sessions_sum = 0
     sessions_this_month = 0
-    now = datetime.utcnow()
     
     for client in clients:
         client['needs_scheduling'] = not client.get('next_session')
@@ -277,9 +279,9 @@ def sync_client_data(service):
         if not client_email:
             continue
 
-        now = datetime.utcnow().isoformat() + 'Z'
-        one_year_ago = (datetime.utcnow() - timedelta(days=365)).isoformat() + 'Z'
-        one_year_later = (datetime.utcnow() + timedelta(days=365)).isoformat() + 'Z'
+        now = datetime.now(pytz.utc).isoformat()
+        one_year_ago = (datetime.now(pytz.utc) - timedelta(days=365)).isoformat()
+        one_year_later = (datetime.now(pytz.utc) + timedelta(days=365)).isoformat()
 
         all_events = []
         page_token = None
@@ -307,29 +309,37 @@ def sync_client_data(service):
             and any(att.get('email') == user_email for att in event.get('attendees', []))
         ]
 
+        # Filter events that have a start date/datetime
+        valid_events = [e for e in client_events if get_event_start_iso(e)]
+
+        # Separate past and future sessions
         past_sessions = [
-            e for e in client_events
-            if e['start'].get('dateTime') and e['start'].get('dateTime') < now
+            e for e in valid_events
+            if get_event_start_iso(e) < now
         ]
         future_sessions = [
-            e for e in client_events
-            if e['start'].get('dateTime') and e['start'].get('dateTime') >= now
+            e for e in valid_events
+            if get_event_start_iso(e) >= now
         ]
+        
+        # Sort sessions by date
+        past_sessions.sort(key=get_event_start_iso)
+        future_sessions.sort(key=get_event_start_iso)
 
-        last_session_date = parse_datetime(past_sessions[-1]['start'].get('dateTime')) if past_sessions else None
-        next_session_date = parse_datetime(future_sessions[0]['start'].get('dateTime')) if future_sessions else None
+        last_session_iso = get_event_start_iso(past_sessions[-1] if past_sessions else None)
+        next_session_iso = get_event_start_iso(future_sessions[0] if future_sessions else None)
+        
+        last_session_date = parse_datetime(last_session_iso) if last_session_iso else None
+        next_session_date = parse_datetime(next_session_iso) if next_session_iso else None
 
         update_data = {
-            'session_count': len(past_sessions),
             'last_session': last_session_date.isoformat() if last_session_date else None,
             'next_session': next_session_date.isoformat() if next_session_date else None,
-            'updated_at': datetime.utcnow().isoformat()
+            'total_sessions': len(valid_events)
         }
 
-        try:
-            supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
-        except Exception as e:
-            print(f"Error updating client {client['name']} in Supabase: {e}")
+        # Update the record in Supabase
+        supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
 
 @app.template_filter('format_date')
 def format_date(value):
@@ -351,22 +361,21 @@ def get_google_calendar_service():
     credentials = Credentials(**session['credentials'])
     return build('calendar', 'v3', credentials=credentials)
 
-def parse_datetime(dt_str):
-    """Parses a datetime string from Google Calendar API."""
-    if not dt_str:
-        return None
+def parse_datetime(datetime_str):
+    """Parses a datetime string from Google Calendar API into a datetime object."""
     try:
-        # Try parsing as datetime (with or without timezone)
-        if 'T' in dt_str:
-            # Handle Zulu time (UTC)
-            if dt_str.endswith('Z'):
-                dt_str = dt_str.replace('Z', '+00:00')
-            return datetime.fromisoformat(dt_str)
-        else:
-            # Parse as date only
-            return datetime.strptime(dt_str, '%Y-%m-%d')
-    except Exception:
+        # Handles both date ('YYYY-MM-DD') and datetime strings
+        return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
         return None
+
+def get_event_start_iso(event):
+    """Returns the start datetime as an ISO string for a Google Calendar event."""
+    if not event:
+        return None
+    start = event.get('start', {})
+    # Return dateTime if available, otherwise date.
+    return start.get('dateTime') or start.get('date')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5004)
