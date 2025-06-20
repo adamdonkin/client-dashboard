@@ -264,6 +264,7 @@ def sync_sessions():
 def sync_client_data(service):
     """Fetches Google Calendar data and updates Supabase for all clients."""
     all_clients = get_clients_from_supabase()
+    today = datetime.now(pytz.utc).date()
 
     for client in all_clients:
         client_name = client.get("name")
@@ -288,34 +289,34 @@ def sync_client_data(service):
 
         client_events = events_result.get('items', [])
         
-        now_dt = datetime.now(pytz.utc)
         past_sessions = []
         future_sessions = []
 
         for e in client_events:
-            start_iso = get_event_start_iso(e)
-            event_dt = parse_datetime(start_iso)
-            if event_dt:
-                if event_dt < now_dt:
+            start_dt = parse_datetime(get_event_start_iso(e))
+            if start_dt:
+                # Compare dates only, not times, to correctly handle today's events
+                if start_dt.date() < today:
                     past_sessions.append(e)
                 else:
                     future_sessions.append(e)
         
-        # Sort sessions to easily find the last and next
-        past_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
+        # Sort past sessions in reverse to get the most recent one first
+        past_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "", reverse=True)
+        # Sort future sessions normally to get the nearest one first
         future_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
 
-        last_session_iso = get_event_start_iso(past_sessions[-1]) if past_sessions else None
-        next_session_iso = get_event_start_iso(future_sessions[0]) if future_sessions else None
+        last_session_date = get_event_start_iso(past_sessions[0]) if past_sessions else None
+        next_session_date = get_event_start_iso(future_sessions[0]) if future_sessions else None
 
-        update_data = {
-            'last_session': last_session_iso,
-            'next_session': next_session_iso,
-            'session_count': len(client_events), # Correctly count all sessions for the client
-            'updated_at': datetime.now().isoformat()
-        }
-
+        # Update Supabase
         try:
+            update_data = {
+                'last_session': last_session_date,
+                'next_session': next_session_date,
+                'session_count': len(client_events), # Correctly count all sessions for the client
+                'updated_at': datetime.now().isoformat()
+            }
             supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
         except Exception as e:
             print(f"Error updating client {client_name} in Supabase: {e}")
@@ -344,10 +345,15 @@ def parse_datetime(datetime_str):
     if not datetime_str:
         return None
     try:
+        # Handle date strings (YYYY-MM-DD) by making them datetime objects at midnight UTC
+        if 'T' not in datetime_str:
+            dt = datetime.strptime(datetime_str, '%Y-%m-%d')
+            return pytz.utc.localize(dt)
+        
+        # Handle datetime strings
         dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        # Ensure it's timezone-aware
         if dt.tzinfo is None:
-            # If the datetime is naive (from a 'YYYY-MM-DD' string), make it timezone-aware at UTC.
-            # This ensures all-day events are handled consistently.
             return pytz.utc.localize(dt)
         return dt
     except (ValueError, TypeError):
