@@ -147,7 +147,7 @@
                             </thead>
                             <tbody id="clientTableBody" class="bg-white divide-y divide-slate-200/50">
                                 {% for client in clients %}
-                                <tr class="hover:bg-slate-50/50 transition-colors cursor-pointer" onclick="window.location='{{ url_for('client_detail', client_id=client.id) }}';">
+                                <tr class="hover:bg-slate-50/50 transition-colors cursor-pointer" data-href="{{ url_for('client_detail', client_id=client.id) }}">
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-slate-900">{{ client.name }}</div>
                                         <div class="text-sm text-slate-500">{{ client.email }}</div>
@@ -161,7 +161,14 @@
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
                                         {% if client.next_session %}
-                                            <div>{{ client.next_session | format_date }}</div>
+                                            <div class="flex items-center">
+                                                <span>{{ client.next_session | format_date }}</span>
+                                                {% if client.is_today %}
+                                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        Today
+                                                    </span>
+                                                {% endif %}
+                                            </div>
                                         {% else %}
                                             <span class="text-slate-400">None</span>
                                         {% endif %}
@@ -206,6 +213,18 @@ function filterClients() {
         }
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tr[data-href]');
+    rows.forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A') {
+                return;
+            }
+            window.location.href = row.dataset.href;
+        });
+    });
+});
 </script>
 
 </body>

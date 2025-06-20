@@ -1,5 +1,7 @@
 import os
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+# Only set insecure transport for local development
+if os.environ.get('FLASK_ENV') == 'development':
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_session import Session
@@ -49,18 +51,27 @@ def index():
     def sort_key(client):
         dt = parse_datetime(client.get('next_session'))
         if dt is None:
-            return (0, client.get('name', '').lower())
-        return (1, dt)
+            return (0, datetime.max.replace(tzinfo=pytz.utc), client.get('name', '').lower())
+        return (1, dt, client.get('name', '').lower())
 
     clients.sort(key=sort_key)
 
     now = datetime.now(pytz.utc)
+    today = now.date()
 
     total_sessions_sum = 0
     sessions_this_month = 0
     
     for client in clients:
         client['needs_scheduling'] = not client.get('next_session')
+
+        next_session_str = client.get('next_session')
+        client['is_today'] = False
+        if next_session_str:
+            next_session_dt = parse_datetime(next_session_str)
+            if next_session_dt and next_session_dt.date() == today:
+                client['is_today'] = True
+
         total_sessions_sum += client.get('session_count') or 0
         
         last_session_str = client.get('last_session')
@@ -264,12 +275,18 @@ def sync_sessions():
 def sync_client_data(service):
     """Fetches Google Calendar data and updates Supabase for all clients."""
     all_clients = get_clients_from_supabase()
-    today = datetime.now(pytz.utc).date()
+    now = datetime.now(pytz.utc)
+    today = now.date()
+    
+    print(f"DEBUG: Today's date is {today}")
+    print(f"DEBUG: Current time is {now}")
 
     for client in all_clients:
         client_name = client.get("name")
         if not client_name:
             continue
+
+        print(f"DEBUG: Processing client: {client_name}")
 
         time_min = (datetime.now() - timedelta(days=365)).isoformat() + 'Z'
         time_max = (datetime.now() + timedelta(days=365)).isoformat() + 'Z'
@@ -288,6 +305,7 @@ def sync_client_data(service):
             continue
 
         client_events = events_result.get('items', [])
+        print(f"DEBUG: Found {len(client_events)} events for {client_name}")
         
         past_sessions = []
         future_sessions = []
@@ -295,11 +313,26 @@ def sync_client_data(service):
         for e in client_events:
             start_dt = parse_datetime(get_event_start_iso(e))
             if start_dt:
-                # Compare dates only, not times, to correctly handle today's events
-                if start_dt.date() < today:
+                # Ensure we're comparing dates only, not times
+                event_date = start_dt.date()
+                print(f"DEBUG: Event '{e.get('summary', 'No title')}' on {event_date} (parsed from {get_event_start_iso(e)})")
+                
+                if event_date < today:
                     past_sessions.append(e)
-                else:
+                    print(f"DEBUG: -> Categorized as PAST")
+                elif event_date > today:
                     future_sessions.append(e)
+                    print(f"DEBUG: -> Categorized as FUTURE")
+                else:
+                    # Today's events - categorize based on time
+                    if start_dt.time() < now.time():
+                        past_sessions.append(e)
+                        print(f"DEBUG: -> Categorized as PAST (today, earlier time)")
+                    else:
+                        future_sessions.append(e)
+                        print(f"DEBUG: -> Categorized as FUTURE (today, later time)")
+        
+        print(f"DEBUG: {client_name} - Past sessions: {len(past_sessions)}, Future sessions: {len(future_sessions)}")
         
         # Sort past sessions in reverse to get the most recent one first
         past_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "", reverse=True)
@@ -308,6 +341,8 @@ def sync_client_data(service):
 
         last_session_date = get_event_start_iso(past_sessions[0]) if past_sessions else None
         next_session_date = get_event_start_iso(future_sessions[0]) if future_sessions else None
+        
+        print(f"DEBUG: {client_name} - Last session: {last_session_date}, Next session: {next_session_date}")
 
         # Update Supabase
         try:
@@ -318,6 +353,7 @@ def sync_client_data(service):
                 'updated_at': datetime.now().isoformat()
             }
             supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
+            print(f"DEBUG: Updated {client_name} in Supabase")
         except Exception as e:
             print(f"Error updating client {client_name} in Supabase: {e}")
 
@@ -351,7 +387,11 @@ def parse_datetime(datetime_str):
             return pytz.utc.localize(dt)
         
         # Handle datetime strings
-        dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        # Remove 'Z' and replace with '+00:00' for proper parsing
+        if datetime_str.endswith('Z'):
+            datetime_str = datetime_str[:-1] + '+00:00'
+        
+        dt = datetime.fromisoformat(datetime_str)
         # Ensure it's timezone-aware
         if dt.tzinfo is None:
             return pytz.utc.localize(dt)
