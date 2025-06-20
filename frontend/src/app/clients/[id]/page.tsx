@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Client, Session } from '../../../lib/types'
-import { getClient, updateClient, createSession, updateSession, deleteSession } from '../../../lib/data'
+import { Client, Session } from '@/lib/types'
+import { getClient, updateClient, createSession, updateSession, deleteSession } from '@/lib/data'
 
 export default function ClientDetail() {
   const params = useParams()
