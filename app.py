@@ -1,3 +1,6 @@
+import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_session import Session
 from google_auth_oauthlib.flow import Flow
@@ -5,7 +8,6 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from datetime import datetime, timedelta, timezone
 import json
-import os
 import secrets
 from config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, CALENDAR_ID
 from supabase import create_client, Client
@@ -19,23 +21,12 @@ Session(app)
 # Initialize cache
 cache = SimpleCache()
 
-# Allow OAuth to work with HTTP for local development
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Google OAuth configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 CLIENT_SECRETS_FILE = "client_secret_100442766788-a19uma1jtb4dda8ab5nkan3erqcena1g.apps.googleusercontent.com.json"
-
-def get_google_calendar_service():
-    """Get Google Calendar service if user is authenticated"""
-    if 'credentials' not in session:
-        return None
-    
-    credentials = Credentials(**session['credentials'])
-    return build('calendar', 'v3', credentials=credentials)
 
 def get_clients_from_supabase():
     """Get all clients from Supabase"""
@@ -52,18 +43,31 @@ def index():
     if 'credentials' not in session:
         return redirect(url_for('login'))
     
-    # Get calendar service
-    service = get_google_calendar_service()
-    if not service:
-        return redirect(url_for('login'))
-    
-    # Get client data from Supabase
     clients = get_clients_from_supabase()
+
+    def sort_key(client):
+        dt = parse_datetime(client.get('next_session'))
+        if dt is None:
+            return (0, client.get('name', '').lower())
+        return (1, dt)
+
+    clients.sort(key=sort_key)
+
+    total_sessions_sum = 0
+    sessions_this_month = 0
+    now = datetime.utcnow()
     
-    # Get client data with session information
-    clients_with_sessions, total_sessions_sum = get_clients_with_sessions(service, clients)
-    
-    return render_template('dashboard.html', clients=clients_with_sessions, total_sessions_sum=total_sessions_sum)
+    for client in clients:
+        client['needs_scheduling'] = not client.get('next_session')
+        total_sessions_sum += client.get('session_count') or 0
+        
+        last_session_str = client.get('last_session')
+        if last_session_str:
+            last_session_dt = parse_datetime(last_session_str)
+            if last_session_dt and last_session_dt.year == now.year and last_session_dt.month == now.month:
+                sessions_this_month += 1
+
+    return render_template('dashboard.html', clients=clients, total_sessions_sum=total_sessions_sum, sessions_this_month=sessions_this_month)
 
 @app.route('/login')
 def login():
@@ -71,7 +75,7 @@ def login():
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
-        redirect_uri='http://127.0.0.1:5001/callback'
+        redirect_uri=url_for('oauth2callback', _external=True)
     )
     
     authorization_url, state = flow.authorization_url(
@@ -98,16 +102,17 @@ def oauth2callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     credentials = flow.credentials
-    session['credentials'] = {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }
+    session['credentials'] = credentials_to_dict(credentials)
     
     return redirect(url_for('index'))
+
+def credentials_to_dict(credentials):
+    return {'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes}
 
 @app.route('/logout')
 def logout():
@@ -177,60 +182,93 @@ def api_delete_client(client_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def get_clients_with_sessions(service, clients):
-    """Adds last and next session, and total session count to each client."""
-    clients_with_sessions = []
-    total_sessions_sum = 0
+@app.route('/sync')
+def sync_sessions():
+    """
+    Manual trigger to sync Google Calendar events to Supabase.
+    """
+    if 'credentials' not in session:
+        return redirect(url_for('login'))
+
+    service = get_google_calendar_service()
+    if not service:
+        flash("Could not get Google Calendar service.", "error")
+        return redirect(url_for('index'))
+
+    try:
+        sync_client_data(service)
+        flash("Successfully synced with Google Calendar.", "success")
+    except Exception as e:
+        flash(f"An error occurred during sync: {e}", "error")
+
+    return redirect(url_for('index'))
+
+def sync_client_data(service):
+    """
+    Fetches events from Google Calendar and updates client records in Supabase
+    with the last session, next session, and total session count.
+    """
+    clients = get_clients_from_supabase()
+    user_email = 'adam@mocharymethod.com'
+
     for client in clients:
-        # Fetch all events for the client in the last 90 days
+        client_email = client.get('email')
+        if not client_email:
+            continue
+
         now = datetime.utcnow().isoformat() + 'Z'
-        ninety_days_ago = (datetime.utcnow() - timedelta(days=90)).isoformat() + 'Z'
-        user_email = 'adam@mocharymethod.com'
+        one_year_ago = (datetime.utcnow() - timedelta(days=365)).isoformat() + 'Z'
+        one_year_later = (datetime.utcnow() + timedelta(days=365)).isoformat() + 'Z'
+
         all_events = []
         page_token = None
         while True:
             events_result = service.events().list(
                 calendarId=CALENDAR_ID,
-                timeMin=ninety_days_ago,
-                timeMax=now,
+                timeMin=one_year_ago,
+                timeMax=one_year_later,
                 maxResults=250,
                 singleEvents=True,
                 orderBy='startTime',
-                pageToken=page_token
+                pageToken=page_token,
+                q=client_email  # Search for events with the client's email
             ).execute()
             events = events_result.get('items', [])
             all_events.extend(events)
             page_token = events_result.get('nextPageToken')
             if not page_token:
                 break
-        # Find all events with both emails
-        matching_events = []
-        for event in all_events:
-            attendees = set(a['email'] for a in event.get('attendees', []) if 'email' in a)
-            if user_email in attendees and client['email'] in attendees:
-                if 'matt@mocharymethod.com' in attendees:
-                    continue
-                start = event['start'].get('dateTime') or event['start'].get('date')
-                matching_events.append({
-                    'date': start,
-                    'summary': event.get('summary', '')
-                })
-        # Add last session, next session, and session count to client
-        client['last_session'] = None
-        if matching_events:
-            matching_events.sort(key=lambda e: e['date'], reverse=True)
-            client['last_session'] = matching_events[0]
-        client['next_session'] = get_next_session(service, client['email'])
-        client['needs_scheduling'] = not client['next_session']
-        client['session_count'] = len(matching_events)
-        total_sessions_sum += client['session_count']
-        clients_with_sessions.append(client)
-    # Sort: clients needing scheduling first (sorted by name), then by next session date
-    clients_with_sessions.sort(key=lambda x: (
-        not x['needs_scheduling'],
-        x['name'].lower() if x['needs_scheduling'] else (x['next_session']['date'] if x.get('next_session') and x['next_session'].get('date') else datetime.max.replace(tzinfo=timezone.utc))
-    ))
-    return clients_with_sessions, total_sessions_sum
+
+        # Filter events to ensure the client is an attendee
+        client_events = [
+            event for event in all_events
+            if any(att.get('email') == client_email for att in event.get('attendees', []))
+            and any(att.get('email') == user_email for att in event.get('attendees', []))
+        ]
+
+        past_sessions = [
+            e for e in client_events
+            if e['start'].get('dateTime') and e['start'].get('dateTime') < now
+        ]
+        future_sessions = [
+            e for e in client_events
+            if e['start'].get('dateTime') and e['start'].get('dateTime') >= now
+        ]
+
+        last_session_date = parse_datetime(past_sessions[-1]['start'].get('dateTime')) if past_sessions else None
+        next_session_date = parse_datetime(future_sessions[0]['start'].get('dateTime')) if future_sessions else None
+
+        update_data = {
+            'session_count': len(past_sessions),
+            'last_session': last_session_date.isoformat() if last_session_date else None,
+            'next_session': next_session_date.isoformat() if next_session_date else None,
+            'updated_at': datetime.utcnow().isoformat()
+        }
+
+        try:
+            supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
+        except Exception as e:
+            print(f"Error updating client {client['name']} in Supabase: {e}")
 
 @app.template_filter('format_date')
 def format_date(value):
@@ -249,98 +287,30 @@ def format_date(value):
     except Exception:
         return "Invalid date"
 
-def get_last_session(service, client_email):
-    """Get the last session for a client based on attendee emails."""
-    try:
-        now = datetime.utcnow().isoformat() + 'Z'
-        ninety_days_ago = (datetime.utcnow() - timedelta(days=90)).isoformat() + 'Z'
-        user_email = 'adam@mocharymethod.com'
-        all_events = []
-        page_token = None
-        while True:
-            events_result = service.events().list(
-                calendarId=CALENDAR_ID,
-                timeMin=ninety_days_ago,
-                timeMax=now,
-                maxResults=250,
-                singleEvents=True,
-                orderBy='startTime',
-                pageToken=page_token
-            ).execute()
-            events = events_result.get('items', [])
-            all_events.extend(events)
-            page_token = events_result.get('nextPageToken')
-            if not page_token:
-                break
-        # Find all events with both emails
-        matching_events = []
-        for event in all_events:
-            attendees = set(a['email'] for a in event.get('attendees', []) if 'email' in a)
-            if user_email in attendees and client_email in attendees:
-                # Exclude group meetings with matt
-                if 'matt@mocharymethod.com' in attendees:
-                    continue
-                # Get the start date string (datetime or date)
-                start = event['start'].get('dateTime') or event['start'].get('date')
-                matching_events.append({
-                    'date': start,
-                    'summary': event.get('summary', '')
-                })
-        if not matching_events:
-            return None
-        # Sort by date descending and return the most recent
-        matching_events.sort(key=lambda e: e['date'], reverse=True)
-        return matching_events[0]
-    except Exception as e:
-        print(f"[ERROR] get_last_session for {client_email}: {e}")
+def get_google_calendar_service():
+    """Get Google Calendar service if user is authenticated"""
+    if 'credentials' not in session:
         return None
+    
+    credentials = Credentials(**session['credentials'])
+    return build('calendar', 'v3', credentials=credentials)
 
-def get_next_session(service, client_email):
-    """Get the next session for a client based on attendee emails."""
-    try:
-        now = datetime.utcnow().isoformat() + 'Z'
-        three_months_from_now = (datetime.utcnow() + timedelta(days=90)).isoformat() + 'Z'
-        user_email = 'adam@mocharymethod.com'
-        all_events = []
-        page_token = None
-
-        while True:
-            events_result = service.events().list(
-                calendarId=CALENDAR_ID,
-                timeMin=now,
-                timeMax=three_months_from_now,
-                maxResults=250,
-                singleEvents=True,
-                orderBy='startTime',
-                pageToken=page_token
-            ).execute()
-
-            events = events_result.get('items', [])
-            all_events.extend(events)
-
-            page_token = events_result.get('nextPageToken')
-            if not page_token:
-                break
-        
-        for event in all_events:
-            attendees = event.get('attendees', [])
-            if not attendees:
-                continue
-            
-            attendee_emails = {a.get('email', '').lower() for a in attendees}
-            
-            if user_email in attendee_emails and client_email.lower() in attendee_emails:
-                if 'matt@mocharymethod.com' not in attendee_emails:
-                    start_str = event['start'].get('dateTime', event['start'].get('date'))
-                    return {
-                        'date': start_str,
-                        'summary': event.get('summary', 'No Title')
-                    }
-        
+def parse_datetime(dt_str):
+    """Parses a datetime string from Google Calendar API."""
+    if not dt_str:
         return None
-    except Exception as e:
-        print(f"Error in get_next_session for {client_email}: {e}")
+    try:
+        # Try parsing as datetime (with or without timezone)
+        if 'T' in dt_str:
+            # Handle Zulu time (UTC)
+            if dt_str.endswith('Z'):
+                dt_str = dt_str.replace('Z', '+00:00')
+            return datetime.fromisoformat(dt_str)
+        else:
+            # Parse as date only
+            return datetime.strptime(dt_str, '%Y-%m-%d')
+    except Exception:
         return None
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5002)

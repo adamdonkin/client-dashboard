@@ -24,6 +24,12 @@
                             <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                             <span>Connected to Google Calendar</span>
                         </div>
+                        <a href="/sync" class="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.186l-1.391.812a5.002 5.002 0 00-8.51-1.61L4 8V5a1 1 0 011-1h2a1 1 0 110 2H5.414l.293.293a1 1 0 11-1.414 1.414l-2-2A1 1 0 014 5.414V3a1 1 0 01-1-1zm14 3a1 1 0 01.707.293l2 2a1 1 0 01-1.414 1.414l-.293-.293H14a1 1 0 110-2h1.586l-1.293-1.293A1 1 0 0114 5zm-4 4a1 1 0 100 2h-1.586l1.293 1.293a1 1 0 11-1.414 1.414l-2-2a1 1 0 011.414-1.414l.293.293H10a1 1 0 100-2h.586l-1.293-1.293a1 1 0 011.414-1.414l2 2a1 1 0 010 1.414l-.293.293H10zm-1.899 4.714a7.002 7.002 0 01-11.899-2.186l1.391-.812a5.002 5.002 0 008.51 1.61L12 12v3a1 1 0 01-1 1h-2a1 1 0 110-2h1.586l-.293-.293a1 1 0 111.414-1.414l2 2a1 1 0 01-.707 1.707v-2.101z" clip-rule="evenodd" />
+                            </svg>
+                            <span>Sync</span>
+                        </a>
                         <a href="/clients" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             Manage Clients
                         </a>
@@ -38,6 +44,31 @@
         <!-- Main Content -->
         <main class="flex-grow">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-4 rounded-md {{ 'bg-green-50' if category == 'success' else 'bg-red-50' }} p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        {% if category == 'success' %}
+                                            <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                            </svg>
+                                        {% else %}
+                                             <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                            </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium {{ 'text-green-800' if category == 'success' else 'text-red-800' }}">{{ message }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
 
                 <!-- Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -70,7 +101,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-slate-500 truncate">Sessions This Month</p>
-                                <p class="text-2xl font-semibold text-slate-900">0</p>
+                                <p class="text-2xl font-semibold text-slate-900">{{ sessions_this_month }}</p>
                             </div>
                         </div>
                     </div>
@@ -123,22 +154,20 @@
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
                                         {% if client.last_session %}
-                                            <div>{{ client.last_session.date | format_date }}</div>
-                                            <div class="text-xs text-slate-400">{{ client.last_session.summary }}</div>
+                                            <div>{{ client.last_session | format_date }}</div>
                                         {% else %}
                                             <span class="text-slate-400">None</span>
                                         {% endif %}
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
                                         {% if client.next_session %}
-                                            <div>{{ client.next_session.date | format_date }}</div>
-                                            <div class="text-xs text-slate-400">{{ client.next_session.summary }}</div>
+                                            <div>{{ client.next_session | format_date }}</div>
                                         {% else %}
                                             <span class="text-slate-400">None</span>
                                         {% endif %}
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {{ client.total_sessions }}
+                                        {{ client.session_count }}
                                     </td>
                                 </tr>
                                 {% endfor %}
