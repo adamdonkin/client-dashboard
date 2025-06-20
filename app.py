@@ -247,99 +247,81 @@ def api_delete_client(client_id):
 
 @app.route('/sync')
 def sync_sessions():
-    """
-    Manual trigger to sync Google Calendar events to Supabase.
-    """
+    """Syncs all clients with Google Calendar"""
     if 'credentials' not in session:
+        flash('Authentication required.', 'error')
         return redirect(url_for('login'))
-
-    service = get_google_calendar_service()
-    if not service:
-        flash("Could not get Google Calendar service.", "error")
-        return redirect(url_for('index'))
-
+    
     try:
-        sync_client_data(service)
-        flash("Successfully synced with Google Calendar.", "success")
+        service = get_google_calendar_service()
+        message = sync_client_data(service)
+        flash(message, 'success')
     except Exception as e:
-        flash(f"An error occurred during sync: {e}", "error")
-
+        flash(f'An error occurred during sync: {e}', 'error')
+        
     return redirect(url_for('index'))
 
 def sync_client_data(service):
-    """
-    Fetches events from Google Calendar and updates client records in Supabase
-    with the last session, next session, and total session count.
-    """
-    clients = get_clients_from_supabase()
-    user_email = 'adam@mocharymethod.com'
+    """Fetches Google Calendar data and updates Supabase for all clients."""
+    all_clients = get_clients_from_supabase()
 
-    for client in clients:
-        client_email = client.get('email')
-        if not client_email:
+    for client in all_clients:
+        client_name = client.get("name")
+        if not client_name:
             continue
 
-        now = datetime.now(pytz.utc).isoformat()
-        one_year_ago = (datetime.now(pytz.utc) - timedelta(days=365)).isoformat()
-        one_year_later = (datetime.now(pytz.utc) + timedelta(days=365)).isoformat()
+        time_min = (datetime.now() - timedelta(days=365)).isoformat() + 'Z'
+        time_max = (datetime.now() + timedelta(days=365)).isoformat() + 'Z'
 
-        all_events = []
-        page_token = None
-        while True:
+        try:
             events_result = service.events().list(
                 calendarId=CALENDAR_ID,
-                timeMin=one_year_ago,
-                timeMax=one_year_later,
-                maxResults=250,
+                q=client_name,
+                timeMin=time_min,
+                timeMax=time_max,
                 singleEvents=True,
-                orderBy='startTime',
-                pageToken=page_token,
-                q=client_email  # Search for events with the client's email
+                orderBy='startTime'
             ).execute()
-            events = events_result.get('items', [])
-            all_events.extend(events)
-            page_token = events_result.get('nextPageToken')
-            if not page_token:
-                break
+        except Exception as e:
+            print(f"Error fetching calendar events for {client_name}: {e}")
+            continue
 
-        # Filter events to ensure the client is an attendee
-        client_events = [
-            event for event in all_events
-            if any(att.get('email') == client_email for att in event.get('attendees', []))
-            and any(att.get('email') == user_email for att in event.get('attendees', []))
-        ]
+        client_events = events_result.get('items', [])
+        
+        today = datetime.now(pytz.utc).date()
+        past_sessions = []
+        future_sessions = []
 
-        # Filter events that have a start date/datetime
-        valid_events = [e for e in client_events if get_event_start_iso(e)]
-
-        # Separate past and future sessions
-        past_sessions = [
-            e for e in valid_events
-            if get_event_start_iso(e) < now
-        ]
-        future_sessions = [
-            e for e in valid_events
-            if get_event_start_iso(e) >= now
-        ]
+        for e in client_events:
+            start_iso = get_event_start_iso(e)
+            event_dt = parse_datetime(start_iso)
+            if event_dt:
+                event_date = event_dt.date()
+                if event_date < today:
+                    past_sessions.append(e)
+                else:
+                    future_sessions.append(e)
         
         # Sort sessions by date
-        past_sessions.sort(key=get_event_start_iso)
-        future_sessions.sort(key=get_event_start_iso)
+        past_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
+        future_sessions.sort(key=lambda ev: get_event_start_iso(ev) or "")
 
-        last_session_iso = get_event_start_iso(past_sessions[-1] if past_sessions else None)
-        next_session_iso = get_event_start_iso(future_sessions[0] if future_sessions else None)
-        
-        last_session_date = parse_datetime(last_session_iso) if last_session_iso else None
-        next_session_date = parse_datetime(next_session_iso) if next_session_iso else None
+        last_session_date = parse_datetime(get_event_start_iso(past_sessions[-1])) if past_sessions else None
+        next_session_date = parse_datetime(get_event_start_iso(future_sessions[0])) if future_sessions else None
 
         update_data = {
             'last_session': last_session_date.isoformat() if last_session_date else None,
             'next_session': next_session_date.isoformat() if next_session_date else None,
-            'total_sessions': len(valid_events)
+            'session_count': len(past_sessions),
+            'updated_at': datetime.now().isoformat()
         }
 
-        # Update the record in Supabase
-        supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
+        try:
+            supabase.table(SUPABASE_TABLE).update(update_data).eq('id', client['id']).execute()
+        except Exception as e:
+            print(f"Error updating client {client_name} in Supabase: {e}")
+
+    return "Sync complete."
 
 @app.template_filter('format_date')
 def format_date(value):
@@ -354,15 +336,14 @@ def format_date(value):
         return "Invalid date"
 
 def get_google_calendar_service():
-    """Get Google Calendar service if user is authenticated"""
-    if 'credentials' not in session:
-        return None
-    
+    """Returns an authorized Google Calendar service instance."""
     credentials = Credentials(**session['credentials'])
     return build('calendar', 'v3', credentials=credentials)
 
 def parse_datetime(datetime_str):
     """Parses a datetime string from Google Calendar API into a datetime object."""
+    if not datetime_str:
+        return None
     try:
         # Handles both date ('YYYY-MM-DD') and datetime strings
         return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
