@@ -12,7 +12,7 @@ export default async function Home() {
     upcomingData,
     dashboardStatsData
   ] = await Promise.all([
-    supabase.rpc('get_clients_needing_scheduling', { p_user_id: userId }),
+    supabase.rpc('get_clients_needs_scheduling', { p_user_id: userId }),
     supabase.rpc('get_clients_this_week', { p_user_id: userId }),
     supabase.rpc('get_clients_upcoming', { p_user_id: userId }),
     supabase.rpc('get_scheduling_dashboard', { p_user_id: userId })
