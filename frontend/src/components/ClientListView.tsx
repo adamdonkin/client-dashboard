@@ -1,6 +1,10 @@
 // in src/components/ClientListView.tsx
-import { Client } from "@/types";
-import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Calendar, Mail, MessageSquare } from "lucide-react";
+import { Client } from "./types";
+import { formatRelativeDate, formatLastSessionDate } from "../utils/date-utils";
 
 // Helper function to get initials from a name
 const getInitials = (name?: string | null) => {
@@ -44,68 +48,102 @@ const getSlackUsername = (slackUrl: string, clientName: string) => {
 };
 
 interface ClientListViewProps {
-  title: string;
   clients: Client[];
-  badgeColor: string;
-  onClientSelect: (client: Client) => void;
+  title: string;
+  badgeColor?: string;
+  onClientSelect?: (client: Client) => void;
 }
 
-export function ClientListView({ title, clients, badgeColor, onClientSelect }: ClientListViewProps) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badgeColor}`}>
-          {clients.length}
-        </span>
+export function ClientListView({ clients, title, badgeColor, onClientSelect }: ClientListViewProps) {
+  if (clients.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h2>{title}</h2>
+          <Badge variant="secondary" className={badgeColor}>
+            0
+          </Badge>
+        </div>
+        <p className="text-muted-foreground text-center py-8">
+          No clients in this category
+        </p>
       </div>
-      <div className="border rounded-lg overflow-hidden bg-white">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slack</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Session</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Session</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <h2>{title}</h2>
+        <Badge variant="secondary" className={badgeColor}>
+          {clients.length}
+        </Badge>
+      </div>
+      
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Client</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Slack</TableHead>
+              <TableHead>Last Session</TableHead>
+              <TableHead>Next Session</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {clients.map((client) => (
-              <tr key={client.client_id} onClick={() => onClientSelect(client)} className="hover:bg-gray-50 cursor-pointer">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600">
-                        {getInitials(client.client_name)}
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{client.client_name}</div>
-                    </div>
+              <TableRow 
+                key={client.id}
+                className={onClientSelect ? "cursor-pointer hover:bg-muted/50" : ""}
+                onClick={() => onClientSelect?.(client)}
+              >
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        {getInitials(client.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="font-medium">{client.name}</div>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.client_email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Mail className="h-3 w-3 mr-2" />
+                    {client.email}
+                  </div>
+                </TableCell>
+                <TableCell>
                   {client.slack ? (
-                    <a 
-                      href={client.slack}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      @{getSlackUsername(client.slack, client.client_name)}
-                    </a>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MessageSquare className="h-3 w-3 mr-2" />
+                      {client.slack}
+                    </div>
                   ) : (
-                    'N/A'
+                    <span className="text-sm text-muted-foreground">-</span>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatLastSession(client.last_session_date)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatNextSession(client.next_session_date)}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {client.lastSession
+                    ? formatLastSessionDate(client.lastSession)
+                    : 'None'
+                  }
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    {client.nextSession ? (
+                      <span>{formatRelativeDate(client.nextSession)}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not scheduled</span>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

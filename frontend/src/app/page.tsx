@@ -4,6 +4,18 @@ import { CoachingDashboard } from "@/components/CoachingDashboard"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 import { redirect } from 'next/navigation'
 
+// Transform your database data to match ClientListView props
+const transformClientData = (dbClients: any[]) => {
+  return dbClients.map(client => ({
+    id: client.client_id,
+    name: client.client_name,
+    email: client.client_email,
+    slack: client.slack,
+    lastSession: client.last_session_date,
+    nextSession: client.next_session_date
+  }))
+}
+
 export default async function Home() {
   const cookieStore = await cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
@@ -41,9 +53,9 @@ export default async function Home() {
     <ProtectedRoute>
       <main>
         <CoachingDashboard
-          needsScheduling={needsSchedulingData.data || []}
-          thisWeek={thisWeekData.data || []}
-          future={futureData.data || []}
+          needsScheduling={transformClientData(needsSchedulingData.data || [])}
+          thisWeek={transformClientData(thisWeekData.data || [])}
+          future={transformClientData(futureData.data || [])}
           totalClients={totalClients}
         />
       </main>

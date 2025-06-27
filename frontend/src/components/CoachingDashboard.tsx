@@ -4,9 +4,16 @@ import { useState } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
 import { ClientDetail } from "./ClientDetail";
-import { Users, RefreshCw, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from '@/components/auth/AuthProvider'
+import { Users, RefreshCw, Calendar, Mail, MessageSquare } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // Define the shape of the data this component will receive
 interface CoachingDashboardProps {
@@ -143,71 +150,81 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
     setSelectedClient(null);
   };
 
+  const getUserInitials = (email: string) => {
+    return email.split('@')[0].split('.').map(n => n[0]).join('').toUpperCase()
+  }
+
   // Show client detail view if a client is selected
   if (selectedClient) {
     return <ClientDetail client={selectedClient} onBack={handleBackToDashboard} />;
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header with title, user info, and actions */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Coaching Dashboard</h1>
-            <p className="text-gray-600">Manage your client sessions and schedules</p>
-          </div>
-          <div className="flex items-start gap-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-              <Users className="h-4 w-4" />
-              {totalClients} Total Clients
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                <ManualSyncButton />
-                <Button
-                  onClick={signOut}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </div>
-              {user?.email && (
-                <div className="text-xs text-gray-500 text-right">
-                  {user.email}
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="p-6">
+      {/* Updated Header with clickable avatar */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Coaching Dashboard</h1>
+          <p className="text-gray-600">Manage your client sessions and schedules</p>
         </div>
-
-        {/* Client Lists */}
-        <div className="space-y-6">
-          <ClientListView 
-            title="Needs Scheduling" 
-            clients={needsScheduling}
-            badgeColor="bg-red-100 text-red-800"
-            onClientSelect={handleClientSelect}
-          />
-         
-          <ClientListView 
-            title="Coming up this week" 
-            clients={thisWeek}
-            badgeColor="bg-blue-100 text-blue-800"
-            onClientSelect={handleClientSelect}
-          />
-         
-          <ClientListView 
-            title="Future"
-            clients={future}
-            badgeColor="bg-green-100 text-green-800"
-            onClientSelect={handleClientSelect}
-          />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Users className="h-4 w-4" />
+            {totalClients} Total Clients
+          </div>
+          <div className="flex items-center gap-2">
+            <ManualSyncButton />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-gray-900 text-white text-sm">
+                      {user?.email ? getUserInitials(user.email) : 'JD'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex flex-col space-y-1 p-2">
+                  <p className="text-sm font-medium leading-none">
+                    {user?.email?.split('@')[0] || 'John Doe'}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email || 'john.doe@coaching.com'}
+                  </p>
+                </div>
+                <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                  Sign out of Google
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
+
+      {/* Use the provided ClientListView component for each section */}
+      <div className="space-y-8">
+        <ClientListView
+          clients={needsScheduling}
+          title="Needs Scheduling"
+          badgeColor="bg-red-100 text-red-800"
+          onClientSelect={handleClientSelect}
+        />
+        
+        <ClientListView
+          clients={thisWeek}
+          title="Coming up this week"
+          badgeColor="bg-blue-100 text-blue-800"
+          onClientSelect={handleClientSelect}
+        />
+        
+        <ClientListView
+          clients={future}
+          title="Upcoming"
+          badgeColor="bg-green-100 text-green-800"
+          onClientSelect={handleClientSelect}
+        />
+      </div>
     </div>
-  );
+  )
 }
