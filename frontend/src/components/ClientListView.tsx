@@ -28,6 +28,21 @@ const formatLastSession = (dateString?: string) => {
     return format(date, "MMM d, yyyy");
 }
 
+// Add this helper function at the top of your component file
+const getSlackUsername = (slackUrl: string, clientName: string) => {
+  if (!slackUrl) return null;
+  // Extract the channel ID from the URL (last part after /archives/)
+  const channelId = slackUrl.split('/archives/')[1];
+  if (channelId) {
+    // Use first name + last initial for display
+    const nameParts = clientName.split(' ');
+    const firstName = nameParts[0];
+    const lastInitial = nameParts[1] ? nameParts[1][0] : '';
+    return `${firstName}${lastInitial ? ' ' + lastInitial : ''}`;
+  }
+  return clientName.split(' ')[0]; // Fallback to first name
+};
+
 interface ClientListViewProps {
   title: string;
   clients: Client[];
@@ -71,7 +86,20 @@ export function ClientListView({ title, clients, badgeColor, onClientSelect }: C
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.client_email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.slack || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {client.slack ? (
+                    <a 
+                      href={client.slack}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      @{getSlackUsername(client.slack, client.client_name)}
+                    </a>
+                  ) : (
+                    'N/A'
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatLastSession(client.last_session_date)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatNextSession(client.next_session_date)}</td>
               </tr>
