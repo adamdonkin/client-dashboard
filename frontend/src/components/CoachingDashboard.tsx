@@ -10,11 +10,11 @@ import { Users } from "lucide-react";
 interface CoachingDashboardProps {
   needsScheduling: Client[];
   thisWeek: Client[];
-  upcoming: Client[];
+  future: Client[];
   totalClients: number;
 }
 
-export function CoachingDashboard({ needsScheduling, thisWeek, upcoming, totalClients }: CoachingDashboardProps) {
+export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients }: CoachingDashboardProps) {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const handleClientSelect = (client: Client) => {
@@ -64,8 +64,8 @@ export function CoachingDashboard({ needsScheduling, thisWeek, upcoming, totalCl
           />
          
           <ClientListView 
-            title="Upcoming" 
-            clients={upcoming}
+            title="Future"
+            clients={future}
             badgeColor="bg-green-100 text-green-800"
             onClientSelect={handleClientSelect}
           />
