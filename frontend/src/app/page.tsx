@@ -2,9 +2,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { CoachingDashboard } from "@/components/CoachingDashboard";
 
 export default async function Home() {
-  // This is the hardcoded user_id for testing from your documentation 
-  const userId = '4587519f-dd12-4e18-be42-25854f6dfbe3';
-
   // We will fetch all data in parallel for speed
   const [
     needsSchedulingData,
@@ -12,10 +9,10 @@ export default async function Home() {
     futureData,
     dashboardStatsData
   ] = await Promise.all([
-    supabase.rpc('get_clients_needs_scheduling', { p_user_id: userId }),
-    supabase.rpc('get_clients_this_week', { p_user_id: userId }),
-    supabase.rpc('get_clients_future', { p_user_id: userId }),
-    supabase.rpc('get_scheduling_dashboard', { p_user_id: userId })
+    supabase.rpc('get_clients_needs_scheduling'),
+    supabase.rpc('get_clients_this_week'),
+    supabase.rpc('get_clients_future'),
+    supabase.rpc('get_scheduling_dashboard')
   ]);
 
   // --- Add these lines for debugging ---
