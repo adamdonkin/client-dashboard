@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
 import { ClientDetail } from "./ClientDetail";
-import { Users, RefreshCw } from "lucide-react";
+import { Users, RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/components/auth/AuthProvider'
 
@@ -151,25 +151,35 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header with title, sync button, and sign out */}
+        {/* Header with title, user info, and actions */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Coaching Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Coaching Dashboard</h1>
             <p className="text-gray-600">Manage your client sessions and schedules</p>
           </div>
           <div className="flex items-start gap-6">
             <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-              <Users className="h-5 w-5" />
+              <Users className="h-4 w-4" />
               {totalClients} Total Clients
             </div>
             <div className="flex flex-col items-end gap-2">
-              <ManualSyncButton />
-              <button
-                onClick={signOut}
-                className="text-xs text-gray-500 hover:text-gray-700"
-              >
-                Sign out ({user?.email})
-              </button>
+              <div className="flex items-center gap-2">
+                <ManualSyncButton />
+                <Button
+                  onClick={signOut}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </div>
+              {user?.email && (
+                <div className="text-xs text-gray-500 text-right">
+                  {user.email}
+                </div>
+              )}
             </div>
           </div>
         </div>
