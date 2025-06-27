@@ -1,3 +1,4 @@
+DROP FUNCTION IF EXISTS get_clients_needs_scheduling(UUID);
 -- Fix get_clients_needs_scheduling to only show active clients
 CREATE OR REPLACE FUNCTION get_clients_needs_scheduling(p_user_id UUID)
 RETURNS TABLE(
