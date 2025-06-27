@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS get_clients_upcoming(UUID);
+
 -- Update get_clients_upcoming function to include sessions after current week ends
 CREATE OR REPLACE FUNCTION get_clients_upcoming(p_user_id UUID)
 RETURNS TABLE (
