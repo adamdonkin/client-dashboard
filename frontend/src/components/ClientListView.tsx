@@ -1,7 +1,7 @@
 // in src/components/ClientListView.tsx
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Mail, MessageSquare } from "lucide-react";
 import { Client } from "./types";
 import { formatRelativeDate, formatLastSessionDate } from "../utils/date-utils";
@@ -45,6 +45,12 @@ const getSlackUsername = (slackUrl: string, clientName: string) => {
     return `${firstName}${lastInitial ? ' ' + lastInitial : ''}`;
   }
   return clientName.split(' ')[0]; // Fallback to first name
+};
+
+const getAvatarUrl = (email: string) => {
+  // You could use Gravatar or other avatar services
+  // For now, we'll stick with initials, but this is where you'd add avatar URLs
+  return null; // Return null to use initials fallback
 };
 
 interface ClientListViewProps {
@@ -101,6 +107,7 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                 <TableCell>
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
+                      <AvatarImage src={getAvatarUrl(client.email)} alt={client.name} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                         {getInitials(client.name)}
                       </AvatarFallback>

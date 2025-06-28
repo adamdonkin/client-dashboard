@@ -7,7 +7,7 @@ import { ClientDetail } from "./ClientDetail";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, RefreshCw, Calendar, Mail, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -156,7 +156,16 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
 
   // Show client detail view if a client is selected
   if (selectedClient) {
-    return <ClientDetail client={selectedClient} onBack={handleBackToDashboard} />;
+    return (
+      <ClientDetail 
+        client={selectedClient} 
+        onBack={handleBackToDashboard}
+        onClientUpdate={(updated) => {
+          setSelectedClient(updated);
+          // Optionally refresh the main data
+        }}
+      />
+    );
   }
 
   return (
@@ -178,6 +187,10 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
                   <Avatar className="h-8 w-8">
+                    <AvatarImage 
+                      src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} 
+                      alt={user?.user_metadata?.full_name || user?.email || 'User avatar'} 
+                    />
                     <AvatarFallback className="bg-gray-900 text-white text-sm">
                       {user?.email ? getUserInitials(user.email) : 'JD'}
                     </AvatarFallback>
@@ -187,7 +200,7 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <div className="flex flex-col space-y-1 p-2">
                   <p className="text-sm font-medium leading-none">
-                    {user?.email?.split('@')[0] || 'John Doe'}
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'John Doe'}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email || 'john.doe@coaching.com'}
