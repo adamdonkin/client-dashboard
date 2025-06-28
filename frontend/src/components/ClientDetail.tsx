@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,16 @@ import {
 import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Session {
-  id: string;
-  date: Date;
-  type: string;
-  duration: number;
-  status: 'completed' | 'cancelled' | 'no-show';
-  notes?: string;
+  session_id: string;
+  session_date: string;
+  session_notes: string;
+  session_status: string;
+  session_type: string;
+  session_duration?: number;
+  calendar_title?: string;
 }
 
 interface ClientDetailProps {
@@ -42,6 +44,8 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
   const [currentClient, setCurrentClient] = useState(client);
   const [notes, setNotes] = useState("Client is making good progress on career transition goals. Discussed new networking strategies and identified potential opportunities in tech sector.");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -68,54 +72,71 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
     });
   };
 
+  const formatDateWithTime = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const handleClientUpdate = (updatedClient: Client) => {
     setCurrentClient(updatedClient);
     onClientUpdate?.(updatedClient);
   };
 
-  // Mock session history
-  const sessionHistory: Session[] = [
-    {
-      id: '1',
-      date: new Date('2025-06-11'),
-      type: 'Regular Session',
-      duration: 60,
-      status: 'completed',
-      notes: 'Discussed career goals and next steps. Client feeling more confident about upcoming interviews.'
-    },
-    {
-      id: '2', 
-      date: new Date('2025-06-09'),
-      type: 'Goal Setting',
-      duration: 90,
-      status: 'completed',
-      notes: 'Set quarterly objectives and created action plan for professional development.'
-    },
-    {
-      id: '3',
-      date: new Date('2025-06-02'),
-      type: 'Regular Session', 
-      duration: 60,
-      status: 'completed',
-      notes: 'Worked on communication skills and presentation techniques.'
-    },
-    {
-      id: '4',
-      date: new Date('2025-05-26'),
-      type: 'Check-in',
-      duration: 30,
-      status: 'cancelled',
-      notes: 'Client had to reschedule due to work conflict.'
-    }
-  ];
+  // Fetch real session history from database
+  useEffect(() => {
+    const fetchSessionHistory = async () => {
+      try {
+        setLoading(true);
+        
+        // Call the get_sessions_by_client_id function
+        const { data, error } = await supabase
+          .rpc('get_sessions_by_client_id', { p_client_id: client.id });
+
+        if (error) {
+          console.error("Error fetching session history:", error);
+          // Fall back to mock data if there's an error
+          setSessionHistory([]);
+        } else {
+          // Sort sessions by date, most recent first (reverse chronological)
+          const sortedSessions = (data || []).sort((a: Session, b: Session) => {
+            return new Date(b.session_date).getTime() - new Date(a.session_date).getTime();
+          });
+          setSessionHistory(sortedSessions);
+        }
+      } catch (error) {
+        console.error("Error fetching session history:", error);
+        setSessionHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSessionHistory();
+  }, [client.id]);
 
   const getSessionIcon = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'cancelled': return <XCircle className="h-4 w-4 text-red-600" />;
       case 'no-show': return <Clock className="h-4 w-4 text-yellow-600" />;
-      default: return <Clock className="h-4 w-4 text-gray-600" />;
+      default: return <CheckCircle className="h-4 w-4 text-green-600" />; // Default to completed
     }
+  };
+
+  const formatSessionDuration = (duration?: number) => {
+    if (!duration) return '60 min'; // Default to 60 minutes
+    return `${duration} min`;
+  };
+
+  const getSessionTitle = (session: Session) => {
+    // Use calendar title if available, otherwise fall back to session type
+    return session.calendar_title || session.session_type || 'Coaching Session';
   };
 
   return (
@@ -199,24 +220,24 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
               <h3 className="font-medium mb-3">Session Schedule</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Next Session</p>
-                    <p className="font-medium">
-                      {currentClient.nextSession ? formatDate(currentClient.nextSession) : 'Not scheduled'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Last Session</p>
                     <p className="font-medium">
                       {currentClient.lastSession 
                         ? (typeof currentClient.lastSession === 'string' 
-                           ? formatLastSessionDate(currentClient.lastSession)
-                           : formatLastSessionDate(currentClient.lastSession.toISOString()))
+                           ? formatDateWithTime(currentClient.lastSession)
+                           : formatDateWithTime(currentClient.lastSession.toISOString()))
                         : 'None'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Next Session</p>
+                    <p className="font-medium">
+                      {currentClient.nextSession ? formatDate(currentClient.nextSession) : 'Not scheduled'}
                     </p>
                   </div>
                 </div>
@@ -246,36 +267,51 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
         {/* Session History */}
         <Card>
           <CardHeader>
-            <CardTitle>Session History</CardTitle>
+            <CardTitle>
+              Session History 
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({loading ? '...' : sessionHistory.length} session{sessionHistory.length !== 1 ? 's' : ''})
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {sessionHistory.map((session, index) => (
-                <div key={session.id}>
-                  <div className="flex items-start gap-4">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
-                      {getSessionIcon(session.status)}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{session.type}</p>
-                          <Badge variant="outline" className="text-xs">
-                            {session.duration} min
-                          </Badge>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading session history...
+              </div>
+            ) : sessionHistory.length > 0 ? (
+              <div className="space-y-4">
+                {sessionHistory.map((session, index) => (
+                  <div key={session.session_id}>
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
+                        {getSessionIcon(session.session_status)}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{getSessionTitle(session)}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {formatSessionDuration(session.session_duration)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatLastSessionDate(session.session_date)}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {formatLastSessionDate(session.date.toISOString())}
-                        </p>
                       </div>
                     </div>
+                    {index < sessionHistory.length - 1 && (
+                      <Separator className="my-4" />
+                    )}
                   </div>
-                  {index < sessionHistory.length - 1 && (
-                    <Separator className="my-4" />
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No session history found for this client.
+              </div>
+            )}
           </CardContent>
         </Card>
 
