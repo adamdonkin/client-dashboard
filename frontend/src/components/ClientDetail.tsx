@@ -94,15 +94,25 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
       try {
         setLoading(true);
         
+        console.log('Fetching sessions for client ID:', client.id);
+        
         // Call the get_sessions_by_client_id function
         const { data, error } = await supabase
           .rpc('get_sessions_by_client_id', { p_client_id: client.id });
 
+        console.log('Supabase response:', { data, error });
+
         if (error) {
           console.error("Error fetching session history:", error);
+          console.error("Error details:", { code: error.code, message: error.message, details: error.details });
           // Fall back to mock data if there's an error
           setSessionHistory([]);
         } else {
+          console.log('Session data received:', data);
+          if (data && data.length > 0) {
+            console.log('First session:', data[0]);
+            console.log('Calendar title for first session:', data[0].calendar_title);
+          }
           // Sort sessions by date, most recent first (reverse chronological)
           const sortedSessions = (data || []).sort((a: Session, b: Session) => {
             return new Date(b.session_date).getTime() - new Date(a.session_date).getTime();
@@ -129,14 +139,17 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
     }
   };
 
+  const getSessionTitle = (session: Session) => {
+    // Use calendar title if available and not empty, otherwise fall back to session type
+    if (session.calendar_title && session.calendar_title.trim() !== '' && session.calendar_title !== 'Coaching Session') {
+      return session.calendar_title;
+    }
+    return session.session_type || 'Coaching Session';
+  };
+
   const formatSessionDuration = (duration?: number) => {
     if (!duration) return '60 min'; // Default to 60 minutes
     return `${duration} min`;
-  };
-
-  const getSessionTitle = (session: Session) => {
-    // Use calendar title if available, otherwise fall back to session type
-    return session.calendar_title || session.session_type || 'Coaching Session';
   };
 
   return (
