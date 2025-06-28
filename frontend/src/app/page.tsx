@@ -19,7 +19,7 @@ const transformClientData = (dbClients: any[]) => {
 export default async function Home() {
   const cookieStore = await cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
-  
+
   // Check if user is authenticated
   const { data: { session } } = await supabase.auth.getSession()
   
@@ -28,26 +28,50 @@ export default async function Home() {
     return <ProtectedRoute><div /></ProtectedRoute>
   }
 
-  // Fetch data using the new auth-enabled functions (no user_id parameter needed)
+  // Fetch all data using the auth-enabled functions
   const [
     needsSchedulingData,
     thisWeekData,
     futureData,
-    dashboardStatsData
+    dashboardStatsData,
+    // Add the stats function calls
+    sessionsThisWeek,
+    avgSessionsPerWeek,
+    avgSessionsPerMonth,
+    rescheduleRate
   ] = await Promise.all([
     supabase.rpc('get_clients_needs_scheduling'),
     supabase.rpc('get_clients_this_week'),
     supabase.rpc('get_clients_future'),
-    supabase.rpc('get_scheduling_dashboard')
+    supabase.rpc('get_scheduling_dashboard'),
+    // Stats function calls
+    supabase.rpc('get_sessions_this_week'),
+    supabase.rpc('get_avg_sessions_per_week'),
+    supabase.rpc('get_avg_sessions_per_month'),
+    supabase.rpc('get_reschedule_cancel_rate')
   ])
 
   // Check for errors
   if (needsSchedulingData.error) console.error('Error fetching needs scheduling:', needsSchedulingData.error)
   if (thisWeekData.error) console.error('Error fetching this week:', thisWeekData.error)
   if (futureData.error) console.error('Error fetching future:', futureData.error)
-  if (dashboardStatsData.error) console.error('Error fetching stats:', dashboardStatsData.error)
+  if (dashboardStatsData.error) console.error('Error fetching dashboard stats:', dashboardStatsData.error)
+  
+  // Log stats errors if any
+  if (sessionsThisWeek.error) console.error('Error fetching sessions this week:', sessionsThisWeek.error)
+  if (avgSessionsPerWeek.error) console.error('Error fetching avg sessions per week:', avgSessionsPerWeek.error)
+  if (avgSessionsPerMonth.error) console.error('Error fetching avg sessions per month:', avgSessionsPerMonth.error)
+  if (rescheduleRate.error) console.error('Error fetching reschedule rate:', rescheduleRate.error)
 
   const totalClients = dashboardStatsData.data?.[0]?.total_clients || 0
+
+  // Create stats object to pass to dashboard
+  const statsData = {
+    sessionsThisWeek: sessionsThisWeek.data || 0,
+    avgSessionsPerWeek: avgSessionsPerWeek.data || 0,
+    avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
+    rescheduleRate: rescheduleRate.data || 0
+  }
 
   return (
     <ProtectedRoute>
@@ -57,6 +81,7 @@ export default async function Home() {
           thisWeek={transformClientData(thisWeekData.data || [])}
           future={transformClientData(futureData.data || [])}
           totalClients={totalClients}
+          statsData={statsData}
         />
       </main>
     </ProtectedRoute>

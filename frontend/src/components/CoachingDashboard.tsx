@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
 import { ClientDetail } from "./ClientDetail";
+import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, RefreshCw, Calendar, Mail, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,12 @@ interface CoachingDashboardProps {
   thisWeek: Client[];
   future: Client[];
   totalClients: number;
+  statsData: {
+    sessionsThisWeek: number;
+    avgSessionsPerWeek: number;
+    avgSessionsPerMonth: number;
+    rescheduleRate: number;
+  };
 }
 
 // Add this interface for the sync response
@@ -138,7 +145,7 @@ function ManualSyncButton() {
   )
 }
 
-export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients }: CoachingDashboardProps) {
+export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData }: CoachingDashboardProps) {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { user, signOut } = useAuth();
 
@@ -213,6 +220,11 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
             </DropdownMenu>
           </div>
         </div>
+      </div>
+
+      {/* Stats Section */}
+      <div className="mb-8">
+        <StatsSection statsData={statsData} />
       </div>
 
       {/* Use the provided ClientListView component for each section */}
