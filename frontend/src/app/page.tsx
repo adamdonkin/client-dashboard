@@ -6,14 +6,30 @@ import { redirect } from 'next/navigation'
 
 // Transform your database data to match ClientListView props
 const transformClientData = (dbClients: any[]) => {
-  return dbClients.map(client => ({
-    id: client.client_id,
-    name: client.client_name,
-    email: client.client_email,
-    slack: client.slack,
-    lastSession: client.last_session_date,
-    nextSession: client.next_session_date
-  }))
+  console.log('=== TRANSFORM DEBUG ===');
+  console.log('Input dbClients:', dbClients);
+  
+  const transformed = dbClients.map(client => {
+    const transformedClient = {
+      id: client.client_id,
+      client_name: client.client_name,
+      client_email: client.client_email,
+      slack: client.slack,
+      last_session_date: client.last_session_date,
+      next_session_date: client.next_session_date,
+      granola_notes_folder: client.granola_notes_folder,
+      company_name: client.company_name,
+      is_active: client.is_active,
+      status: client.status
+    };
+    console.log('Transformed client:', transformedClient);
+    return transformedClient;
+  });
+  
+  console.log('Final transformed array:', transformed);
+  console.log('=== END TRANSFORM DEBUG ===');
+  
+  return transformed;
 }
 
 export default async function Home() {
@@ -62,6 +78,17 @@ export default async function Home() {
   if (avgSessionsPerWeek.error) console.error('Error fetching avg sessions per week:', avgSessionsPerWeek.error)
   if (avgSessionsPerMonth.error) console.error('Error fetching avg sessions per month:', avgSessionsPerMonth.error)
   if (rescheduleRate.error) console.error('Error fetching reschedule rate:', rescheduleRate.error)
+
+  // Debug: Log raw data from database
+  console.log('=== DATABASE DEBUG ===');
+  console.log('Raw needsSchedulingData:', needsSchedulingData.data);
+  console.log('Raw thisWeekData:', thisWeekData.data);
+  console.log('Raw futureData:', futureData.data);
+  if (needsSchedulingData.data && needsSchedulingData.data.length > 0) {
+    console.log('Sample client from needsScheduling:', needsSchedulingData.data[0]);
+    console.log('Sample client keys:', Object.keys(needsSchedulingData.data[0]));
+  }
+  console.log('=== END DATABASE DEBUG ===');
 
   const totalClients = dashboardStatsData.data?.[0]?.total_clients || 0
 

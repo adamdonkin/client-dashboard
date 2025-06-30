@@ -107,18 +107,18 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                 <TableCell>
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={getAvatarUrl(client.email)} alt={client.name} />
+                      <AvatarImage src={getAvatarUrl(client.client_email)} alt={client.client_name} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {getInitials(client.name)}
+                        {getInitials(client.client_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="font-medium">{client.name}</div>
+                    <div className="font-medium">{client.client_name}</div>
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Mail className="h-3 w-3 mr-2" />
-                    {client.email}
+                    {client.client_email}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -132,16 +132,16 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {client.lastSession
-                    ? formatLastSessionDate(client.lastSession)
+                  {client.last_session_date
+                    ? formatLastSessionDate(client.last_session_date)
                     : 'None'
                   }
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    {client.nextSession ? (
-                      <span>{formatRelativeDate(client.nextSession)}</span>
+                    {client.next_session_date ? (
+                      <span>{formatRelativeDate(client.next_session_date)}</span>
                     ) : (
                       <span className="text-muted-foreground">Not scheduled</span>
                     )}

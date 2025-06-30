@@ -17,7 +17,8 @@ import {
   Plus,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  FileText
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
@@ -40,16 +41,51 @@ interface ClientDetailProps {
   onClientUpdate?: (updatedClient: Client) => void;
 }
 
-export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailProps) {
-  const [currentClient, setCurrentClient] = useState(client);
+// Add getInitials helper
+const getInitials = (name: string | undefined | null): string => {
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    return '??';
+  }
+  return name
+    .trim()
+    .split(' ')
+    .filter(part => part.length > 0)
+    .map(part => part[0]?.toUpperCase() || '')
+    .slice(0, 2)
+    .join('');
+};
+
+const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
+  // Add debugging at the top of the component
+  console.log("=== CLIENT DEBUG INFO ===");
+  console.log("Full client object:", client);
+  console.log("client_name:", client?.client_name);
+  console.log("client_email:", client?.client_email);
+  console.log("All client keys:", client ? Object.keys(client) : "no client");
+  console.log("client type:", typeof client);
+  
+  // If client exists, log all properties
+  if (client) {
+    Object.entries(client).forEach(([key, value]) => {
+      console.log(`  ${key}:`, value);
+    });
+  }
+  
+  console.log("=== END DEBUG ===");
+
+  const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [notes, setNotes] = useState("Client is making good progress on career transition goals. Discussed new networking strategies and identified potential opportunities in tech sector.");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
+  // Debug logging
+  useEffect(() => {
+    console.log('ClientDetail received client:', client);
+    console.log('Client name:', client?.client_name);
+    console.log('Client keys:', client ? Object.keys(client) : 'no client');
+  }, [client]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -93,6 +129,7 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
     const fetchSessionHistory = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         console.log('Fetching sessions for client ID:', client.id);
         
@@ -105,7 +142,7 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
         if (error) {
           console.error("Error fetching session history:", error);
           console.error("Error details:", { code: error.code, message: error.message, details: error.details });
-          // Fall back to mock data if there's an error
+          setError('Failed to load session history');
           setSessionHistory([]);
         } else {
           console.log('Session data received:', data);
@@ -121,6 +158,7 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
         }
       } catch (error) {
         console.error("Error fetching session history:", error);
+        setError('Failed to load session history');
         setSessionHistory([]);
       } finally {
         setLoading(false);
@@ -152,6 +190,67 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
     return `${duration} min`;
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <div className="animate-pulse">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
+              <div className="space-y-2">
+                <div className="h-6 bg-gray-200 rounded w-32"></div>
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !currentClient) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  {error || 'Client not found'}
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  {error ? 'Please try again or contact support.' : 'The requested client could not be found.'}
+                </p>
+                <Button onClick={onBack}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Safe rendering with null checks
+  const initials = getInitials(currentClient?.client_name);
+  const clientName = currentClient?.client_name || 'Unknown Client';
+  const isActive = currentClient?.is_active !== false; // Default to active if undefined
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -170,14 +269,14 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
               <div className="flex items-center space-x-4">
                 <Avatar className="h-16 w-16">
                   <AvatarFallback className="bg-gray-900 text-white text-xl">
-                    {getInitials(currentClient.name)}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="space-y-1">
-                  <h1 className="text-2xl font-semibold">{currentClient.name}</h1>
+                  <h1 className="text-2xl font-semibold">{clientName}</h1>
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(currentClient.status || 'active')}>
-                      {(currentClient.status || 'active').charAt(0).toUpperCase() + (currentClient.status || 'active').slice(1)}
+                    <Badge className={getStatusColor(currentClient?.status || 'active')}>
+                      {(currentClient?.status || 'active').charAt(0).toUpperCase() + (currentClient?.status || 'active').slice(1)}
                     </Badge>
                   </div>
                 </div>
@@ -197,19 +296,21 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
             <div>
               <h3 className="font-medium mb-3">Contact Information</h3>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <a 
-                      href={`mailto:${currentClient.email}`}
-                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {currentClient.email}
-                    </a>
+                {currentClient?.client_email && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <a 
+                        href={`mailto:${currentClient.client_email}`}
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {currentClient.client_email}
+                      </a>
+                    </div>
                   </div>
-                </div>
-                {currentClient.slack && (
+                )}
+                {currentClient?.slack && (
                   <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -220,7 +321,23 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
                         rel="noopener noreferrer"
                         className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                       >
-                        @{currentClient.name.split(' ')[0].toLowerCase()}
+                        @{(currentClient?.client_name || 'user').split(' ')[0].toLowerCase()}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {currentClient?.granola_notes_folder && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Granola Notes</p>
+                      <a 
+                        href={currentClient.granola_notes_folder}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        View Notes Folder
                       </a>
                     </div>
                   </div>
@@ -237,10 +354,8 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
                   <div>
                     <p className="text-sm text-muted-foreground">Last Session</p>
                     <p className="font-medium">
-                      {currentClient.lastSession 
-                        ? (typeof currentClient.lastSession === 'string' 
-                           ? formatDateWithTime(currentClient.lastSession)
-                           : formatDateWithTime(currentClient.lastSession.toISOString()))
+                      {currentClient.last_session_date 
+                        ? formatDateWithTime(currentClient.last_session_date)
                         : 'None'}
                     </p>
                   </div>
@@ -250,7 +365,7 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
                   <div>
                     <p className="text-sm text-muted-foreground">Next Session</p>
                     <p className="font-medium">
-                      {currentClient.nextSession ? formatDate(currentClient.nextSession) : 'Not scheduled'}
+                      {currentClient.next_session_date ? formatDate(currentClient.next_session_date) : 'Not scheduled'}
                     </p>
                   </div>
                 </div>
@@ -339,3 +454,5 @@ export function ClientDetail({ client, onBack, onClientUpdate }: ClientDetailPro
     </div>
   );
 }
+
+export default ClientDetail;

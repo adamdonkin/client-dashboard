@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
-import { ClientDetail } from "./ClientDetail";
+import ClientDetail from "./ClientDetail";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, RefreshCw, Calendar, Mail, MessageSquare } from 'lucide-react'
@@ -150,6 +150,12 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
   const { user, signOut } = useAuth();
 
   const handleClientSelect = (client: Client) => {
+    console.log("=== DASHBOARD CLIENT SELECTION ===");
+    console.log("Selected client:", client);
+    console.log("Selected client name:", client?.client_name);
+    console.log("Selected client keys:", client ? Object.keys(client) : "no client");
+    console.log("=== END SELECTION DEBUG ===");
+    
     setSelectedClient(client);
   };
 
