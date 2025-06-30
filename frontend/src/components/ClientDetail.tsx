@@ -303,45 +303,49 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                       <p className="text-sm text-muted-foreground">Email</p>
                       <a 
                         href={`mailto:${currentClient.client_email}`}
-                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        className="font-medium hover:underline"
                       >
                         {currentClient.client_email}
                       </a>
                     </div>
                   </div>
                 )}
-                {currentClient?.slack && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Slack</p>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Slack</p>
+                    {currentClient?.slack ? (
                       <a 
                         href={currentClient.slack}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        className="font-medium hover:underline"
                       >
                         @{(currentClient?.client_name || 'user').split(' ')[0].toLowerCase()}
                       </a>
-                    </div>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not provided</p>
+                    )}
                   </div>
-                )}
-                {currentClient?.granola_notes_folder && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Granola Notes</p>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Granola Notes</p>
+                    {currentClient?.granola_notes_folder ? (
                       <a 
                         href={currentClient.granola_notes_folder}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        className="font-medium hover:underline"
                       >
                         View Notes Folder
                       </a>
-                    </div>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not provided</p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
 

@@ -125,7 +125,7 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                   {client.slack ? (
                     <div className="flex items-center text-sm text-muted-foreground">
                       <MessageSquare className="h-3 w-3 mr-2" />
-                      {client.slack}
+                      @{(client.client_name || 'user').split(' ')[0].toLowerCase()}
                     </div>
                   ) : (
                     <span className="text-sm text-muted-foreground">-</span>

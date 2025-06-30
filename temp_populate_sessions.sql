@@ -1,0 +1,1 @@
+SELECT * FROM populate_sessions_from_calendar_events(); 

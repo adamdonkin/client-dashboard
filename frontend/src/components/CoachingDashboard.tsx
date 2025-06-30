@@ -6,7 +6,7 @@ import { ClientListView } from "./ClientListView";
 import ClientDetail from "./ClientDetail";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Users, RefreshCw, Calendar, Mail, MessageSquare } from 'lucide-react'
+import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -43,7 +43,7 @@ interface SyncResponse {
 }
 
 // Add this sync function component
-function ManualSyncButton() {
+function ManualSyncButton({ user }: { user: any }) {
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{
     message: string
@@ -52,6 +52,15 @@ function ManualSyncButton() {
   } | null>(null)
 
   const handleSync = async () => {
+    if (!user?.id) {
+      setSyncResult({
+        message: 'No authenticated user found',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        success: false
+      });
+      return;
+    }
+
     setIsSyncing(true)
     setSyncResult(null) // Clear previous result
     
@@ -59,51 +68,22 @@ function ManualSyncButton() {
       const response = await fetch('/api/sync-calendar', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          user_id: '4587519f-dd12-4e18-be42-25854f6dfbe3' 
-        })
+        body: JSON.stringify({ user_id: user.id }),
       })
+
+      const data = await response.json()
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      
-      const result: SyncResponse = await response.json()
-      
-      const timestamp = new Date().toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
-      
-      if (result.success) {
-        setSyncResult({
-          message: `${result.stats?.synced || 0} events synced, ${result.stats?.deleted || 0} deleted`,
-          timestamp,
-          success: true
-        })
-        
-        // Refresh the page after a short delay to show the success message
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
-      } else {
-        setSyncResult({
-          message: `Sync failed: ${result.message}`,
-          timestamp,
-          success: false
-        })
-      }
-    } catch (error) {
-      console.error('Sync error:', error)
-      const timestamp = new Date().toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
       setSyncResult({
-        message: `Sync failed: ${error}`,
-        timestamp,
+        message: data.message || 'Sync completed',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        success: response.ok
+      })
+    } catch (error) {
+      setSyncResult({
+        message: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         success: false
       })
     } finally {
@@ -112,33 +92,33 @@ function ManualSyncButton() {
   }
 
   return (
-    <div className="flex flex-col items-end">
+    <div className="flex flex-col gap-2">
       <Button 
         onClick={handleSync} 
-        disabled={isSyncing}
-        variant="outline"
-        size="sm"
+        disabled={isSyncing || !user?.id}
+        className="w-full"
       >
-        <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-        {isSyncing ? 'Syncing...' : 'Sync Calendar'}
+        {isSyncing ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Syncing...
+          </>
+        ) : (
+          <>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Sync Calendar
+          </>
+        )}
       </Button>
       
-      {/* Persistent feedback below button */}
       {syncResult && (
-        <div className="mt-1 text-xs text-right">
-          <div className={syncResult.success ? 'text-green-600' : 'text-red-600'}>
-            {syncResult.success ? '✅' : '❌'} {syncResult.message}
-          </div>
-          <div className="text-gray-400">
-            {syncResult.timestamp}
-          </div>
-        </div>
-      )}
-      
-      {/* Show syncing state below button */}
-      {isSyncing && (
-        <div className="mt-1 text-xs text-gray-500 text-right">
-          Fetching calendar data...
+        <div className={`text-sm p-2 rounded ${
+          syncResult.success 
+            ? 'bg-green-50 text-green-700 border border-green-200' 
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          <div className="font-medium">{syncResult.message}</div>
+          <div className="text-xs opacity-75">{syncResult.timestamp}</div>
         </div>
       )}
     </div>
@@ -195,7 +175,7 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
             {totalClients} Total Clients
           </div>
           <div className="flex items-center gap-2">
-            <ManualSyncButton />
+            <ManualSyncButton user={user} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
