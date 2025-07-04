@@ -50,21 +50,25 @@ export default async function Home() {
     thisWeekData,
     futureData,
     dashboardStatsData,
-    // Add the stats function calls
+    // Session stats function calls
     sessionsThisWeek,
     avgSessionsPerWeek,
     avgSessionsPerMonth,
-    rescheduleRate
+    rescheduleRate,
+    // Revenue stats function calls
+    revenueStats
   ] = await Promise.all([
     supabase.rpc('get_clients_needs_scheduling'),
     supabase.rpc('get_clients_this_week'),
     supabase.rpc('get_clients_future'),
     supabase.rpc('get_scheduling_dashboard'),
-    // Stats function calls
+    // Session stats function calls
     supabase.rpc('get_sessions_this_week'),
     supabase.rpc('get_avg_sessions_per_week'),
     supabase.rpc('get_avg_sessions_per_month'),
-    supabase.rpc('get_reschedule_cancel_rate')
+    supabase.rpc('get_reschedule_cancel_rate'),
+    // Revenue stats function call
+    supabase.rpc('get_revenue_stats')
   ])
 
   // Check for errors
@@ -78,12 +82,14 @@ export default async function Home() {
   if (avgSessionsPerWeek.error) console.error('Error fetching avg sessions per week:', avgSessionsPerWeek.error)
   if (avgSessionsPerMonth.error) console.error('Error fetching avg sessions per month:', avgSessionsPerMonth.error)
   if (rescheduleRate.error) console.error('Error fetching reschedule rate:', rescheduleRate.error)
+  if (revenueStats.error) console.error('Error fetching revenue stats:', revenueStats.error)
 
   // Debug: Log raw data from database
   console.log('=== DATABASE DEBUG ===');
   console.log('Raw needsSchedulingData:', needsSchedulingData.data);
   console.log('Raw thisWeekData:', thisWeekData.data);
   console.log('Raw futureData:', futureData.data);
+  console.log('Raw revenueStats:', revenueStats.data);
   if (needsSchedulingData.data && needsSchedulingData.data.length > 0) {
     console.log('Sample client from needsScheduling:', needsSchedulingData.data[0]);
     console.log('Sample client keys:', Object.keys(needsSchedulingData.data[0]));
@@ -97,7 +103,14 @@ export default async function Home() {
     sessionsThisWeek: sessionsThisWeek.data || 0,
     avgSessionsPerWeek: avgSessionsPerWeek.data || 0,
     avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
-    rescheduleRate: rescheduleRate.data || 0
+    rescheduleRate: rescheduleRate.data || 0,
+    // Add revenue stats
+    revenueStats: (revenueStats.data && revenueStats.data[0]) || {
+      total_monthly_revenue: "0",
+      annual_projection: "0", 
+      active_paying_clients: 0,
+      average_client_fee: "0"
+    }
   }
 
   return (
