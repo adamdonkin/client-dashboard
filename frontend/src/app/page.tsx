@@ -1,6 +1,6 @@
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { CoachingDashboard } from "@/components/CoachingDashboard"
+import CoachingDashboard from "@/components/CoachingDashboard"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 import { redirect } from 'next/navigation'
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
 import ClientDetail from "./ClientDetail";
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useRouter } from "next/navigation";
 
 // Define the shape of the data this component will receive
 interface CoachingDashboardProps {
@@ -125,9 +126,46 @@ function ManualSyncButton({ user }: { user: any }) {
   )
 }
 
-export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData }: CoachingDashboardProps) {
+export default function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData }: CoachingDashboardProps) {
+  const { user, signOut } = useAuth()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  // Add browser history management
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const clientId = urlParams.get('client');
+      
+      if (clientId && selectedClient?.id !== clientId) {
+        // Find the client by ID from your existing data
+        const allClients = [...needsScheduling, ...thisWeek, ...future];
+        const client = allClients.find(c => c.id === clientId);
+        if (client) {
+          setSelectedClient(client);
+        }
+      } else if (!clientId && selectedClient) {
+        setSelectedClient(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Check URL on component mount for direct links
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientId = urlParams.get('client');
+    if (clientId && !selectedClient) {
+      const allClients = [...needsScheduling, ...thisWeek, ...future];
+      const client = allClients.find(c => c.id === clientId);
+      if (client) {
+        setSelectedClient(client);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedClient, needsScheduling, thisWeek, future]);
 
   const handleClientSelect = (client: Client) => {
     console.log("=== DASHBOARD CLIENT SELECTION ===");
@@ -136,10 +174,20 @@ export function CoachingDashboard({ needsScheduling, thisWeek, future, totalClie
     console.log("Selected client keys:", client ? Object.keys(client) : "no client");
     console.log("=== END SELECTION DEBUG ===");
     
+    // Add to browser history so back button works
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('client', client.id);
+    window.history.pushState({ clientId: client.id }, '', currentUrl.toString());
+    
     setSelectedClient(client);
   };
 
   const handleBackToDashboard = () => {
+    // Remove client from URL and go back in history
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('client');
+    window.history.pushState({}, '', currentUrl.toString());
+    
     setSelectedClient(null);
   };
 
