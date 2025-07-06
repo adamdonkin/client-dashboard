@@ -8,6 +8,7 @@ export interface Client {
   role?: string;
   slack?: string;
   granola_notes_folder?: string;
+  defacto_meeting?: string;
   notes?: string;
   session_count: number;
   is_active?: boolean;
@@ -28,6 +29,7 @@ export interface ClientDetailData {
   role?: string;
   slack?: string;
   granola_notes_folder?: string;
+  defacto_meeting?: string;
   notes?: string;
   is_active?: boolean;
   last_session_date?: string;

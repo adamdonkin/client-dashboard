@@ -349,9 +349,9 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Defacto Meeting</p>
+                    <p className="text-sm text-muted-foreground">Default Meeting</p>
                     {currentClient?.defacto_meeting ? (
                       <a 
                         href={currentClient.defacto_meeting}
