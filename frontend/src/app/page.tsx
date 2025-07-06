@@ -18,6 +18,7 @@ const transformClientData = (dbClients: any[]) => {
       last_session_date: client.last_session_date,
       next_session_date: client.next_session_date,
       granola_notes_folder: client.granola_notes_folder,
+      defacto_meeting: client.defacto_meeting,
       company_name: client.company_name,
       is_active: client.is_active,
       status: client.status

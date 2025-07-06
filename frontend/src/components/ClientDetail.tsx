@@ -18,7 +18,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  FileText
+  FileText,
+  ExternalLink
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
@@ -61,6 +62,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   console.log("Full client object:", client);
   console.log("client_name:", client?.client_name);
   console.log("client_email:", client?.client_email);
+  console.log("defacto_meeting:", client?.defacto_meeting);
   console.log("All client keys:", client ? Object.keys(client) : "no client");
   console.log("client type:", typeof client);
   
@@ -340,6 +342,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                         className="font-medium hover:underline"
                       >
                         View Notes Folder
+                      </a>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not provided</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Defacto Meeting</p>
+                    {currentClient?.defacto_meeting ? (
+                      <a 
+                        href={currentClient.defacto_meeting}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium hover:underline"
+                      >
+                        Join Meeting
                       </a>
                     ) : (
                       <p className="font-medium text-muted-foreground">Not provided</p>
