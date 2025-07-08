@@ -351,7 +351,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Default Meeting</p>
+                    <p className="text-sm text-muted-foreground">Defacto Meeting</p>
                     {currentClient?.defacto_meeting ? (
                       <a 
                         href={currentClient.defacto_meeting}
@@ -366,6 +366,28 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     )}
                   </div>
                 </div>
+                {currentClient?.company_name && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="h-4 w-4 flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">CO</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company</p>
+                      <p className="font-medium">{currentClient.company_name}</p>
+                    </div>
+                  </div>
+                )}
+                {currentClient?.role && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="h-4 w-4 flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">R</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Role</p>
+                      <p className="font-medium">{currentClient.role}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -3,6 +3,7 @@ export interface Client {
   client_name: string
   client_email: string
   slack?: string
+  role?: string
   last_session_date?: string | Date
   next_session_date?: string | Date
   granola_notes_folder?: string

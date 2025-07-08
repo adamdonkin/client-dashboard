@@ -15,6 +15,7 @@ const transformClientData = (dbClients: any[]) => {
       client_name: client.client_name,
       client_email: client.client_email,
       slack: client.slack,
+      role: client.role,
       last_session_date: client.last_session_date,
       next_session_date: client.next_session_date,
       granola_notes_folder: client.granola_notes_folder,
