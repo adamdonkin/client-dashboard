@@ -12,4 +12,6 @@ export interface Client {
   is_active?: boolean
   status?: 'active' | 'inactive' | 'pending'
   sessionType?: string
+  ea_email?: string;
+  ea_name?: string;
 } 

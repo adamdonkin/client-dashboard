@@ -415,6 +415,30 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     </p>
                   </div>
                 </div>
+                {/* EA Contact Information */}
+                {(currentClient?.ea_name || currentClient?.ea_email) && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg md:col-span-2">
+                    <div className="h-4 w-4 flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">EA</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Executive Assistant</p>
+                      <div className="font-medium">
+                        {currentClient.ea_name && (
+                          <p>{currentClient.ea_name}</p>
+                        )}
+                        {currentClient.ea_email && (
+                          <a 
+                            href={`mailto:${currentClient.ea_email}`}
+                            className="text-blue-600 hover:underline text-sm"
+                          >
+                            {currentClient.ea_email}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
