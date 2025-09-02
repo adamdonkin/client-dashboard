@@ -19,7 +19,8 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  ExternalLink
+  ExternalLink,
+  User
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
@@ -57,37 +58,12 @@ const getInitials = (name: string | undefined | null): string => {
 };
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
-  // Add debugging at the top of the component
-  console.log("=== CLIENT DEBUG INFO ===");
-  console.log("Full client object:", client);
-  console.log("client_name:", client?.client_name);
-  console.log("client_email:", client?.client_email);
-  console.log("defacto_meeting:", client?.defacto_meeting);
-  console.log("All client keys:", client ? Object.keys(client) : "no client");
-  console.log("client type:", typeof client);
-  
-  // If client exists, log all properties
-  if (client) {
-    Object.entries(client).forEach(([key, value]) => {
-      console.log(`  ${key}:`, value);
-    });
-  }
-  
-  console.log("=== END DEBUG ===");
-
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [notes, setNotes] = useState("Client is making good progress on career transition goals. Discussed new networking strategies and identified potential opportunities in tech sector.");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('ClientDetail received client:', client);
-    console.log('Client name:', client?.client_name);
-    console.log('Client keys:', client ? Object.keys(client) : 'no client');
-  }, [client]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -133,25 +109,15 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         setLoading(true);
         setError(null);
         
-        console.log('Fetching sessions for client ID:', client.id);
-        
         // Call the get_sessions_by_client_id function
         const { data, error } = await supabase
           .rpc('get_sessions_by_client_id', { p_client_id: client.id });
 
-        console.log('Supabase response:', { data, error });
-
         if (error) {
           console.error("Error fetching session history:", error);
-          console.error("Error details:", { code: error.code, message: error.message, details: error.details });
           setError('Failed to load session history');
           setSessionHistory([]);
         } else {
-          console.log('Session data received:', data);
-          if (data && data.length > 0) {
-            console.log('First session:', data[0]);
-            console.log('Calendar title for first session:', data[0].calendar_title);
-          }
           // Sort sessions by date, most recent first (reverse chronological)
           const sortedSessions = (data || []).sort((a: Session, b: Session) => {
             return new Date(b.session_date).getTime() - new Date(a.session_date).getTime();
@@ -167,7 +133,34 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       }
     };
 
-    fetchSessionHistory();
+    if (client.id) {
+        fetchSessionHistory();
+    }
+  }, [client.id]);
+
+  // Fetch additional client details that may not have been passed in the initial client prop.
+  useEffect(() => {
+    const fetchClientDetails = async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active')
+        .eq('id', client.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching additional client details:', error);
+        return;
+      }
+
+      if (data) {
+        const clientData = { ...data, status: data.is_active ? 'active' : 'inactive' };
+        setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
+      }
+    };
+    
+    if (client.id) {
+      fetchClientDetails();
+    }
   }, [client.id]);
 
   const getSessionIcon = (status: string) => {
@@ -193,7 +186,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   };
 
   // Loading state
-  if (loading) {
+  if (loading && !currentClient) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -251,7 +244,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   // Safe rendering with null checks
   const initials = getInitials(currentClient?.client_name);
   const clientName = currentClient?.client_name || 'Unknown Client';
-  const isActive = currentClient?.is_active !== false; // Default to active if undefined
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -415,6 +407,33 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">EA Name</p>
+                    {currentClient?.ea_name ? (
+                      <p className="font-medium">{currentClient.ea_name}</p>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not provided</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">EA Email</p>
+                    {currentClient?.ea_email ? (
+                      <a
+                        href={`mailto:${currentClient.ea_email}`}
+                        className="font-medium hover:underline"
+                      >
+                        {currentClient.ea_email}
+                      </a>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not provided</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -449,7 +468,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading && sessionHistory.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 Loading session history...
               </div>

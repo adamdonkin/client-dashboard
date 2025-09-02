@@ -8,6 +8,7 @@ import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -224,6 +225,7 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
           </div>
           <div className="flex items-center gap-2">
             <ManualSyncButton user={user} />
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">

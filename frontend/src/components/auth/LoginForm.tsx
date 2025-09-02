@@ -22,7 +22,7 @@ export function LoginForm() {
           <Auth
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
-            theme="light"
+            theme="default"
             providers={['google']}
             redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
           />
