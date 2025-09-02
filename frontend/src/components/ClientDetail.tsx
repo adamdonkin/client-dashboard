@@ -407,33 +407,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">EA Name</p>
-                    {currentClient?.ea_name ? (
-                      <p className="font-medium">{currentClient.ea_name}</p>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">EA Email</p>
-                    {currentClient?.ea_email ? (
-                      <a
-                        href={`mailto:${currentClient.ea_email}`}
-                        className="font-medium hover:underline"
-                      >
-                        {currentClient.ea_email}
-                      </a>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </CardContent>
