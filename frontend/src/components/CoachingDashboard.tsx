@@ -6,7 +6,8 @@ import { ClientListView } from "./ClientListView";
 import ClientDetail from "./ClientDetail";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2 } from 'lucide-react'
+import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2, Globe } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -29,6 +30,7 @@ interface CoachingDashboardProps {
     avgSessionsPerWeek: number;
     avgSessionsPerMonth: number;
     rescheduleRate: number;
+    avgEngagementLength: number;
   };
 }
 
@@ -46,6 +48,7 @@ interface SyncResponse {
 
 // Add this sync function component
 function ManualSyncButton({ user }: { user: any }) {
+  const router = useRouter()
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{
     message: string
@@ -82,6 +85,11 @@ function ManualSyncButton({ user }: { user: any }) {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         success: response.ok
       })
+
+      // Refresh the page data after successful sync
+      if (response.ok) {
+        router.refresh()
+      }
     } catch (error) {
       setSyncResult({
         message: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -216,13 +224,19 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Coaching Dashboard</h1>
-          <p className="text-gray-600">Manage your client sessions and schedules</p>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="h-4 w-4" />
             {totalClients} Total Clients
           </div>
+          <Link 
+            href="/timezones" 
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <Globe className="h-4 w-4" />
+            Timezones
+          </Link>
           <div className="flex items-center gap-2">
             <ManualSyncButton user={user} />
             <ThemeToggle />

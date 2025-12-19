@@ -16,7 +16,7 @@ const transformClientData = (dbClients: any[] | null): Client[] => {
 }
 
 export default async function Home() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
   const { data: { session } } = await supabase.auth.getSession()
@@ -34,7 +34,8 @@ export default async function Home() {
     avgSessionsPerWeek,
     avgSessionsPerMonth,
     rescheduleRate,
-    revenueStats
+    revenueStats,
+    avgEngagementLength
   ] = await Promise.all([
     supabase.rpc('get_clients_needs_scheduling'),
     supabase.rpc('get_clients_this_week_fixed'),
@@ -44,7 +45,8 @@ export default async function Home() {
     supabase.rpc('get_avg_sessions_per_week'),
     supabase.rpc('get_avg_sessions_per_month'),
     supabase.rpc('get_reschedule_cancel_rate'),
-    supabase.rpc('get_revenue_stats')
+    supabase.rpc('get_revenue_stats'),
+    supabase.rpc('get_avg_engagement_length')
   ])
 
   const error = 
@@ -56,7 +58,8 @@ export default async function Home() {
     avgSessionsPerWeek.error ||
     avgSessionsPerMonth.error ||
     rescheduleRate.error ||
-    revenueStats.error;
+    revenueStats.error ||
+    avgEngagementLength.error;
 
   if (needsSchedulingData.error) console.error('get_clients_needs_scheduling error:', needsSchedulingData.error)
   if (thisWeekData.error) console.error('get_clients_this_week error:', thisWeekData.error)  
@@ -67,6 +70,7 @@ export default async function Home() {
   if (avgSessionsPerMonth.error) console.error('get_avg_sessions_per_month error:', avgSessionsPerMonth.error)
   if (rescheduleRate.error) console.error('get_reschedule_cancel_rate error:', rescheduleRate.error)
   if (revenueStats.error) console.error('get_revenue_stats error:', revenueStats.error)
+  if (avgEngagementLength.error) console.error('get_avg_engagement_length error:', avgEngagementLength.error)
 
   // Also log what data we're getting
   console.log('thisWeekData.data:', thisWeekData.data)
@@ -83,6 +87,7 @@ export default async function Home() {
     avgSessionsPerWeek: avgSessionsPerWeek.data || 0,
     avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
     rescheduleRate: rescheduleRate.data || 0,
+    avgEngagementLength: avgEngagementLength.data || 0,
     revenueStats: (revenueStats.data && revenueStats.data[0]) || {
       total_monthly_revenue: "0",
       annual_projection: "0", 
