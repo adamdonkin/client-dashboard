@@ -17,6 +17,13 @@ interface MorningPressure {
   morning_pressure_pct: number;
 }
 
+interface ClientByRegion {
+  client_id: string;
+  client_name: string;
+  location: string;
+  region: string;
+}
+
 export default async function TimezonesPage() {
   const cookieStore = await cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
@@ -27,13 +34,15 @@ export default async function TimezonesPage() {
     redirect('/auth/login');
   }
 
-  const [timezoneDistribution, morningPressure] = await Promise.all([
+  const [timezoneDistribution, morningPressure, clientsByRegion] = await Promise.all([
     supabase.rpc('get_client_timezone_distribution'),
-    supabase.rpc('get_morning_pressure_stats')
+    supabase.rpc('get_morning_pressure_stats'),
+    supabase.rpc('get_clients_by_region')
   ])
 
   if (timezoneDistribution.error) console.error('get_client_timezone_distribution error:', timezoneDistribution.error)
   if (morningPressure.error) console.error('get_morning_pressure_stats error:', morningPressure.error)
+  if (clientsByRegion.error) console.error('get_clients_by_region error:', clientsByRegion.error)
 
   const regions: TimezoneRegion[] = timezoneDistribution.data || []
   const pressure: MorningPressure = (morningPressure.data && morningPressure.data[0]) || {
@@ -41,6 +50,16 @@ export default async function TimezonesPage() {
     total_clients_with_location: 0,
     morning_pressure_pct: 0
   }
+  const clients: ClientByRegion[] = clientsByRegion.data || []
+
+  // Group clients by region
+  const clientsByRegionMap = clients.reduce((acc, client) => {
+    if (!acc[client.region]) {
+      acc[client.region] = []
+    }
+    acc[client.region].push(client)
+    return acc
+  }, {} as Record<string, ClientByRegion[]>)
 
   // Calculate region color based on morning pressure
   const getRegionColor = (region: string) => {
@@ -128,20 +147,37 @@ export default async function TimezonesPage() {
         </CardHeader>
         <CardContent>
           {regions.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {regions.map((region) => (
                 <div 
                   key={region.region} 
-                  className={`flex items-center justify-between p-4 rounded-lg border ${getRegionColor(region.region)}`}
+                  className={`p-4 rounded-lg border ${getRegionColor(region.region)}`}
                 >
-                  <div>
-                    <div className="font-medium">{region.region}</div>
-                    <div className="text-sm opacity-75">{getTimeOffset(region.region)}</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-medium">{region.region}</div>
+                      <div className="text-sm opacity-75">{getTimeOffset(region.region)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{region.client_count}</div>
+                      <div className="text-sm opacity-75">{region.percentage}%</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold">{region.client_count}</div>
-                    <div className="text-sm opacity-75">{region.percentage}%</div>
-                  </div>
+                  {clientsByRegionMap[region.region] && (
+                    <div className="pt-3 border-t border-current/20">
+                      <div className="flex flex-wrap gap-2">
+                        {clientsByRegionMap[region.region].map((client) => (
+                          <span 
+                            key={client.client_id}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/50"
+                            title={client.location}
+                          >
+                            {client.client_name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -184,4 +220,5 @@ export default async function TimezonesPage() {
     </div>
   )
 }
+
 

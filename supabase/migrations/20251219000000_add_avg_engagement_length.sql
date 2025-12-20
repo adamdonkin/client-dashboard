@@ -38,3 +38,4 @@ GRANT EXECUTE ON FUNCTION get_avg_engagement_length() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_avg_engagement_length() TO anon;
 GRANT EXECUTE ON FUNCTION get_avg_engagement_length() TO service_role;
 
+
