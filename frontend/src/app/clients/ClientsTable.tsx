@@ -31,7 +31,7 @@ interface ClientsTableProps {
 
 export function ClientsTable({ clients }: ClientsTableProps) {
   const router = useRouter()
-  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortField, setSortField] = useState<SortField>('company_name')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   const handleSort = (field: SortField) => {
@@ -80,11 +80,11 @@ export function ClientsTable({ clients }: ClientsTableProps) {
     <Table>
       <TableHeader>
         <TableRow>
-          <SortableHeader field="name">Name</SortableHeader>
           <SortableHeader field="company_name">Company</SortableHeader>
+          <SortableHeader field="name">Name</SortableHeader>
           <SortableHeader field="role">Role</SortableHeader>
-          <SortableHeader field="location">Location</SortableHeader>
           <SortableHeader field="monthly_fee">Rate</SortableHeader>
+          <SortableHeader field="location">Location</SortableHeader>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -94,14 +94,17 @@ export function ClientsTable({ clients }: ClientsTableProps) {
             className="cursor-pointer hover:bg-accent transition-colors"
             onClick={() => router.push(`/?client=${client.id}`)}
           >
-            <TableCell className={sortField === 'name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
-              {client.name}
-            </TableCell>
             <TableCell className={sortField === 'company_name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.company_name || '—'}
             </TableCell>
+            <TableCell className={sortField === 'name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {client.name}
+            </TableCell>
             <TableCell className={sortField === 'role' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.role || '—'}
+            </TableCell>
+            <TableCell className={sortField === 'monthly_fee' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {client.monthly_fee ? `$${client.monthly_fee.toLocaleString()}` : '—'}
             </TableCell>
             <TableCell className={sortField === 'location' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.location ? (
@@ -110,9 +113,6 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                   {client.location}
                 </span>
               ) : '—'}
-            </TableCell>
-            <TableCell className={sortField === 'monthly_fee' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
-              {client.monthly_fee ? `$${client.monthly_fee.toLocaleString()}` : '—'}
             </TableCell>
           </TableRow>
         ))}

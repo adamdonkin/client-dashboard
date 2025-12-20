@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { 
   ArrowLeft, 
@@ -19,7 +18,9 @@ import {
   XCircle,
   FileText,
   ExternalLink,
-  User
+  User,
+  DollarSign,
+  MapPin
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
@@ -44,7 +45,6 @@ interface ClientDetailProps {
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
-  const [notes, setNotes] = useState("Client is making good progress on career transition goals. Discussed new networking strategies and identified potential opportunities in tech sector.");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +128,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     const fetchClientDetails = async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active, location')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active, location, monthly_fee')
         .eq('id', client.id)
         .single();
       
@@ -240,18 +240,25 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           </Button>
         </div>
 
-        {/* Client Overview */}
-        <Card>
+        {/* Client Header */}
+        <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="space-y-1">
-                  <h1 className="text-2xl font-semibold">{clientName}</h1>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(currentClient?.status || 'active')}>
-                      {(currentClient?.status || 'active').charAt(0).toUpperCase() + (currentClient?.status || 'active').slice(1)}
-                    </Badge>
-                  </div>
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-bold">{clientName}</h1>
+                  <Badge className={getStatusColor(currentClient?.status || 'active')}>
+                    {(currentClient?.status || 'active').charAt(0).toUpperCase() + (currentClient?.status || 'active').slice(1)}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  {currentClient?.company_name && (
+                    <>
+                      <span className="font-medium">{currentClient.company_name}</span>
+                      <span>•</span>
+                    </>
+                  )}
+                  {currentClient?.role && <span>{currentClient.role}</span>}
                 </div>
               </div>
               <Button 
@@ -260,184 +267,181 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                 onClick={() => setIsEditDialogOpen(true)}
               >
                 <Edit className="h-4 w-4" />
-                Edit Client
+                Edit
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Contact Information with linked actions */}
-            <div>
-              <h3 className="font-medium mb-3">Contact Information</h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {currentClient?.client_email && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <a 
-                        href={`mailto:${currentClient.client_email}`}
-                        className="font-medium hover:underline"
-                      >
-                        {currentClient.client_email}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Slack</p>
-                    {currentClient?.slack ? (
-                      <a 
-                        href={currentClient.slack}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium hover:underline"
-                      >
-                        @{(currentClient?.client_name || 'user').split(' ')[0].toLowerCase()}
-                      </a>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Granola Notes</p>
-                    {currentClient?.granola_notes_folder ? (
-                      <a 
-                        href={currentClient.granola_notes_folder}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium hover:underline"
-                      >
-                        View Notes Folder
-                      </a>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Defacto Meeting</p>
-                    {currentClient?.defacto_meeting ? (
-                      <a 
-                        href={currentClient.defacto_meeting}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium hover:underline"
-                      >
-                        Join Meeting
-                      </a>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                {currentClient?.company_name && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="h-4 w-4 flex items-center justify-center">
-                      <span className="text-xs font-bold text-muted-foreground">CO</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Company</p>
-                      <p className="font-medium">{currentClient.company_name}</p>
-                    </div>
-                  </div>
-                )}
-                {currentClient?.role && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="h-4 w-4 flex items-center justify-center">
-                      <span className="text-xs font-bold text-muted-foreground">R</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Role</p>
-                      <p className="font-medium">{currentClient.role}</p>
-                    </div>
-                  </div>
-                )}
-                {currentClient?.location && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="h-4 w-4 flex items-center justify-center">
-                      <span className="text-xs font-bold text-muted-foreground">📍</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Location</p>
-                      <p className="font-medium">{currentClient.location}</p>
-                    </div>
-                  </div>
-                )}
-                {(currentClient?.ea_name || currentClient?.ea_email) && (
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Executive Assistant</p>
-                      {currentClient?.ea_name && (
-                        <p className="font-medium">{currentClient.ea_name}</p>
-                      )}
-                      {currentClient?.ea_email && (
-                        <a 
-                          href={`mailto:${currentClient.ea_email}`}
-                          className="text-sm text-muted-foreground hover:underline"
-                        >
-                          {currentClient.ea_email}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Session Schedule */}
-            <div>
-              <h3 className="font-medium mb-3">Session Schedule</h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Last Session</p>
-                    <p className="font-medium">
-                      {currentClient.last_session_date 
-                        ? formatDateWithTime(currentClient.last_session_date)
-                        : 'None'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Next Session</p>
-                    <p className="font-medium">
-                      {currentClient.next_session_date ? formatDate(currentClient.next_session_date) : 'Not scheduled'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notes Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-          </CardHeader>
           <CardContent>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes about this client..."
-              className="min-h-[120px]"
-            />
-            <div className="flex justify-end mt-3">
-              <Button variant="outline">Save Notes</Button>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
+                <Calendar className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Next Session</p>
+                  <p className="font-semibold text-foreground">
+                    {currentClient.next_session_date ? formatDateWithTime(currentClient.next_session_date) : 'Not scheduled'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
+                <Clock className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Last Session</p>
+                  <p className="font-semibold text-foreground">
+                    {currentClient.last_session_date 
+                      ? formatDateWithTime(currentClient.last_session_date)
+                      : 'None'}
+                  </p>
+                </div>
+              </div>
+              {currentClient?.monthly_fee && (
+                <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Monthly Fee</p>
+                    <p className="font-semibold text-foreground">${Number(currentClient.monthly_fee).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Two Column Layout */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Contact & Communication */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Contact & Communication</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {currentClient?.client_email && (
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground mb-1">Email</p>
+                    <a 
+                      href={`mailto:${currentClient.client_email}`}
+                      className="font-medium hover:underline truncate block"
+                    >
+                      {currentClient.client_email}
+                    </a>
+                  </div>
+                </div>
+              )}
+              
+              {currentClient?.slack && (
+                <div className="flex items-start gap-3">
+                  <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground mb-1">Slack</p>
+                    <a 
+                      href={currentClient.slack}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium hover:underline truncate block"
+                    >
+                      @{(currentClient?.client_name || 'user').split(' ')[0].toLowerCase()}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {currentClient?.defacto_meeting && (
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground mb-1">Meeting Link</p>
+                    <a 
+                      href={currentClient.defacto_meeting}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium hover:underline truncate block"
+                    >
+                      Join Defacto Meeting
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {currentClient?.granola_notes_folder && (
+                <div className="flex items-start gap-3">
+                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
+                    <a 
+                      href={currentClient.granola_notes_folder}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium hover:underline truncate block"
+                    >
+                      View Granola Notes
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {(currentClient?.ea_name || currentClient?.ea_email) && (
+                <div className="flex items-start gap-3 pt-4 border-t">
+                  <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground mb-1">Executive Assistant</p>
+                    {currentClient?.ea_name && (
+                      <p className="font-medium">{currentClient.ea_name}</p>
+                    )}
+                    {currentClient?.ea_email && (
+                      <a 
+                        href={`mailto:${currentClient.ea_email}`}
+                        className="text-sm text-muted-foreground hover:underline truncate block"
+                      >
+                        {currentClient.ea_email}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Client Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Client Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {currentClient?.location && (
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Location</p>
+                    <p className="font-medium">{currentClient.location}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
+                  <p className="text-2xl font-bold">
+                    {loading ? '...' : sessionHistory.length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Engagement Length</p>
+                  <p className="text-2xl font-bold">
+                    {loading || sessionHistory.length === 0 ? '—' : (() => {
+                      const firstSession = new Date(sessionHistory[sessionHistory.length - 1].session_date);
+                      const lastSession = new Date(sessionHistory[0].session_date);
+                      const now = new Date();
+                      const endDate = lastSession > now ? lastSession : now;
+                      const months = Math.floor((endDate.getTime() - firstSession.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+                      return `${months}mo`;
+                    })()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Session History */}
         <Card>
