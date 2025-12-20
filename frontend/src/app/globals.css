@@ -41,75 +41,88 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  /* Radix Sand palette - exact values from @radix-ui/colors */
+  --background: hsl(50, 20%, 99%);           /* sand1 */
+  --foreground: hsl(50, 6%, 10%);            /* sand12 */
+  --card: hsl(50, 20%, 99%);                 /* sand1 */
+  --card-foreground: hsl(50, 6%, 10%);       /* sand12 */
+  --popover: hsl(50, 20%, 99%);              /* sand1 */
+  --popover-foreground: hsl(50, 6%, 10%);    /* sand12 */
+  --primary: hsl(50, 6%, 10%);               /* sand12 */
+  --primary-foreground: hsl(50, 20%, 99%);   /* sand1 */
+  --secondary: hsl(50, 6%, 93%);             /* sand4 */
+  --secondary-foreground: hsl(50, 6%, 10%);  /* sand12 */
+  --muted: hsl(50, 6%, 93%);                 /* sand4 */
+  --muted-foreground: hsl(50, 4%, 42%);      /* sand11 */
+  --accent: hsl(50, 5%, 88%);                /* sand5 */
+  --accent-foreground: hsl(50, 6%, 10%);     /* sand12 */
+  --destructive: hsl(358, 75%, 59%);         /* red9 */
+  --border: hsl(50, 6%, 90%);                /* sand6 */
+  --input: hsl(50, 6%, 90%);                 /* sand6 */
+  --ring: hsl(50, 5%, 53%);                  /* sand8 */
+  --chart-1: hsl(358, 75%, 59%);
+  --chart-2: hsl(173, 80%, 36%);
+  --chart-3: hsl(221, 83%, 53%);
+  --chart-4: hsl(43, 96%, 56%);
+  --chart-5: hsl(27, 96%, 61%);
+  --sidebar: hsl(50, 9%, 97%);               /* sand2 */
+  --sidebar-foreground: hsl(50, 6%, 10%);    /* sand12 */
+  --sidebar-primary: hsl(50, 6%, 10%);       /* sand12 */
+  --sidebar-primary-foreground: hsl(50, 20%, 99%); /* sand1 */
+  --sidebar-accent: hsl(50, 5%, 88%);        /* sand5 */
+  --sidebar-accent-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --sidebar-border: hsl(50, 6%, 90%);        /* sand6 */
+  --sidebar-ring: hsl(50, 5%, 53%);          /* sand8 */
+  /* Radix traffic light colors - step 11 for text */
+  --success: hsl(131, 41%, 46%);             /* grass11 */
+  --warning: hsl(35, 100%, 34%);             /* amber11 */
+  --danger: hsl(358, 65%, 49%);              /* red11 */
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  /* Radix Sand Dark palette - exact values from @radix-ui/colors */
+  --background: hsl(61, 2%, 8%);             /* sandDark1 */
+  --foreground: hsl(56, 4%, 92%);            /* sandDark12 */
+  --card: hsl(60, 3%, 11%);                  /* sandDark2 */
+  --card-foreground: hsl(56, 4%, 92%);       /* sandDark12 */
+  --popover: hsl(60, 3%, 11%);               /* sandDark2 */
+  --popover-foreground: hsl(56, 4%, 92%);    /* sandDark12 */
+  --primary: hsl(56, 4%, 92%);               /* sandDark12 */
+  --primary-foreground: hsl(61, 2%, 8%);     /* sandDark1 */
+  --secondary: hsl(60, 3%, 17%);             /* sandDark4 */
+  --secondary-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --muted: hsl(60, 3%, 17%);                 /* sandDark4 */
+  --muted-foreground: hsl(55, 3%, 63%);      /* sandDark11 */
+  --accent: hsl(59, 3%, 22%);                /* sandDark5 */
+  --accent-foreground: hsl(56, 4%, 92%);     /* sandDark12 */
+  --destructive: hsl(358, 75%, 59%);         /* red9 */
+  --border: hsl(58, 3%, 18%);                /* sandDark4 - subtler */
+  --input: hsl(58, 3%, 26%);                 /* sandDark6 */
+  --ring: hsl(51, 3%, 41%);                  /* sandDark8 */
+  --chart-1: hsl(358, 75%, 59%);
+  --chart-2: hsl(173, 80%, 36%);
+  --chart-3: hsl(221, 83%, 53%);
+  --chart-4: hsl(43, 96%, 56%);
+  --chart-5: hsl(27, 96%, 61%);
+  --sidebar: hsl(60, 3%, 11%);               /* sandDark2 */
+  --sidebar-foreground: hsl(56, 4%, 92%);    /* sandDark12 */
+  --sidebar-primary: hsl(56, 4%, 92%);       /* sandDark12 */
+  --sidebar-primary-foreground: hsl(61, 2%, 8%); /* sandDark1 */
+  --sidebar-accent: hsl(59, 3%, 22%);        /* sandDark5 */
+  --sidebar-accent-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --sidebar-border: hsl(58, 3%, 26%);        /* sandDark6 */
+  --sidebar-ring: hsl(51, 3%, 41%);          /* sandDark8 */
+  /* Radix traffic light colors - step 11 for text (dark mode) */
+  --success: hsl(131, 43%, 57%);             /* grassDark11 */
+  --warning: hsl(39, 100%, 57%);             /* amberDark11 */
+  --danger: hsl(358, 100%, 69%);             /* redDark11 */
 }
 
 @layer base {

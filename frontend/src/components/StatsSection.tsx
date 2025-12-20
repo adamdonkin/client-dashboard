@@ -15,6 +15,7 @@ interface StatsSectionProps {
     avgSessionsPerMonth: number;
     rescheduleRate: number;
     avgEngagementLength: number;
+    totalSessionsThisYear: number;
     revenueStats: RevenueStats;
   };
 }
@@ -36,47 +37,49 @@ export function StatsSection({ statsData }: StatsSectionProps) {
     <div className="space-y-6">
       {/* Session Statistics Row */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Sessions This Week */}
+        <h3 className="text-lg font-semibold text-foreground mb-4">Session Statistics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Sessions Summary: Week / Month / Year */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sessions This Week</CardTitle>
+              <CardTitle className="text-sm font-medium">Session Count</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statsData.sessionsThisWeek}</div>
-              <p className="text-xs text-muted-foreground">
-                Sunday to Saturday (LA time)
-              </p>
+              <div className="flex justify-between items-end">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{statsData.sessionsThisWeek}</div>
+                  <p className="text-xs text-muted-foreground">Week</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{statsData.avgSessionsPerMonth}</div>
+                  <p className="text-xs text-muted-foreground">{new Date().toLocaleString('en-US', { month: 'short' })}</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{statsData.totalSessionsThisYear}</div>
+                  <p className="text-xs text-muted-foreground">2025</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Avg Sessions/Week */}
+          {/* Avg Sessions: Week / Month */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Sessions/Week</CardTitle>
+              <CardTitle className="text-sm font-medium">Avg Sessions</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statsData.avgSessionsPerWeek}</div>
-              <p className="text-xs text-muted-foreground">
-                Rolling 12 weeks
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Avg Sessions/Month */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Sessions/Month</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{statsData.avgSessionsPerMonth}</div>
-              <p className="text-xs text-muted-foreground">
-                Last 3 months
-              </p>
+              <div className="flex justify-between items-end">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{statsData.avgSessionsPerWeek}</div>
+                  <p className="text-xs text-muted-foreground">Per Week</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{statsData.avgSessionsPerMonth}</div>
+                  <p className="text-xs text-muted-foreground">Per Month</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -98,7 +101,7 @@ export function StatsSection({ statsData }: StatsSectionProps) {
 
       {/* Revenue Statistics Row */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Statistics</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Revenue Statistics</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Monthly Recurring Revenue */}
           <Card>

@@ -68,9 +68,9 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'inactive': return 'bg-muted text-muted-foreground';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -196,15 +196,15 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           </Button>
           <div className="animate-pulse">
             <div className="flex items-center space-x-4 mb-6">
-              <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
+              <div className="w-16 h-16 bg-muted rounded-full"></div>
               <div className="space-y-2">
-                <div className="h-6 bg-gray-200 rounded w-32"></div>
-                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                <div className="h-6 bg-muted rounded w-32"></div>
+                <div className="h-4 bg-muted rounded w-24"></div>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="h-32 bg-gray-200 rounded"></div>
-              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-muted rounded"></div>
+              <div className="h-32 bg-muted rounded"></div>
             </div>
           </div>
         </div>
@@ -224,10 +224,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                <h2 className="text-lg font-semibold text-foreground mb-2">
                   {error || 'Client not found'}
                 </h2>
-                <p className="text-gray-600 mb-4">
+                <p className="text-muted-foreground mb-4">
                   {error ? 'Please try again or contact support.' : 'The requested client could not be found.'}
                 </p>
                 <Button onClick={onBack}>
@@ -262,7 +262,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-gray-900 text-white text-xl">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                     {initials}
                   </AvatarFallback>
                 </Avatar>

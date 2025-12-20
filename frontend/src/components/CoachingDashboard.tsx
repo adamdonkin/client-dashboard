@@ -31,6 +31,7 @@ interface CoachingDashboardProps {
     avgSessionsPerMonth: number;
     rescheduleRate: number;
     avgEngagementLength: number;
+    totalSessionsThisYear: number;
   };
 }
 
@@ -223,16 +224,23 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
       {/* Updated Header with clickable avatar */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Coaching Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Coaching Dashboard</h1>
         </div>
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Link 
+            href="/clients" 
+            className={`flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity ${
+              totalClients >= 22 ? 'text-danger' : 
+              totalClients >= 20 ? 'text-warning' : 
+              'text-success'
+            }`}
+          >
             <Users className="h-4 w-4" />
             {totalClients} Total Clients
-          </div>
+          </Link>
           <Link 
             href="/timezones" 
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Globe className="h-4 w-4" />
             Timezones
@@ -248,7 +256,7 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
                       src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} 
                       alt={user?.user_metadata?.full_name || user?.email || 'User avatar'} 
                     />
-                    <AvatarFallback className="bg-gray-900 text-white text-sm">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                       {user?.email ? getUserInitials(user.email) : 'JD'}
                     </AvatarFallback>
                   </Avatar>

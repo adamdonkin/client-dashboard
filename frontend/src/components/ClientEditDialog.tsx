@@ -16,7 +16,7 @@ export function ClientEditDialog({ client, open, onOpenChange, onClientUpdate }:
           <DialogTitle>Edit Client</DialogTitle>
         </DialogHeader>
         <div className="p-4">
-          <p className="text-gray-600">Client editing form coming soon...</p>
+          <p className="text-muted-foreground">Client editing form coming soon...</p>
         </div>
       </DialogContent>
     </Dialog>

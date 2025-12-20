@@ -128,3 +128,4 @@ GRANT EXECUTE ON FUNCTION get_clients_by_region() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_clients_by_region() TO anon;
 GRANT EXECUTE ON FUNCTION get_clients_by_region() TO service_role;
 
+

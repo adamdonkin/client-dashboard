@@ -35,7 +35,8 @@ export default async function Home() {
     avgSessionsPerMonth,
     rescheduleRate,
     revenueStats,
-    avgEngagementLength
+    avgEngagementLength,
+    totalSessionsThisYear
   ] = await Promise.all([
     supabase.rpc('get_clients_needs_scheduling'),
     supabase.rpc('get_clients_this_week_fixed'),
@@ -46,7 +47,8 @@ export default async function Home() {
     supabase.rpc('get_avg_sessions_per_month'),
     supabase.rpc('get_reschedule_cancel_rate'),
     supabase.rpc('get_revenue_stats'),
-    supabase.rpc('get_avg_engagement_length')
+    supabase.rpc('get_avg_engagement_length'),
+    supabase.rpc('get_total_sessions_this_year')
   ])
 
   const error = 
@@ -59,7 +61,8 @@ export default async function Home() {
     avgSessionsPerMonth.error ||
     rescheduleRate.error ||
     revenueStats.error ||
-    avgEngagementLength.error;
+    avgEngagementLength.error ||
+    totalSessionsThisYear.error;
 
   if (needsSchedulingData.error) console.error('get_clients_needs_scheduling error:', needsSchedulingData.error)
   if (thisWeekData.error) console.error('get_clients_this_week error:', thisWeekData.error)  
@@ -71,6 +74,7 @@ export default async function Home() {
   if (rescheduleRate.error) console.error('get_reschedule_cancel_rate error:', rescheduleRate.error)
   if (revenueStats.error) console.error('get_revenue_stats error:', revenueStats.error)
   if (avgEngagementLength.error) console.error('get_avg_engagement_length error:', avgEngagementLength.error)
+  if (totalSessionsThisYear.error) console.error('get_total_sessions_this_year error:', totalSessionsThisYear.error)
 
   // Also log what data we're getting
   console.log('thisWeekData.data:', thisWeekData.data)
@@ -88,6 +92,7 @@ export default async function Home() {
     avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
     rescheduleRate: rescheduleRate.data || 0,
     avgEngagementLength: avgEngagementLength.data || 0,
+    totalSessionsThisYear: totalSessionsThisYear.data || 0,
     revenueStats: (revenueStats.data && revenueStats.data[0]) || {
       total_monthly_revenue: "0",
       annual_projection: "0", 

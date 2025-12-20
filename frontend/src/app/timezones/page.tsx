@@ -77,7 +77,7 @@ export default async function TimezonesPage() {
       case 'Asia Pacific':
         return 'bg-purple-100 text-purple-800 border-purple-200'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
+        return 'bg-muted text-muted-foreground border-border'
     }
   }
 
@@ -106,13 +106,13 @@ export default async function TimezonesPage() {
       <div className="mb-8">
         <Link 
           href="/" 
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Dashboard
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Client Timezone Distribution</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Client Timezone Distribution</h1>
+        <p className="text-muted-foreground mt-1">
           Analyze your client distribution to manage morning slot availability
         </p>
       </div>
@@ -126,7 +126,7 @@ export default async function TimezonesPage() {
         <CardContent>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-bold">{pressure.morning_pressure_pct}%</span>
-            <span className="text-gray-600">of clients need morning PT slots</span>
+            <span className="text-muted-foreground">of clients need morning PT slots</span>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
             {pressure.morning_clients} of {pressure.total_clients_with_location} clients with locations are in East Coast or Europe timezones
@@ -193,8 +193,8 @@ export default async function TimezonesPage() {
       </Card>
 
       {/* Legend */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Color Legend</h3>
+      <div className="mt-6 p-4 bg-muted rounded-lg">
+        <h3 className="text-sm font-medium text-foreground mb-2">Color Legend</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-green-500"></div>
