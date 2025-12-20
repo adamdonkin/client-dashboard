@@ -14,4 +14,5 @@ export interface Client {
   sessionType?: string
   ea_email?: string;
   ea_name?: string;
+  location?: string;
 } 

@@ -143,7 +143,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     const fetchClientDetails = async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active, location')
         .eq('id', client.id)
         .single();
       
@@ -377,6 +377,36 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     <div>
                       <p className="text-sm text-muted-foreground">Role</p>
                       <p className="font-medium">{currentClient.role}</p>
+                    </div>
+                  </div>
+                )}
+                {currentClient?.location && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="h-4 w-4 flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">📍</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium">{currentClient.location}</p>
+                    </div>
+                  </div>
+                )}
+                {(currentClient?.ea_name || currentClient?.ea_email) && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Executive Assistant</p>
+                      {currentClient?.ea_name && (
+                        <p className="font-medium">{currentClient.ea_name}</p>
+                      )}
+                      {currentClient?.ea_email && (
+                        <a 
+                          href={`mailto:${currentClient.ea_email}`}
+                          className="text-sm text-muted-foreground hover:underline"
+                        >
+                          {currentClient.ea_email}
+                        </a>
+                      )}
                     </div>
                   </div>
                 )}

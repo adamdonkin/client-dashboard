@@ -167,13 +167,14 @@ export default async function TimezonesPage() {
                     <div className="pt-3 border-t border-current/20">
                       <div className="flex flex-wrap gap-2">
                         {clientsByRegionMap[region.region].map((client) => (
-                          <span 
+                          <Link 
                             key={client.client_id}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/50"
+                            href={`/?client=${client.client_id}`}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/50 hover:bg-white/80 transition-colors cursor-pointer"
                             title={client.location}
                           >
                             {client.client_name}
-                          </span>
+                          </Link>
                         ))}
                       </div>
                     </div>
