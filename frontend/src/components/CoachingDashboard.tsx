@@ -10,13 +10,6 @@ import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2, Globe } from 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useRouter } from "next/navigation";
 
 // Define the shape of the data this component will receive
@@ -201,10 +194,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
     setSelectedClient(null);
   };
 
-  const getUserInitials = (email: string) => {
-    return email.split('@')[0].split('.').map(n => n[0]).join('').toUpperCase()
-  }
-
   // Show client detail view if a client is selected
   if (selectedClient) {
     return (
@@ -220,93 +209,79 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
   }
 
   return (
-    <div className="p-6">
-      {/* Updated Header with clickable avatar */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Coaching Dashboard</h1>
-        </div>
-        <div className="flex items-center gap-6">
-          <Link 
-            href="/clients" 
-            className={`flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity ${
-              totalClients >= 22 ? 'text-danger' : 
-              totalClients >= 20 ? 'text-warning' : 
-              'text-success'
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            {totalClients} Total Clients
-          </Link>
-          <Link 
-            href="/timezones" 
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Globe className="h-4 w-4" />
-            Timezones
-          </Link>
-          <div className="flex items-center gap-2">
-            <ManualSyncButton user={user} />
-            <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage 
-                      src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} 
-                      alt={user?.user_metadata?.full_name || user?.email || 'User avatar'} 
-                    />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                      {user?.email ? getUserInitials(user.email) : 'JD'}
-                    </AvatarFallback>
-                  </Avatar>
+    <div>
+      {/* Updated Header with clickable avatar - Full Width */}
+      <div className="px-6 py-4">
+        <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Coaching Dashboard</h1>
+            </div>
+            <div className="flex items-center gap-6">
+              <Link 
+                href="/clients" 
+                className={`flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity ${
+                  totalClients >= 22 ? 'text-danger' : 
+                  totalClients >= 20 ? 'text-warning' : 
+                  'text-success'
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                {totalClients} Total Clients
+              </Link>
+              <Link 
+                href="/timezones" 
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Globe className="h-4 w-4" />
+                Timezones
+              </Link>
+              <div className="flex items-center gap-2">
+                <ManualSyncButton user={user} />
+                <ThemeToggle />
+                <Button variant="ghost" size="sm" onClick={signOut}>
+                  Sign out
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">
-                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'John Doe'}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || 'john.doe@coaching.com'}
-                  </p>
-                </div>
-                <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                  Sign out of Google
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </div>
           </div>
-        </div>
       </div>
 
-      {/* Stats Section */}
-      <div className="mb-8">
-        <StatsSection statsData={statsData} />
-      </div>
+      {/* Content Area - Constrained Width */}
+      <div className="p-6 max-w-[900px] mx-auto">
+        {/* Stats Section */}
+        <div className="mb-16">
+          <StatsSection statsData={statsData} />
+        </div>
 
       {/* Use the provided ClientListView component for each section */}
       <div className="space-y-8">
-        <ClientListView
-          clients={needsScheduling}
-          title="Needs Scheduling"
-          badgeColor="bg-red-100 text-red-800"
-          onClientSelect={handleClientSelect}
-        />
+        {needsScheduling.length > 0 && (
+          <ClientListView
+            clients={needsScheduling}
+            title="Needs Scheduling"
+            badgeColor="bg-danger/10 text-danger"
+            onClientSelect={handleClientSelect}
+          />
+        )}
         
-        <ClientListView
-          clients={thisWeek}
-          title="Coming up this week"
-          badgeColor="bg-blue-100 text-blue-800"
-          onClientSelect={handleClientSelect}
-        />
+        {thisWeek.length > 0 && (
+          <ClientListView
+            clients={thisWeek}
+            title="Coming up this week"
+            badgeColor="bg-warning/10 text-warning"
+            onClientSelect={handleClientSelect}
+          />
+        )}
         
-        <ClientListView
-          clients={future}
-          title="Upcoming"
-          badgeColor="bg-green-100 text-green-800"
-          onClientSelect={handleClientSelect}
-        />
+        {future.length > 0 && (
+          <ClientListView
+            clients={future}
+            title="Upcoming"
+            badgeColor="bg-success/10 text-success"
+            onClientSelect={handleClientSelect}
+          />
+        )}
+      </div>
       </div>
     </div>
   )

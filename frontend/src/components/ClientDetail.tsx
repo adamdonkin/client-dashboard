@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -42,20 +41,6 @@ interface ClientDetailProps {
   onBack: () => void;
   onClientUpdate?: (updatedClient: Client) => void;
 }
-
-// Add getInitials helper
-const getInitials = (name: string | undefined | null): string => {
-  if (!name || typeof name !== 'string' || name.trim() === '') {
-    return '??';
-  }
-  return name
-    .trim()
-    .split(' ')
-    .filter(part => part.length > 0)
-    .map(part => part[0]?.toUpperCase() || '')
-    .slice(0, 2)
-    .join('');
-};
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
@@ -242,7 +227,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   }
 
   // Safe rendering with null checks
-  const initials = getInitials(currentClient?.client_name);
   const clientName = currentClient?.client_name || 'Unknown Client';
 
   return (
@@ -261,11 +245,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
                 <div className="space-y-1">
                   <h1 className="text-2xl font-semibold">{clientName}</h1>
                   <div className="flex items-center gap-2">

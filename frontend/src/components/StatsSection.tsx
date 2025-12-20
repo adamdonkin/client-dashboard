@@ -36,9 +36,7 @@ export function StatsSection({ statsData }: StatsSectionProps) {
   return (
     <div className="space-y-6">
       {/* Session Statistics Row */}
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Session Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Sessions Summary: Week / Month / Year */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -96,13 +94,10 @@ export function StatsSection({ statsData }: StatsSectionProps) {
               </p>
             </CardContent>
           </Card>
-        </div>
       </div>
 
       {/* Revenue Statistics Row */}
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Revenue Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Monthly Recurring Revenue */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -150,7 +145,6 @@ export function StatsSection({ statsData }: StatsSectionProps) {
               </p>
             </CardContent>
           </Card>
-        </div>
       </div>
     </div>
   );
