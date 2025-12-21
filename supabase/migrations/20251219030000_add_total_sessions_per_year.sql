@@ -28,3 +28,4 @@ GRANT EXECUTE ON FUNCTION get_total_sessions_this_year() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_total_sessions_this_year() TO anon;
 GRANT EXECUTE ON FUNCTION get_total_sessions_this_year() TO service_role;
 
+

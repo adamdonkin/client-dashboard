@@ -90,45 +90,87 @@ serve(async (req)=>{
       console.log(`Standard sync mode: fetching events from ${timeMin.toISOString()} to ${timeMax.toISOString()}`);
     }
     
-    // Fetch ALL events from Google Calendar with pagination
+    // Calendars to sync from (primary + any additional shared calendars)
+    // Your personal calendar must be shared with your mocharymethod account for this to work
+    const calendarIds = [
+      'primary',                    // adam@mocharymethod.com (main account)
+      'adam@adamdonkin.com'         // Personal calendar (shared with mocharymethod)
+    ];
+    
+    // Fetch events from ALL calendars with pagination
     const allEvents = [];
-    let pageToken = null;
-    let pageCount = 0;
-    do {
-      pageCount++;
-      console.log(`Fetching page ${pageCount}...`);
-      const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
-      url.searchParams.append('timeMin', timeMin.toISOString());
-      url.searchParams.append('timeMax', timeMax.toISOString());
-      url.searchParams.append('singleEvents', 'true');
-      url.searchParams.append('orderBy', 'startTime');
-      url.searchParams.append('maxResults', '250');
+    let totalPageCount = 0;
+    const calendarStats: Record<string, number> = {};
+    
+    for (const calendarId of calendarIds) {
+      console.log(`\n📅 Fetching from calendar: ${calendarId}`);
+      let pageToken = null;
+      let calendarPageCount = 0;
+      let calendarEventCount = 0;
       
-      // Always include showDeleted for cancelled event tracking
-      url.searchParams.append('showDeleted', 'true');
-      
-      if (pageToken) url.searchParams.append('pageToken', pageToken);
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${currentToken}`
+      do {
+        calendarPageCount++;
+        totalPageCount++;
+        console.log(`  Page ${calendarPageCount}...`);
+        
+        const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+        url.searchParams.append('timeMin', timeMin.toISOString());
+        url.searchParams.append('timeMax', timeMax.toISOString());
+        url.searchParams.append('singleEvents', 'true');
+        url.searchParams.append('orderBy', 'startTime');
+        url.searchParams.append('maxResults', '250');
+        
+        // Always include showDeleted for cancelled event tracking
+        url.searchParams.append('showDeleted', 'true');
+        
+        if (pageToken) url.searchParams.append('pageToken', pageToken);
+        
+        const response = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${currentToken}`
+          }
+        });
+        
+        if (!response.ok) {
+          // If calendar not accessible (not shared or doesn't exist), log and skip
+          if (response.status === 404) {
+            console.log(`  ⚠️ Calendar not found: ${calendarId} - skipping`);
+            break;
+          }
+          if (response.status === 403) {
+            console.log(`  ⚠️ No access to calendar: ${calendarId} - make sure it's shared with your account`);
+            break;
+          }
+          throw new Error(`Google API error for ${calendarId}: ${response.status}`);
         }
-      });
-      if (!response.ok) {
-        throw new Error(`Google API error: ${response.status}`);
-      }
-      const calendarData = await response.json();
-      const pageEvents = calendarData.items || [];
-      allEvents.push(...pageEvents);
-      pageToken = calendarData.nextPageToken;
-      console.log(`Page ${pageCount}: ${pageEvents.length} events, hasNext: ${!!pageToken}`);
-      // Safety limit - increase for historical recovery
-      const maxPages = historicalRecovery ? 20 : 10;
-      if (pageCount >= maxPages) {
-        console.log(`Reached safety page limit (${maxPages})`);
-        break;
-      }
-    }while (pageToken)
-    console.log(`Fetched ${allEvents.length} total events from Google`);
+        
+        const calendarData = await response.json();
+        const pageEvents = calendarData.items || [];
+        
+        // Add source calendar info to each event for debugging
+        pageEvents.forEach((event: any) => {
+          event._sourceCalendar = calendarId;
+        });
+        
+        allEvents.push(...pageEvents);
+        calendarEventCount += pageEvents.length;
+        pageToken = calendarData.nextPageToken;
+        console.log(`  ${pageEvents.length} events, hasNext: ${!!pageToken}`);
+        
+        // Safety limit per calendar
+        const maxPages = historicalRecovery ? 20 : 10;
+        if (calendarPageCount >= maxPages) {
+          console.log(`  Reached safety page limit (${maxPages}) for ${calendarId}`);
+          break;
+        }
+      } while (pageToken);
+      
+      calendarStats[calendarId] = calendarEventCount;
+      console.log(`  ✅ Total from ${calendarId}: ${calendarEventCount} events`);
+    }
+    
+    console.log(`\n📊 Fetched ${allEvents.length} total events from ${calendarIds.length} calendars`);
+    console.log('Calendar breakdown:', calendarStats);
     
     // Filter events for clients
     const clientEmailsSet = new Set(clientEmails.map((e)=>e.toLowerCase()));
@@ -271,7 +313,9 @@ serve(async (req)=>{
       message: `Sync complete: ${synced} events synced, ${cancelled} cancelled events tracked${historicalRecovery ? `, ${historical} historical events recovered` : ''}, ${errors} errors`,
       stats: {
         totalFetched: allEvents.length,
-        pagesProcessed: pageCount,
+        pagesProcessed: totalPageCount,
+        calendarsProcessed: calendarIds.length,
+        calendarBreakdown: calendarStats,
         processed: filteredEvents.length,
         synced,
         cancelled,

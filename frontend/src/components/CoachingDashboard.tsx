@@ -226,7 +226,7 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
                 }`}
               >
                 <Users className="h-4 w-4" />
-                {totalClients} Total Clients
+                {totalClients} Clients
               </Link>
               <Link 
                 href="/timezones" 

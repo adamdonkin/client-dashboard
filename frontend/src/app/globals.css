@@ -82,7 +82,7 @@
   --sidebar-ring: hsl(50, 5%, 53%);          /* sand8 */
   /* Radix traffic light colors - step 11 for text */
   --success: hsl(131, 41%, 46%);             /* grass11 */
-  --warning: hsl(35, 100%, 34%);             /* amber11 */
+  --warning: hsl(39, 95%, 50%);              /* amber11 */
   --danger: hsl(358, 65%, 49%);              /* red11 */
 }
 
