@@ -31,8 +31,10 @@ export default async function Home() {
     futureData,
     dashboardStatsData,
     sessionsThisWeek,
+    scheduledSessionsThisWeek,
     avgSessionsPerWeek,
     avgSessionsPerMonth,
+    sessionsThisMonth,
     rescheduleRate,
     revenueStats,
     avgEngagementLength,
@@ -43,8 +45,10 @@ export default async function Home() {
     supabase.rpc('get_clients_future'),
     supabase.rpc('get_scheduling_dashboard'),
     supabase.rpc('get_sessions_this_week'),
+    supabase.rpc('get_scheduled_sessions_this_week'),
     supabase.rpc('get_avg_sessions_per_week'),
     supabase.rpc('get_avg_sessions_per_month'),
+    supabase.rpc('get_sessions_this_month'),
     supabase.rpc('get_reschedule_cancel_rate'),
     supabase.rpc('get_revenue_stats'),
     supabase.rpc('get_avg_engagement_length'),
@@ -57,8 +61,10 @@ export default async function Home() {
     futureData.error ||
     dashboardStatsData.error ||
     sessionsThisWeek.error ||
+    scheduledSessionsThisWeek.error ||
     avgSessionsPerWeek.error ||
     avgSessionsPerMonth.error ||
+    sessionsThisMonth.error ||
     rescheduleRate.error ||
     revenueStats.error ||
     avgEngagementLength.error ||
@@ -69,8 +75,10 @@ export default async function Home() {
   if (futureData.error) console.error('get_clients_future error:', futureData.error)
   if (dashboardStatsData.error) console.error('get_scheduling_dashboard error:', dashboardStatsData.error)
   if (sessionsThisWeek.error) console.error('get_sessions_this_week error:', sessionsThisWeek.error)
+  if (scheduledSessionsThisWeek.error) console.error('get_scheduled_sessions_this_week error:', scheduledSessionsThisWeek.error)
   if (avgSessionsPerWeek.error) console.error('get_avg_sessions_per_week error:', avgSessionsPerWeek.error)
   if (avgSessionsPerMonth.error) console.error('get_avg_sessions_per_month error:', avgSessionsPerMonth.error)
+  if (sessionsThisMonth.error) console.error('get_sessions_this_month error:', sessionsThisMonth.error)
   if (rescheduleRate.error) console.error('get_reschedule_cancel_rate error:', rescheduleRate.error)
   if (revenueStats.error) console.error('get_revenue_stats error:', revenueStats.error)
   if (avgEngagementLength.error) console.error('get_avg_engagement_length error:', avgEngagementLength.error)
@@ -88,8 +96,10 @@ export default async function Home() {
 
   const statsData = {
     sessionsThisWeek: sessionsThisWeek.data || 0,
+    scheduledSessionsThisWeek: scheduledSessionsThisWeek.data || 0,
     avgSessionsPerWeek: avgSessionsPerWeek.data || 0,
     avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
+    sessionsThisMonth: sessionsThisMonth.data || 0,
     rescheduleRate: rescheduleRate.data || 0,
     avgEngagementLength: avgEngagementLength.data || 0,
     totalSessionsThisYear: totalSessionsThisYear.data || 0,

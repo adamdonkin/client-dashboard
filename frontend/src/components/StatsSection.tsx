@@ -11,8 +11,10 @@ interface RevenueStats {
 interface StatsSectionProps {
   statsData: {
     sessionsThisWeek: number;
+    scheduledSessionsThisWeek: number;
     avgSessionsPerWeek: number;
     avgSessionsPerMonth: number;
+    sessionsThisMonth: number;
     rescheduleRate: number;
     avgEngagementLength: number;
     totalSessionsThisYear: number;
@@ -128,20 +130,23 @@ export function StatsSection({ statsData }: StatsSectionProps) {
 
       {/* Session Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Sessions Summary: Week / Month / Year */}
+          {/* Sessions Completed: Week / Month / Year */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Session Count</CardTitle>
+              <CardTitle className="text-sm font-medium">Sessions Completed</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-end">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{statsData.sessionsThisWeek}</div>
-                  <p className="text-xs text-muted-foreground">Week</p>
+                  <div className="text-2xl">
+                    <span className="font-bold">{statsData.sessionsThisWeek}</span>
+                    <span className="text-muted-foreground">/{statsData.scheduledSessionsThisWeek}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">This Week</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{statsData.avgSessionsPerMonth}</div>
+                  <div className="text-2xl font-bold">{statsData.sessionsThisMonth}</div>
                   <p className="text-xs text-muted-foreground">{new Date().toLocaleString('en-US', { month: 'short' })}</p>
                 </div>
                 <div className="text-center">

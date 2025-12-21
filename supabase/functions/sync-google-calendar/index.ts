@@ -12,11 +12,11 @@ serve(async (req)=>{
   }
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { user_id, includeDeleted = false, historicalRecovery = false } = await req.json();
+    const { user_id, includeDeleted = false, historicalRecovery = false, customTimeMin, customTimeMax } = await req.json();
     if (!user_id) {
       throw new Error('user_id is required');
     }
-    console.log(`Starting sync for user: ${user_id}, includeDeleted: ${includeDeleted}, historicalRecovery: ${historicalRecovery}`);
+    console.log(`Starting sync for user: ${user_id}, includeDeleted: ${includeDeleted}, historicalRecovery: ${historicalRecovery}, customRange: ${customTimeMin ? 'yes' : 'no'}`);
     // Get user's current token
     const { data: tokenData, error: tokenError } = await supabase.from('user_tokens').select('*').eq('user_id', user_id).single();
     if (tokenError || !tokenData) {
@@ -78,7 +78,12 @@ serve(async (req)=>{
     
     // Set time range based on parameters
     let timeMin, timeMax;
-    if (historicalRecovery) {
+    if (customTimeMin && customTimeMax) {
+      // Custom date range (for one-time full year syncs, etc.)
+      timeMin = new Date(customTimeMin);
+      timeMax = new Date(customTimeMax);
+      console.log(`Custom date range mode: fetching events from ${timeMin.toISOString()} to ${timeMax.toISOString()}`);
+    } else if (historicalRecovery) {
       // For historical recovery: 3 months back, 60 days forward
       timeMin = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 3 months back
       timeMax = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000); // 60 days forward

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { user_id } = await request.json()
+    const { user_id, historicalRecovery = false, customTimeMin, customTimeMax } = await request.json()
     
     // Call your Supabase Edge Function
     const response = await fetch(
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ user_id })
+        body: JSON.stringify({ user_id, historicalRecovery, customTimeMin, customTimeMax })
       }
     )
     
