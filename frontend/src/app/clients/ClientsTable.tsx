@@ -10,6 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table"
 
 interface ClientRow {
@@ -77,6 +78,11 @@ export function ClientsTable({ clients }: ClientsTableProps) {
     </TableHead>
   )
 
+  // Calculate total monthly fees
+  const totalMonthlyFees = sortedClients.reduce((sum, client) => {
+    return sum + (client.monthly_fee || 0)
+  }, 0)
+
   return (
     <Table>
       <TableHeader>
@@ -118,6 +124,15 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           </TableRow>
         ))}
       </TableBody>
+      <TableFooter>
+        <TableRow>
+          <TableCell colSpan={3} className="font-medium">Total</TableCell>
+          <TableCell className="font-bold">
+            ${totalMonthlyFees.toLocaleString()}
+          </TableCell>
+          <TableCell />
+        </TableRow>
+      </TableFooter>
     </Table>
   )
 }
