@@ -20,6 +20,7 @@ interface ClientRow {
   location: string | null;
   role: string | null;
   monthly_fee: number | null;
+  referral_source?: string | null;
 }
 
 type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee';
