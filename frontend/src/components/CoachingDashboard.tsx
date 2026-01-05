@@ -6,6 +6,7 @@ import { ClientListView } from "./ClientListView";
 import ClientDetail from "./ClientDetail";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
+import { RevenueFilterType } from './RevenueFilter'
 import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2, Globe } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,8 @@ interface CoachingDashboardProps {
     rescheduleRate: number;
     avgEngagementLength: number;
     totalSessionsThisYear: number;
+    revenueStats: any;
+    revenueStatsMochary?: any;
   };
 }
 
@@ -133,6 +136,12 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
   const { user, signOut } = useAuth()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const router = useRouter();
+
+  const handleRevenueFilterChange = (filter: RevenueFilterType) => {
+    // The filtering is handled within StatsSection component
+    // This callback can be used for any additional logic if needed
+    console.log('Revenue filter changed to:', filter);
+  };
 
   // Add browser history management
   useEffect(() => {
@@ -250,7 +259,10 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
       <div className="p-6 max-w-[900px] mx-auto">
         {/* Stats Section */}
         <div className="mb-16">
-          <StatsSection statsData={statsData} />
+          <StatsSection 
+            statsData={statsData} 
+            onRevenueFilterChange={handleRevenueFilterChange}
+          />
         </div>
 
       {/* Use the provided ClientListView component for each section */}

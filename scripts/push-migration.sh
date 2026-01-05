@@ -16,3 +16,6 @@ echo "📝 Don't forget to:"
 echo "  1. Commit and push your migration files to git"
 echo "  2. Refresh your dashboard to see the changes"
 
+
+
+

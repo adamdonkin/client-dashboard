@@ -41,3 +41,6 @@ GRANT EXECUTE ON FUNCTION get_avg_engagement_length() TO service_role;
 
 
 
+
+
+

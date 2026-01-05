@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Calendar, TrendingUp, BarChart3, DollarSign, Target, Users, Clock, Gauge } from 'lucide-react';
+import { RevenueFilter, RevenueFilterType } from './RevenueFilter';
 
 interface RevenueStats {
   total_monthly_revenue: string;
@@ -19,11 +21,23 @@ interface StatsSectionProps {
     avgEngagementLength: number;
     totalSessionsThisYear: number;
     revenueStats: RevenueStats;
+    revenueStatsMochary?: RevenueStats;
   };
+  onRevenueFilterChange?: (filter: RevenueFilterType) => void;
 }
 
-export function StatsSection({ statsData }: StatsSectionProps) {
-  const { revenueStats } = statsData;
+export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionProps) {
+  const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('all');
+  
+  const handleFilterChange = (filter: RevenueFilterType) => {
+    setRevenueFilter(filter);
+    onRevenueFilterChange?.(filter);
+  };
+  
+  // Use filtered revenue stats based on current filter
+  const currentRevenueStats = revenueFilter === 'mochary-method' 
+    ? (statsData.revenueStatsMochary || statsData.revenueStats)
+    : statsData.revenueStats;
 
   const formatCurrency = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
@@ -35,8 +49,8 @@ export function StatsSection({ statsData }: StatsSectionProps) {
     }).format(num);
   };
 
-  // Capacity calculations
-  const activeClientCount = revenueStats?.active_paying_clients || 0;
+  // Capacity calculations (always use total, not filtered)
+  const activeClientCount = statsData.revenueStats?.active_paying_clients || 0;
   const maxCapacity = 22;
   const availableSlots = Math.max(0, maxCapacity - activeClientCount);
   
@@ -61,6 +75,9 @@ export function StatsSection({ statsData }: StatsSectionProps) {
 
   return (
     <div className="space-y-6">
+      {/* Revenue Filter */}
+      <RevenueFilter value={revenueFilter} onChange={handleFilterChange} />
+      
       {/* Revenue Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Capacity */}
@@ -87,7 +104,7 @@ export function StatsSection({ statsData }: StatsSectionProps) {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
               <div className="text-2xl font-bold">
-                {revenueStats ? formatCurrency(revenueStats.total_monthly_revenue) : '$0'}
+                {currentRevenueStats ? formatCurrency(currentRevenueStats.total_monthly_revenue) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
                 Monthly revenue
@@ -103,7 +120,7 @@ export function StatsSection({ statsData }: StatsSectionProps) {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
               <div className="text-2xl font-bold">
-                {revenueStats ? formatCurrency(revenueStats.annual_projection) : '$0'}
+                {currentRevenueStats ? formatCurrency(currentRevenueStats.annual_projection) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
                 Annual revenue
@@ -119,7 +136,7 @@ export function StatsSection({ statsData }: StatsSectionProps) {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
               <div className="text-2xl font-bold">
-                {revenueStats ? formatCurrency(revenueStats.average_client_fee) : '$0'}
+                {currentRevenueStats ? formatCurrency(currentRevenueStats.average_client_fee) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
                 Per month per client

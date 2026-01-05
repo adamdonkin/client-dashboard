@@ -28,3 +28,6 @@ GRANT EXECUTE ON FUNCTION get_sessions_this_month() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_sessions_this_month() TO anon;
 GRANT EXECUTE ON FUNCTION get_sessions_this_month() TO service_role;
 
+
+
+

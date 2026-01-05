@@ -37,6 +37,7 @@ export default async function Home() {
     sessionsThisMonth,
     rescheduleRate,
     revenueStats,
+    revenueStatsMochary,
     avgEngagementLength,
     totalSessionsThisYear
   ] = await Promise.all([
@@ -51,6 +52,7 @@ export default async function Home() {
     supabase.rpc('get_sessions_this_month'),
     supabase.rpc('get_reschedule_cancel_rate'),
     supabase.rpc('get_revenue_stats'),
+    supabase.rpc('get_revenue_stats_mochary_method'),
     supabase.rpc('get_avg_engagement_length'),
     supabase.rpc('get_total_sessions_this_year')
   ])
@@ -67,6 +69,7 @@ export default async function Home() {
     sessionsThisMonth.error ||
     rescheduleRate.error ||
     revenueStats.error ||
+    revenueStatsMochary.error ||
     avgEngagementLength.error ||
     totalSessionsThisYear.error;
 
@@ -81,6 +84,7 @@ export default async function Home() {
   if (sessionsThisMonth.error) console.error('get_sessions_this_month error:', sessionsThisMonth.error)
   if (rescheduleRate.error) console.error('get_reschedule_cancel_rate error:', rescheduleRate.error)
   if (revenueStats.error) console.error('get_revenue_stats error:', revenueStats.error)
+  if (revenueStatsMochary.error) console.error('get_revenue_stats_mochary_method error:', revenueStatsMochary.error)
   if (avgEngagementLength.error) console.error('get_avg_engagement_length error:', avgEngagementLength.error)
   if (totalSessionsThisYear.error) console.error('get_total_sessions_this_year error:', totalSessionsThisYear.error)
 
@@ -104,6 +108,12 @@ export default async function Home() {
     avgEngagementLength: avgEngagementLength.data || 0,
     totalSessionsThisYear: totalSessionsThisYear.data || 0,
     revenueStats: (revenueStats.data && revenueStats.data[0]) || {
+      total_monthly_revenue: "0",
+      annual_projection: "0", 
+      active_paying_clients: 0,
+      average_client_fee: "0"
+    },
+    revenueStatsMochary: (revenueStatsMochary.data && revenueStatsMochary.data[0]) || {
       total_monthly_revenue: "0",
       annual_projection: "0", 
       active_paying_clients: 0,
