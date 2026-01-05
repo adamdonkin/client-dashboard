@@ -72,20 +72,15 @@ export default function ClientsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Back Link */}
-      <Link 
-        href="/" 
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to Dashboard
-      </Link>
-
-      {/* Revenue Filter */}
-      <RevenueFilter value={revenueFilter} onChange={setRevenueFilter} />
-
       {/* Header */}
       <div className="mb-8">
+        <Link 
+          href="/" 
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Dashboard
+        </Link>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">Active Clients</h1>
           <div className={`flex items-center gap-2 font-medium ${
@@ -98,6 +93,9 @@ export default function ClientsPage() {
           </div>
         </div>
       </div>
+
+      {/* Revenue Filter */}
+      <RevenueFilter value={revenueFilter} onChange={setRevenueFilter} />
 
       {/* Client List */}
       <Card>
