@@ -51,19 +51,19 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
 
   // Capacity calculations (always use total, not filtered)
   const activeClientCount = statsData.revenueStats?.active_paying_clients || 0;
-  const maxCapacity = 22;
+  const maxCapacity = 20;
   const availableSlots = Math.max(0, maxCapacity - activeClientCount);
   
   // Traffic light color for capacity (matching navbar)
   const getCapacityColor = (count: number) => {
-    if (count >= 22) return 'text-danger';
-    if (count >= 20) return 'text-warning';
+    if (count >= 20) return 'text-danger';
+    if (count >= 18) return 'text-warning';
     return 'text-success';
   };
 
   const getCapacityBgColor = (count: number) => {
-    if (count >= 22) return 'bg-red-50 dark:bg-red-950/20';
-    if (count >= 20) return 'bg-amber-50 dark:bg-amber-950/20';
+    if (count >= 20) return 'bg-red-50 dark:bg-red-950/20';
+    if (count >= 18) return 'bg-amber-50 dark:bg-amber-950/20';
     return 'bg-green-50 dark:bg-green-950/20';
   };
 

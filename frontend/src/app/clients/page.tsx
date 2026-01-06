@@ -84,8 +84,8 @@ export default function ClientsPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">Active Clients</h1>
           <div className={`flex items-center gap-2 font-medium ${
-            filteredClients.length >= 22 ? 'text-danger' : 
-            filteredClients.length >= 20 ? 'text-warning' : 
+            filteredClients.length >= 20 ? 'text-danger' : 
+            filteredClients.length >= 18 ? 'text-warning' : 
             'text-success'
           }`}>
             <Users className="h-5 w-5" />

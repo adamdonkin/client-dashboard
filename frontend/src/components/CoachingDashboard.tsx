@@ -229,8 +229,8 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
               <Link 
                 href="/clients" 
                 className={`flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity ${
-                  totalClients >= 22 ? 'text-danger' : 
-                  totalClients >= 20 ? 'text-warning' : 
+                  totalClients >= 20 ? 'text-danger' : 
+                  totalClients >= 18 ? 'text-warning' : 
                   'text-success'
                 }`}
               >
