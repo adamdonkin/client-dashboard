@@ -34,3 +34,4 @@ GRANT EXECUTE ON FUNCTION get_total_hours_this_year() TO service_role;
 
 
 
+
