@@ -292,14 +292,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   {currentClient?.role && <span>{currentClient.role}</span>}
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={() => setIsEditDialogOpen(true)}
-              >
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
