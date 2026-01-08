@@ -16,11 +16,13 @@ import {
   FileText,
   User,
   DollarSign,
-  MapPin
+  MapPin,
+  Pencil,
+  Check
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
-import { supabase } from "@/lib/supabaseClient";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,12 +44,14 @@ interface ClientDetailProps {
 }
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
+  const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -152,34 +156,33 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setNotes(currentClient?.notes || '');
   }, [currentClient?.notes]);
 
-  // Auto-save notes with debounce
-  useEffect(() => {
-    // Don't save if notes haven't changed from what's in the database
+  // Save notes when exiting edit mode
+  const saveNotes = async () => {
     if (notes === (currentClient?.notes || '')) return;
     
-    const timeoutId = setTimeout(async () => {
-      try {
-        setIsSaving(true);
-        const { error: updateError } = await supabase
-          .from('clients')
-          .update({ notes })
-          .eq('id', client.id);
+    try {
+      setIsSaving(true);
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ notes })
+        .eq('id', client.id);
 
-        if (updateError) {
-          console.error('Error saving notes:', updateError);
-        } else {
-          // Update the client state with new notes
-          setCurrentClient(prev => prev ? { ...prev, notes } : prev);
-        }
-      } catch (err) {
-        console.error('Error saving notes:', err);
-      } finally {
-        setIsSaving(false);
+      if (updateError) {
+        console.error('Error saving notes:', updateError);
+      } else {
+        setCurrentClient(prev => prev ? { ...prev, notes } : prev);
       }
-    }, 1000); // Save 1 second after user stops typing
+    } catch (err) {
+      console.error('Error saving notes:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    return () => clearTimeout(timeoutId);
-  }, [notes, client.id, currentClient?.notes]);
+  const handleDoneEditing = () => {
+    saveNotes();
+    setIsEditingNotes(false);
+  };
 
   const getSessionIcon = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -331,97 +334,102 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           </CardContent>
         </Card>
 
-        {/* Two Column Layout */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        {/* Notes */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-lg">Notes</CardTitle>
+            <div className="flex items-center gap-2">
+              {isSaving && (
+                <span className="text-xs text-muted-foreground">Saving...</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => isEditingNotes ? handleDoneEditing() : setIsEditingNotes(true)}
+              >
+                {isEditingNotes ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Done
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isEditingNotes ? (
+              <Textarea
+                autoFocus
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Jot down important themes, insights, patterns...
+
+Use Markdown: **bold**, *italic*, - bullets, # headers"
+                className="min-h-[150px] text-sm"
+              />
+            ) : notes ? (
+              <div className="text-sm [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_p]:my-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {notes}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No notes yet. Click Edit to add notes.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Two Column Layout - Compact */}
+        <div className="grid gap-4 lg:grid-cols-2">
           {/* Contact & Communication */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Contact & Communication</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Contact</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2 text-sm">
               {currentClient?.client_email && (
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Email</p>
-                    <a 
-                      href={`mailto:${currentClient.client_email}`}
-                      className="font-medium hover:underline truncate block"
-                    >
-                      {currentClient.client_email}
-                    </a>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
+                    {currentClient.client_email}
+                  </a>
                 </div>
               )}
-              
               {currentClient?.slack && (
-                <div className="flex items-start gap-3">
-                  <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Slack</p>
-                    <a 
-                      href={currentClient.slack}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline truncate block"
-                    >
-                      @{(currentClient?.client_name || 'user').split(' ')[0].toLowerCase()}
-                    </a>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Slack
+                  </a>
                 </div>
               )}
-
               {currentClient?.defacto_meeting && (
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Meeting Link</p>
-                    <a 
-                      href={currentClient.defacto_meeting}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline truncate block"
-                    >
-                      Join Defacto Meeting
-                    </a>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <a href={currentClient.defacto_meeting} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Meeting Link
+                  </a>
                 </div>
               )}
-
               {currentClient?.granola_notes_folder && (
-                <div className="flex items-start gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                    <a 
-                      href={currentClient.granola_notes_folder}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline truncate block"
-                    >
-                      View Granola Notes
-                    </a>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <a href={currentClient.granola_notes_folder} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Granola Notes
+                  </a>
                 </div>
               )}
-
               {(currentClient?.ea_name || currentClient?.ea_email) && (
-                <div className="flex items-start gap-3 pt-4 border-t">
-                  <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Executive Assistant</p>
-                    {currentClient?.ea_name && (
-                      <p className="font-medium">{currentClient.ea_name}</p>
-                    )}
-                    {currentClient?.ea_email && (
-                      <a 
-                        href={`mailto:${currentClient.ea_email}`}
-                        className="text-sm text-muted-foreground hover:underline truncate block"
-                      >
-                        {currentClient.ea_email}
-                      </a>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
                 </div>
               )}
             </CardContent>
@@ -429,30 +437,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
           {/* Client Details */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Client Details</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2 text-sm">
               {currentClient?.location && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Location</p>
-                    <p className="font-medium">{currentClient.location}</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span>{currentClient.location}</span>
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="flex items-center gap-4 pt-2 border-t">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
-                  <p className="text-2xl font-bold">
-                    {loading ? '...' : sessionHistory.length}
-                  </p>
+                  <span className="text-muted-foreground">Sessions:</span>{' '}
+                  <span className="font-semibold">{loading ? '...' : sessionHistory.length}</span>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Engagement Length</p>
-                  <p className="text-2xl font-bold">
+                  <span className="text-muted-foreground">Engagement:</span>{' '}
+                  <span className="font-semibold">
                     {loading || sessionHistory.length === 0 ? '—' : (() => {
                       const firstSession = new Date(sessionHistory[sessionHistory.length - 1].session_date);
                       const lastSession = new Date(sessionHistory[0].session_date);
@@ -461,7 +463,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                       const months = Math.floor((endDate.getTime() - firstSession.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
                       return `${months}mo`;
                     })()}
-                  </p>
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -514,35 +516,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No session history found for this client.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-lg">Notes</CardTitle>
-            {isSaving && (
-              <span className="text-xs text-muted-foreground">Saving...</span>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Jot down important themes, insights, patterns..."
-              className="min-h-[120px] text-sm"
-            />
-            {notes && (
-              <div className="pt-4 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Preview</p>
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  className="prose prose-sm max-w-none dark:prose-invert"
-                >
-                  {notes}
-                </ReactMarkdown>
               </div>
             )}
           </CardContent>
