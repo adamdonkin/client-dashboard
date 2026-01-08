@@ -48,7 +48,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -520,7 +519,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           </CardContent>
         </Card>
 
-        {/* Notes & Themes */}
+        {/* Notes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg">Notes</CardTitle>
@@ -528,40 +527,22 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               <span className="text-xs text-muted-foreground">Saving...</span>
             )}
           </CardHeader>
-          <CardContent>
-            {isEditingNotes ? (
-              <Textarea
-                autoFocus
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                onBlur={() => setIsEditingNotes(false)}
-                placeholder="Jot down important themes, insights, patterns..."
-                className="min-h-[150px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
-                style={{ height: 'auto', minHeight: '150px' }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = `${Math.max(150, target.scrollHeight)}px`;
-                }}
-              />
-            ) : notes ? (
-              <div 
-                onClick={() => setIsEditingNotes(true)}
-                className="cursor-text min-h-[150px]"
-              >
+          <CardContent className="space-y-4">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Jot down important themes, insights, patterns..."
+              className="min-h-[120px] text-sm"
+            />
+            {notes && (
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Preview</p>
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
-                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base prose-p:leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5"
+                  className="prose prose-sm max-w-none dark:prose-invert"
                 >
                   {notes}
                 </ReactMarkdown>
-              </div>
-            ) : (
-              <div 
-                onClick={() => setIsEditingNotes(true)}
-                className="cursor-text min-h-[150px] text-muted-foreground text-sm"
-              >
-                Click to add notes...
               </div>
             )}
           </CardContent>
