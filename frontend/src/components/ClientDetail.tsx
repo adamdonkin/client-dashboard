@@ -10,24 +10,18 @@ import {
   Calendar, 
   Mail, 
   MessageSquare, 
-  Phone, 
-  Edit, 
-  Plus,
   Clock,
   CheckCircle,
   XCircle,
   FileText,
-  ExternalLink,
   User,
   DollarSign,
   MapPin
 } from "lucide-react";
 import { Client } from "@/components/types";
-import { ClientEditDialog } from "@/components/ClientEditDialog";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { supabase } from "@/lib/supabaseClient";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Textarea } from "@/components/ui/textarea";
 
 interface Session {
   session_id: string;
@@ -47,10 +41,11 @@ interface ClientDetailProps {
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState(client.notes || '');
+  const [isSaving, setIsSaving] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -149,6 +144,40 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       fetchClientDetails();
     }
   }, [client.id]);
+
+  // Sync notes state when client changes
+  useEffect(() => {
+    setNotes(currentClient?.notes || '');
+  }, [currentClient?.notes]);
+
+  // Auto-save notes with debounce
+  useEffect(() => {
+    // Don't save if notes haven't changed from what's in the database
+    if (notes === (currentClient?.notes || '')) return;
+    
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        const { error: updateError } = await supabase
+          .from('clients')
+          .update({ notes })
+          .eq('id', client.id);
+
+        if (updateError) {
+          console.error('Error saving notes:', updateError);
+        } else {
+          // Update the client state with new notes
+          setCurrentClient(prev => prev ? { ...prev, notes } : prev);
+        }
+      } catch (err) {
+        console.error('Error saving notes:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1000); // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [notes, client.id, currentClient?.notes]);
 
   const getSessionIcon = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -498,43 +527,27 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
         {/* Notes & Themes */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-lg">Notes & Themes</CardTitle>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex items-center gap-2"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              <Edit className="h-3 w-3" />
-              {currentClient?.notes ? 'Edit' : 'Add Notes'}
-            </Button>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-lg">Notes</CardTitle>
+            {isSaving && (
+              <span className="text-xs text-muted-foreground">Saving...</span>
+            )}
           </CardHeader>
           <CardContent>
-            {currentClient?.notes ? (
-              <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
-                className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base prose-p:leading-relaxed prose-ul:my-2 prose-li:my-1"
-              >
-                {currentClient.notes}
-              </ReactMarkdown>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="mb-2">No notes yet</p>
-                <p className="text-sm">Click "Add Notes" to track important themes and insights</p>
-              </div>
-            )}
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Jot down important themes, insights, patterns..."
+              className="min-h-[150px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+              style={{ height: 'auto', minHeight: '150px' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${Math.max(150, target.scrollHeight)}px`;
+              }}
+            />
           </CardContent>
         </Card>
-
-        {/* Edit Client Dialog */}
-        <ClientEditDialog
-          client={currentClient}
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          onClientUpdate={handleClientUpdate}
-        />
       </div>
     </div>
   );
