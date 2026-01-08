@@ -22,6 +22,8 @@ import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { supabase } from "@/lib/supabaseClient";
 import { Textarea } from "@/components/ui/textarea";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Session {
   session_id: string;
@@ -46,6 +48,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -526,18 +529,41 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             )}
           </CardHeader>
           <CardContent>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Jot down important themes, insights, patterns..."
-              className="min-h-[150px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
-              style={{ height: 'auto', minHeight: '150px' }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = `${Math.max(150, target.scrollHeight)}px`;
-              }}
-            />
+            {isEditingNotes ? (
+              <Textarea
+                autoFocus
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => setIsEditingNotes(false)}
+                placeholder="Jot down important themes, insights, patterns..."
+                className="min-h-[150px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+                style={{ height: 'auto', minHeight: '150px' }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${Math.max(150, target.scrollHeight)}px`;
+                }}
+              />
+            ) : notes ? (
+              <div 
+                onClick={() => setIsEditingNotes(true)}
+                className="cursor-text min-h-[150px]"
+              >
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base prose-p:leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5"
+                >
+                  {notes}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div 
+                onClick={() => setIsEditingNotes(true)}
+                className="cursor-text min-h-[150px] text-muted-foreground text-sm"
+              >
+                Click to add notes...
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
