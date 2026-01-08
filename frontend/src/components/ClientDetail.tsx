@@ -26,6 +26,8 @@ import { Client } from "@/components/types";
 import { ClientEditDialog } from "@/components/ClientEditDialog";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { supabase } from "@/lib/supabaseClient";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Session {
   session_id: string;
@@ -128,7 +130,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     const fetchClientDetails = async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active, location, monthly_fee')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active, location, monthly_fee, notes, phone')
         .eq('id', client.id)
         .single();
       
@@ -489,6 +491,38 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No session history found for this client.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notes & Themes */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-lg">Notes & Themes</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              <Edit className="h-3 w-3" />
+              {currentClient?.notes ? 'Edit' : 'Add Notes'}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {currentClient?.notes ? (
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base prose-p:leading-relaxed prose-ul:my-2 prose-li:my-1"
+              >
+                {currentClient.notes}
+              </ReactMarkdown>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="mb-2">No notes yet</p>
+                <p className="text-sm">Click "Add Notes" to track important themes and insights</p>
               </div>
             )}
           </CardContent>

@@ -15,4 +15,7 @@ export interface Client {
   ea_email?: string;
   ea_name?: string;
   location?: string;
+  notes?: string;
+  monthly_fee?: number;
+  phone?: string;
 } 

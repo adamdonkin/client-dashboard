@@ -134,3 +134,4 @@ GRANT EXECUTE ON FUNCTION get_clients_by_region() TO service_role;
 
 
 
+
