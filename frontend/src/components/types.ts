@@ -1,3 +1,5 @@
+export type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive';
+
 export interface Client {
   id: string
   client_name: string
@@ -10,7 +12,7 @@ export interface Client {
   defacto_meeting?: string
   company_name?: string
   is_active?: boolean
-  status?: 'active' | 'inactive' | 'pending'
+  status?: ClientStatus
   sessionType?: string
   ea_email?: string;
   ea_name?: string;

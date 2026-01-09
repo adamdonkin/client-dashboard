@@ -96,7 +96,9 @@ export default async function Home() {
     console.error('Error fetching dashboard data:', error)
   }
 
-  const totalClients = dashboardStatsData.data?.[0]?.total_clients || 0
+  // Use capacity_count from revenue stats (active + pending) for navbar display
+  const revenueStatsRow = (revenueStats.data && revenueStats.data[0]) || null;
+  const totalClients = revenueStatsRow?.capacity_count || revenueStatsRow?.active_paying_clients || dashboardStatsData.data?.[0]?.total_clients || 0
 
   const statsData = {
     sessionsThisWeek: sessionsThisWeek.data || 0,
@@ -107,17 +109,23 @@ export default async function Home() {
     rescheduleRate: rescheduleRate.data || 0,
     avgEngagementLength: avgEngagementLength.data || 0,
     totalSessionsThisYear: totalSessionsThisYear.data || 0,
-    revenueStats: (revenueStats.data && revenueStats.data[0]) || {
+    revenueStats: revenueStatsRow || {
       total_monthly_revenue: "0",
       annual_projection: "0", 
       active_paying_clients: 0,
-      average_client_fee: "0"
+      average_client_fee: "0",
+      pending_monthly_revenue: "0",
+      pending_clients: 0,
+      capacity_count: 0
     },
     revenueStatsMochary: (revenueStatsMochary.data && revenueStatsMochary.data[0]) || {
       total_monthly_revenue: "0",
       annual_projection: "0", 
       active_paying_clients: 0,
-      average_client_fee: "0"
+      average_client_fee: "0",
+      pending_monthly_revenue: "0",
+      pending_clients: 0,
+      capacity_count: 0
     }
   }
 

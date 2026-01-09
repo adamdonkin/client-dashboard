@@ -55,7 +55,7 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                 onClick={() => onClientSelect?.(client)}
               >
                 <TableCell>
-                  <div className="font-medium">{client.client_name}</div>
+                  <div>{client.client_name}</div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {client.last_session_date

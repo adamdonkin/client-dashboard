@@ -34,3 +34,4 @@ GRANT EXECUTE ON FUNCTION get_total_sessions_this_year() TO service_role;
 
 
 
+

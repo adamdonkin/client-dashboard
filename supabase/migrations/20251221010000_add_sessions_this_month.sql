@@ -33,3 +33,4 @@ GRANT EXECUTE ON FUNCTION get_sessions_this_month() TO service_role;
 
 
 
+

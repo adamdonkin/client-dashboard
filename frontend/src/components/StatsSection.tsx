@@ -8,6 +8,9 @@ interface RevenueStats {
   annual_projection: string;
   active_paying_clients: number;
   average_client_fee: string;
+  pending_monthly_revenue?: string;
+  pending_clients?: number;
+  capacity_count?: number;
 }
 
 interface StatsSectionProps {
@@ -50,9 +53,13 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
   };
 
   // Capacity calculations (always use total, not filtered)
+  // Use capacity_count if available (active + pending), otherwise fall back to active_paying_clients
+  const capacityCount = statsData.revenueStats?.capacity_count || statsData.revenueStats?.active_paying_clients || 0;
   const activeClientCount = statsData.revenueStats?.active_paying_clients || 0;
+  const pendingClientCount = statsData.revenueStats?.pending_clients || 0;
+  const pendingRevenue = parseFloat(statsData.revenueStats?.pending_monthly_revenue || '0');
   const maxCapacity = 20;
-  const availableSlots = Math.max(0, maxCapacity - activeClientCount);
+  const availableSlots = Math.max(0, maxCapacity - capacityCount);
   
   // Traffic light color for capacity (matching navbar)
   const getCapacityColor = (count: number) => {
@@ -67,10 +74,14 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
     return 'bg-green-50 dark:bg-green-950/20';
   };
 
-  const getCapacityText = (available: number) => {
-    if (available === 0) return 'At Capacity';
-    if (available === 1) return '1 slot available';
-    return `${available} slots available`;
+  const getCapacityText = () => {
+    // Always show breakdown if there are pending clients
+    if (pendingClientCount > 0) {
+      return `${activeClientCount} active + ${pendingClientCount} pending`;
+    }
+    if (availableSlots === 0) return 'At Capacity';
+    if (availableSlots === 1) return '1 slot available';
+    return `${availableSlots} slots available`;
   };
 
   return (
@@ -81,17 +92,17 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
       {/* Revenue Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Capacity */}
-          <Card className={`flex flex-col ${getCapacityBgColor(activeClientCount)}`}>
+          <Card className={`flex flex-col ${getCapacityBgColor(capacityCount)}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Capacity</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
-              <div className={`text-2xl font-bold ${getCapacityColor(activeClientCount)}`}>
-                {activeClientCount}
+              <div className={`text-2xl font-bold ${getCapacityColor(capacityCount)}`}>
+                {capacityCount}
               </div>
               <p className="text-xs text-muted-foreground">
-                {getCapacityText(availableSlots)}
+                {getCapacityText()}
               </p>
             </CardContent>
           </Card>
@@ -106,9 +117,15 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <div className="text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.total_monthly_revenue) : '$0'}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Monthly revenue
-              </p>
+              {pendingRevenue > 0 ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  +{formatCurrency(pendingRevenue)} pending
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Monthly revenue
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -122,9 +139,15 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <div className="text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.annual_projection) : '$0'}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Annual revenue
-              </p>
+              {pendingRevenue > 0 ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  +{formatCurrency(pendingRevenue * 12)} pending
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Annual revenue
+                </p>
+              )}
             </CardContent>
           </Card>
 

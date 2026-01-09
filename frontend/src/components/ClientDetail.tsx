@@ -24,8 +24,16 @@ import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ClientStatus } from "@/components/types";
 
 interface Session {
   session_id: string;
@@ -55,12 +63,20 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-muted text-muted-foreground';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'pending': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'waiting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'inactive': return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
       default: return 'bg-muted text-muted-foreground';
     }
   };
+
+  const statusOptions: { value: ClientStatus; label: string }[] = [
+    { value: 'active', label: 'Active' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'waiting', label: 'Waitlist' },
+    { value: 'inactive', label: 'Inactive' },
+  ];
 
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -131,7 +147,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     const fetchClientDetails = async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active, location, monthly_fee, notes, phone')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone')
         .eq('id', client.id)
         .single();
       
@@ -141,7 +157,9 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       }
 
       if (data) {
-        const clientData = { ...data, status: data.is_active ? 'active' : 'inactive' };
+        // Use status field if available, otherwise derive from is_active
+        const effectiveStatus = data.status || (data.is_active === false ? 'inactive' : 'active');
+        const clientData = { ...data, status: effectiveStatus };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
       }
     };
@@ -184,6 +202,30 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setIsEditingNotes(false);
   };
 
+  // Handle status change
+  const handleStatusChange = async (newStatus: ClientStatus) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ 
+          status: newStatus,
+          // Also update is_active for backward compatibility
+          is_active: newStatus === 'active' || newStatus === 'pending'
+        })
+        .eq('id', client.id);
+
+      if (updateError) {
+        console.error('Error updating status:', updateError);
+      } else {
+        const updatedClient = { ...currentClient!, status: newStatus };
+        setCurrentClient(updatedClient);
+        onClientUpdate?.(updatedClient);
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+    }
+  };
+
   const getSessionIcon = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -213,7 +255,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         <div className="max-w-4xl mx-auto space-y-6">
           <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back
           </Button>
           <div className="animate-pulse">
             <div className="flex items-center space-x-4 mb-6">
@@ -240,7 +282,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         <div className="max-w-4xl mx-auto space-y-6">
           <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back
           </Button>
           <Card>
             <CardContent className="p-6">
@@ -252,7 +294,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   {error ? 'Please try again or contact support.' : 'The requested client could not be found.'}
                 </p>
                 <Button onClick={onBack}>
-                  Return to Dashboard
+                  Go Back
                 </Button>
               </div>
             </CardContent>
@@ -272,7 +314,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back
           </Button>
         </div>
 
@@ -283,9 +325,23 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-3xl font-bold">{clientName}</h1>
-                  <Badge className={getStatusColor(currentClient?.status || 'active')}>
-                    {(currentClient?.status || 'active').charAt(0).toUpperCase() + (currentClient?.status || 'active').slice(1)}
-                  </Badge>
+                  <Select
+                    value={currentClient?.status || 'active'}
+                    onValueChange={(value) => handleStatusChange(value as ClientStatus)}
+                  >
+                    <SelectTrigger className={`w-[120px] h-7 text-xs font-medium border-0 ${getStatusColor(currentClient?.status || 'active')}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(option.value)}`}>
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   {currentClient?.company_name && (

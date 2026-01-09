@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive';
+
 interface ClientRow {
   id: string;
   name: string;
@@ -21,6 +23,8 @@ interface ClientRow {
   role: string | null;
   monthly_fee: number | null;
   referral_source?: string | null;
+  status?: ClientStatus | null;
+  is_active?: boolean | null;
 }
 
 type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee';
@@ -34,6 +38,36 @@ export function ClientsTable({ clients }: ClientsTableProps) {
   const router = useRouter()
   const [sortField, setSortField] = useState<SortField>('company_name')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  // Get effective status (for backward compatibility with is_active)
+  const getEffectiveStatus = (client: ClientRow): ClientStatus => {
+    if (client.status) return client.status;
+    if (client.is_active === false) return 'inactive';
+    return 'active';
+  }
+
+  // Status badge component
+  const StatusBadge = ({ status }: { status: ClientStatus }) => {
+    if (status === 'active') return null; // Don't show badge for active
+    
+    const styles = {
+      pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+      waiting: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+      inactive: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+    };
+    
+    const labels = {
+      pending: 'Pending',
+      waiting: 'Waitlist',
+      inactive: 'Inactive',
+    };
+    
+    return (
+      <span className={`ml-2 px-1.5 py-0.5 text-xs rounded ${styles[status]}`}>
+        {labels[status]}
+      </span>
+    );
+  }
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -100,6 +134,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
             </TableCell>
             <TableCell className={sortField === 'name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.name}
+              <StatusBadge status={getEffectiveStatus(client)} />
             </TableCell>
             <TableCell className={sortField === 'role' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.role || '—'}

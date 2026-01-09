@@ -195,10 +195,8 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
   };
 
   const handleBackToDashboard = () => {
-    // Remove client from URL and go back in history
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.delete('client');
-    window.history.pushState({}, '', currentUrl.toString());
+    // Go back to previous page in browser history
+    router.back();
     
     setSelectedClient(null);
   };
