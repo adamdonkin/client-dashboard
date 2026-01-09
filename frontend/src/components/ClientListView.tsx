@@ -57,7 +57,7 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                 <TableCell>
                   <div>{client.client_name}</div>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-sm">
                   {client.last_session_date
                     ? formatLastSessionDate(client.last_session_date)
                     : 'None'
@@ -65,11 +65,11 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4" />
                     {client.next_session_date ? (
                       <span>{formatRelativeDate(client.next_session_date)}</span>
                     ) : (
-                      <span className="text-muted-foreground">Not scheduled</span>
+                      <span>Not scheduled</span>
                     )}
                   </div>
                 </TableCell>
