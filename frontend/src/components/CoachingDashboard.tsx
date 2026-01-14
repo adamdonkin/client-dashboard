@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Client } from "@/types";
 import { ClientListView } from "./ClientListView";
-import ClientDetail from "./ClientDetail";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { RevenueFilterType } from './RevenueFilter'
@@ -134,86 +133,6 @@ function ManualSyncButton({ user }: { user: any }) {
 
 export default function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData }: CoachingDashboardProps) {
   const { user, signOut } = useAuth()
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const router = useRouter();
-
-  const handleRevenueFilterChange = (filter: RevenueFilterType) => {
-    // The filtering is handled within StatsSection component
-    // This callback can be used for any additional logic if needed
-    console.log('Revenue filter changed to:', filter);
-  };
-
-  // Add browser history management
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const clientId = urlParams.get('client');
-      
-      if (clientId && selectedClient?.id !== clientId) {
-        // Find the client by ID from your existing data
-        const allClients = [...needsScheduling, ...thisWeek, ...future];
-        const client = allClients.find(c => c.id === clientId);
-        if (client) {
-          setSelectedClient(client);
-        }
-      } else if (!clientId && selectedClient) {
-        setSelectedClient(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    // Check URL on component mount for direct links
-    const urlParams = new URLSearchParams(window.location.search);
-    const clientId = urlParams.get('client');
-    if (clientId && !selectedClient) {
-      const allClients = [...needsScheduling, ...thisWeek, ...future];
-      const client = allClients.find(c => c.id === clientId);
-      if (client) {
-        setSelectedClient(client);
-      }
-    }
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [selectedClient, needsScheduling, thisWeek, future]);
-
-  const handleClientSelect = (client: Client) => {
-    console.log("=== DASHBOARD CLIENT SELECTION ===");
-    console.log("Selected client:", client);
-    console.log("Selected client name:", client?.client_name);
-    console.log("Selected client keys:", client ? Object.keys(client) : "no client");
-    console.log("=== END SELECTION DEBUG ===");
-    
-    // Add to browser history so back button works
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('client', client.id);
-    window.history.pushState({ clientId: client.id }, '', currentUrl.toString());
-    
-    setSelectedClient(client);
-  };
-
-  const handleBackToDashboard = () => {
-    // Go back to previous page in browser history
-    router.back();
-    
-    setSelectedClient(null);
-  };
-
-  // Show client detail view if a client is selected
-  if (selectedClient) {
-    return (
-      <ClientDetail 
-        client={selectedClient} 
-        onBack={handleBackToDashboard}
-        onClientUpdate={(updated) => {
-          setSelectedClient(updated);
-          // Optionally refresh the main data
-        }}
-      />
-    );
-  }
 
   return (
     <div>
@@ -259,7 +178,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
         <div className="mb-16">
           <StatsSection 
             statsData={statsData} 
-            onRevenueFilterChange={handleRevenueFilterChange}
           />
         </div>
 
@@ -270,7 +188,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
             clients={needsScheduling}
             title="Needs Scheduling"
             badgeColor="bg-danger/10 text-danger"
-            onClientSelect={handleClientSelect}
           />
         )}
         
@@ -279,7 +196,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
             clients={thisWeek}
             title="Coming up this week"
             badgeColor="bg-warning/10 text-warning"
-            onClientSelect={handleClientSelect}
           />
         )}
         
@@ -288,7 +204,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
             clients={future}
             title="Upcoming"
             badgeColor="bg-success/10 text-success"
-            onClientSelect={handleClientSelect}
           />
         )}
       </div>

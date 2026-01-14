@@ -5,15 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Calendar } from "lucide-react";
 import { Client } from "./types";
 import { formatRelativeDate, formatLastSessionDate } from "../utils/date-utils";
+import { useRouter } from "next/navigation";
 
 interface ClientListViewProps {
   clients: Client[];
   title: string;
   badgeColor?: string;
-  onClientSelect?: (client: Client) => void;
 }
 
-export function ClientListView({ clients, title, badgeColor, onClientSelect }: ClientListViewProps) {
+export function ClientListView({ clients, title, badgeColor }: ClientListViewProps) {
+  const router = useRouter();
+  
+  const handleClientClick = (client: Client) => {
+    // Navigate to dedicated client page
+    router.push(`/clients/${client.id}`);
+  };
+
   if (clients.length === 0) {
     return (
       <div className="space-y-4">
@@ -51,8 +58,8 @@ export function ClientListView({ clients, title, badgeColor, onClientSelect }: C
             {clients.map((client) => (
               <TableRow 
                 key={client.id}
-                className={onClientSelect ? "cursor-pointer hover:bg-muted/50" : ""}
-                onClick={() => onClientSelect?.(client)}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleClientClick(client)}
               >
                 <TableCell>
                   <div>{client.client_name}</div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Calendar, TrendingUp, BarChart3, DollarSign, Target, Users, Clock, Gauge } from 'lucide-react';
 import { RevenueFilter, RevenueFilterType } from './RevenueFilter';
@@ -92,20 +93,22 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
       {/* Revenue Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Capacity */}
-          <Card className={`flex flex-col ${getCapacityBgColor(capacityCount)}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Capacity</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-end">
-              <div className={`text-2xl font-bold ${getCapacityColor(capacityCount)}`}>
-                {capacityCount}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {getCapacityText()}
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/clients">
+            <Card className={`flex flex-col ${getCapacityBgColor(capacityCount)} cursor-pointer hover:opacity-80 transition-opacity`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Capacity</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col justify-end">
+                <div className={`text-2xl font-bold ${getCapacityColor(capacityCount)}`}>
+                  {capacityCount}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {getCapacityText()}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Monthly Recurring Revenue */}
           <Card className="flex flex-col">

@@ -25,9 +25,11 @@ interface ClientRow {
   referral_source?: string | null;
   status?: ClientStatus | null;
   is_active?: boolean | null;
+  cadence?: string | null;
+  session_duration?: string | null;
 }
 
-type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee';
+type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee' | 'cadence' | 'session_duration';
 type SortDirection = 'asc' | 'desc';
 
 interface ClientsTableProps {
@@ -44,6 +46,16 @@ export function ClientsTable({ clients }: ClientsTableProps) {
     if (client.status) return client.status;
     if (client.is_active === false) return 'inactive';
     return 'active';
+  }
+
+
+  // Format duration: "90 min" → "90m", or just number → "60m"
+  const formatDuration = (duration: string | null | undefined): string => {
+    if (!duration) return '—';
+    // Extract number from string like "90 min" or just "90"
+    const match = duration.match(/(\d+)/);
+    if (match) return `${match[1]}m`;
+    return duration;
   }
 
   // Status badge component
@@ -119,6 +131,8 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           <SortableHeader field="name">Name</SortableHeader>
           <SortableHeader field="role">Role</SortableHeader>
           <SortableHeader field="monthly_fee">Rate</SortableHeader>
+          <SortableHeader field="cadence">Cadence</SortableHeader>
+          <SortableHeader field="session_duration">Duration</SortableHeader>
           <SortableHeader field="location">Location</SortableHeader>
         </TableRow>
       </TableHeader>
@@ -127,20 +141,28 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           <TableRow 
             key={client.id} 
             className="cursor-pointer hover:bg-accent transition-colors"
-            onClick={() => router.push(`/?client=${client.id}`)}
+            onClick={() => router.push(`/clients/${client.id}`)}
           >
             <TableCell className={sortField === 'company_name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.company_name || '—'}
             </TableCell>
             <TableCell className={sortField === 'name' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
-              {client.name}
-              <StatusBadge status={getEffectiveStatus(client)} />
+              <span className="inline-flex items-center gap-2">
+                {client.name}
+                <StatusBadge status={getEffectiveStatus(client)} />
+              </span>
             </TableCell>
             <TableCell className={sortField === 'role' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.role || '—'}
             </TableCell>
             <TableCell className={sortField === 'monthly_fee' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.monthly_fee ? `$${client.monthly_fee.toLocaleString()}` : '—'}
+            </TableCell>
+            <TableCell className={sortField === 'cadence' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {client.cadence || '—'}
+            </TableCell>
+            <TableCell className={sortField === 'session_duration' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {formatDuration(client.session_duration)}
             </TableCell>
             <TableCell className={sortField === 'location' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.location ? (

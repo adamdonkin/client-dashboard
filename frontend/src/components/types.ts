@@ -20,4 +20,6 @@ export interface Client {
   notes?: string;
   monthly_fee?: number;
   phone?: string;
+  cadence?: string;
+  session_duration?: string;
 } 

@@ -22,6 +22,8 @@ interface ClientRow {
   referral_source: string | null;
   status: ClientStatus | null;
   is_active: boolean | null;
+  cadence: string | null;
+  session_duration: string | null;
 }
 
 type StatusFilter = 'active' | 'pending' | 'waiting' | 'inactive' | 'all';
@@ -48,9 +50,10 @@ export default function ClientsPage() {
 
   const fetchClients = async () => {
     setLoading(true)
+    
     const { data, error } = await supabase
       .from('clients')
-      .select('id, name, email, company_name, location, role, monthly_fee, referral_source, status, is_active')
+      .select('id, name, email, company_name, location, role, monthly_fee, referral_source, status, is_active, cadence, session_duration')
       .order('company_name', { ascending: true, nullsFirst: false })
 
     if (error) {

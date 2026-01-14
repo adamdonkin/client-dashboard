@@ -18,7 +18,9 @@ import {
   DollarSign,
   MapPin,
   Pencil,
-  Check
+  Check,
+  RefreshCw,
+  Timer
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
@@ -60,6 +62,17 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [notes, setNotes] = useState(client.notes || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
+  
+  // Edit details state
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editRole, setEditRole] = useState(client.role || '');
+  const [editLocation, setEditLocation] = useState(client.location || '');
+  const [editMonthlyFee, setEditMonthlyFee] = useState(client.monthly_fee?.toString() || '');
+  const [editCadence, setEditCadence] = useState(client.cadence || '');
+  const [editDuration, setEditDuration] = useState(client.session_duration || '');
+  
+  const cadenceOptions = ['Weekly', 'Biweekly', 'Monthly'];
+  const durationOptions = ['60 min', '90 min', '120 min'];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -145,9 +158,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   // Fetch additional client details that may not have been passed in the initial client prop.
   useEffect(() => {
     const fetchClientDetails = async () => {
+      // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone')
+        .select('ea_name, ea_email, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration')
         .eq('id', client.id)
         .single();
       
@@ -156,10 +170,37 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         return;
       }
 
+      // Fetch next upcoming session
+      const { data: nextSessionData } = await supabase
+        .from('calendar_events')
+        .select('start_time')
+        .eq('client_id', client.id)
+        .gt('start_time', new Date().toISOString())
+        .or('status.is.null,status.neq.cancelled')
+        .order('start_time', { ascending: true })
+        .limit(1)
+        .single();
+
+      // Fetch last session (most recent past session)
+      const { data: lastSessionData } = await supabase
+        .from('calendar_events')
+        .select('start_time')
+        .eq('client_id', client.id)
+        .lte('start_time', new Date().toISOString())
+        .or('status.is.null,status.neq.cancelled')
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .single();
+
       if (data) {
         // Use status field if available, otherwise derive from is_active
         const effectiveStatus = data.status || (data.is_active === false ? 'inactive' : 'active');
-        const clientData = { ...data, status: effectiveStatus };
+        const clientData = { 
+          ...data, 
+          status: effectiveStatus,
+          next_session_date: nextSessionData?.start_time || null,
+          last_session_date: lastSessionData?.start_time || null,
+        };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
       }
     };
@@ -200,6 +241,56 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const handleDoneEditing = () => {
     saveNotes();
     setIsEditingNotes(false);
+  };
+
+  // Sync edit details state when client changes
+  useEffect(() => {
+    setEditRole(currentClient?.role || '');
+    setEditLocation(currentClient?.location || '');
+    setEditMonthlyFee(currentClient?.monthly_fee?.toString() || '');
+    setEditCadence(currentClient?.cadence || '');
+    setEditDuration(currentClient?.session_duration || '');
+  }, [currentClient]);
+
+  // Save details
+  const saveDetails = async () => {
+    try {
+      setIsSaving(true);
+      const updates: Record<string, unknown> = {
+        role: editRole || null,
+        location: editLocation || null,
+        monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : null,
+        cadence: editCadence || null,
+        session_duration: editDuration || null,
+      };
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', client.id);
+
+      if (updateError) {
+        console.error('Error saving details:', updateError);
+      } else {
+        setCurrentClient(prev => prev ? { 
+          ...prev, 
+          role: editRole || undefined,
+          location: editLocation || undefined,
+          monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : undefined,
+          cadence: editCadence || undefined,
+          session_duration: editDuration || undefined,
+        } : prev);
+      }
+    } catch (err) {
+      console.error('Error saving details:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDoneEditingDetails = () => {
+    saveDetails();
+    setIsEditingDetails(false);
   };
 
   // Handle status change
@@ -356,7 +447,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
                 <Calendar className="h-5 w-5 text-primary" />
                 <div>
@@ -377,15 +468,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   </p>
                 </div>
               </div>
-              {currentClient?.monthly_fee && (
-                <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Monthly Fee</p>
-                    <p className="font-semibold text-foreground">${Number(currentClient.monthly_fee).toLocaleString()}</p>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -423,20 +505,32 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                 autoFocus
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    handleDoneEditing();
+                  }
+                }}
                 placeholder="Jot down important themes, insights, patterns...
 
 Use Markdown: **bold**, *italic*, - bullets, # headers"
                 className="min-h-[150px] text-sm"
               />
             ) : notes ? (
-              <div className="text-sm [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_p]:my-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline">
+              <div 
+                onClick={() => setIsEditingNotes(true)}
+                className="text-sm cursor-pointer hover:bg-accent/50 rounded -m-2 p-2 transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_p]:my-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline"
+              >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {notes}
                 </ReactMarkdown>
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                No notes yet. Click Edit to add notes.
+              <p 
+                onClick={() => setIsEditingNotes(true)}
+                className="text-muted-foreground text-sm cursor-pointer hover:text-foreground transition-colors"
+              >
+                No notes yet. Click to add notes.
               </p>
             )}
           </CardContent>
@@ -493,15 +587,125 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
 
           {/* Client Details */}
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Details</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => isEditingDetails ? handleDoneEditingDetails() : setIsEditingDetails(true)}
+              >
+                {isEditingDetails ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Done
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </>
+                )}
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {currentClient?.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{currentClient.location}</span>
-                </div>
+            <CardContent className="space-y-3 text-sm">
+              {isEditingDetails ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Role</label>
+                      <input
+                        type="text"
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="e.g. CEO"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Location</label>
+                      <input
+                        type="text"
+                        value={editLocation}
+                        onChange={(e) => setEditLocation(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="e.g. San Francisco"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Monthly Fee</label>
+                      <input
+                        type="number"
+                        value={editMonthlyFee}
+                        onChange={(e) => setEditMonthlyFee(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="e.g. 5000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Cadence</label>
+                      <select
+                        value={editCadence}
+                        onChange={(e) => setEditCadence(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                      >
+                        <option value="">Select...</option>
+                        {cadenceOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Duration</label>
+                      <select
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                      >
+                        <option value="">Select...</option>
+                        {durationOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {currentClient?.role && (
+                    <div>
+                      <span className="text-muted-foreground">Role:</span>{' '}
+                      <span className="font-semibold">{currentClient.role}</span>
+                    </div>
+                  )}
+                  {currentClient?.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span>{currentClient.location}</span>
+                    </div>
+                  )}
+                  {currentClient?.monthly_fee && (
+                    <div>
+                      <span className="text-muted-foreground">Monthly Fee:</span>{' '}
+                      <span className="font-semibold">${Number(currentClient.monthly_fee).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {(currentClient?.cadence || currentClient?.session_duration) && (
+                    <div className="flex items-center gap-4">
+                      {currentClient?.cadence && (
+                        <div>
+                          <span className="text-muted-foreground">Cadence:</span>{' '}
+                          <span className="font-semibold">{currentClient.cadence}</span>
+                        </div>
+                      )}
+                      {currentClient?.session_duration && (
+                        <div>
+                          <span className="text-muted-foreground">Duration:</span>{' '}
+                          <span className="font-semibold">{currentClient.session_duration}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex items-center gap-4 pt-2 border-t">
                 <div>
