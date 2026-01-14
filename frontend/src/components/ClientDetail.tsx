@@ -71,8 +71,52 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editCadence, setEditCadence] = useState(client.cadence || '');
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
   
-  const cadenceOptions = ['Weekly', 'Biweekly', 'Monthly'];
-  const durationOptions = ['60 min', '90 min', '120 min'];
+  // Enum options from database
+  const [cadenceOptions, setCadenceOptions] = useState<string[]>([]);
+  const [durationOptions, setDurationOptions] = useState<string[]>([]);
+
+  // Fetch enum values from database
+  useEffect(() => {
+    const fetchEnumValues = async () => {
+      // Fetch cadence enum values
+      const { data: cadenceData, error: cadenceError } = await supabase
+        .rpc('get_enum_values', { enum_name: 'cadence' });
+      if (cadenceError) {
+        console.error('Error fetching cadence options:', cadenceError.message || cadenceError);
+        // Fallback to querying distinct values from clients table
+        const { data: fallbackCadence } = await supabase
+          .from('clients')
+          .select('cadence')
+          .not('cadence', 'is', null);
+        if (fallbackCadence) {
+          const uniqueCadences = [...new Set(fallbackCadence.map(c => c.cadence).filter(Boolean))];
+          setCadenceOptions(uniqueCadences as string[]);
+        }
+      } else if (cadenceData) {
+        setCadenceOptions(cadenceData.map((row: { value: string }) => row.value));
+      }
+      
+      // Fetch session_duration enum values
+      const { data: durationData, error: durationError } = await supabase
+        .rpc('get_enum_values', { enum_name: 'session_duration' });
+      if (durationError) {
+        console.error('Error fetching duration options:', durationError.message || durationError);
+        // Fallback to querying distinct values from clients table
+        const { data: fallbackDuration } = await supabase
+          .from('clients')
+          .select('session_duration')
+          .not('session_duration', 'is', null);
+        if (fallbackDuration) {
+          const uniqueDurations = [...new Set(fallbackDuration.map(d => d.session_duration).filter(Boolean))];
+          setDurationOptions(uniqueDurations as string[]);
+        }
+      } else if (durationData) {
+        setDurationOptions(durationData.map((row: { value: string }) => row.value));
+      }
+    };
+    
+    fetchEnumValues();
+  }, [supabase]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
