@@ -50,6 +50,11 @@ const formatCurrency = (amount: number): string => {
   return `$${amount.toLocaleString()}`;
 };
 
+// Helper: Format blocks (no decimal if whole number)
+const formatBlocks = (blocks: number): string => {
+  return blocks % 1 === 0 ? blocks.toString() : blocks.toFixed(1);
+};
+
 export default function ClientsPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -185,28 +190,22 @@ export default function ClientsPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
           {statusFilter !== 'inactive' ? (
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-baseline gap-6">
+              <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-foreground">{formatCurrency(tabStats[statusFilter].revenue)}</span>
-                <span className="text-sm">/mo</span>
+                <span className="text-sm text-muted-foreground">/mo</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-baseline gap-1">
                 <span className={`text-2xl font-bold ${
-                  tabStats[statusFilter].blocks > TOTAL_BLOCKS_PER_WEEK ? 'text-red-500' :
-                  tabStats[statusFilter].blocks >= TOTAL_BLOCKS_PER_WEEK - 1 ? 'text-amber-500' :
-                  'text-green-500'
+                  tabStats[statusFilter].blocks > TOTAL_BLOCKS_PER_WEEK ? 'text-danger' :
+                  tabStats[statusFilter].blocks >= TOTAL_BLOCKS_PER_WEEK - 1 ? 'text-warning' :
+                  'text-success'
                 }`}>
-                  {tabStats[statusFilter].blocks.toFixed(2)}
+                  {formatBlocks(tabStats[statusFilter].blocks)}
                 </span>
                 <span className="text-sm text-muted-foreground">/ {TOTAL_BLOCKS_PER_WEEK} blocks</span>
               </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-lg font-medium text-foreground">
-                  {(TOTAL_BLOCKS_PER_WEEK - tabStats[statusFilter].blocks).toFixed(2)}
-                </span>
-                <span className="text-sm">available</span>
-              </div>
-              <div className={`flex items-center gap-2 font-medium ${
+              <div className={`flex items-baseline gap-2 ${
                 filteredClients.length >= 20 ? 'text-danger' : 
                 filteredClients.length >= 18 ? 'text-warning' : 
                 'text-success'
@@ -216,7 +215,7 @@ export default function ClientsPage() {
               </div>
             </div>
           ) : (
-            <div className={`flex items-center gap-2 font-medium text-muted-foreground`}>
+            <div className={`flex items-baseline gap-2 text-muted-foreground`}>
               <Users className="h-5 w-5" />
               <span className="text-2xl font-bold">{filteredClients.length}</span>
             </div>
