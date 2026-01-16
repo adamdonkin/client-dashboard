@@ -28,6 +28,47 @@ interface ClientRow {
 
 type StatusFilter = 'active' | 'pending' | 'waiting' | 'inactive' | 'all';
 
+// Helper: Convert cadence to sessions per month
+const getCadenceSessionsPerMonth = (cadence: string | null): number => {
+  if (!cadence) return 2; // Default to biweekly
+  const lower = cadence.toLowerCase();
+  if (lower.includes('weekly') && !lower.includes('bi')) return 4;
+  if (lower.includes('biweekly') || lower.includes('bi-weekly')) return 2;
+  if (lower.includes('three weeks')) return 4 / 3; // ~1.33
+  if (lower.includes('monthly')) return 1;
+  return 2; // Default
+};
+
+// Helper: Convert duration string to hours
+const getDurationHours = (duration: string | null): number => {
+  if (!duration) return 1.5; // Default to 90 min
+  const match = duration.match(/(\d+)/);
+  if (match) {
+    return parseInt(match[1]) / 60;
+  }
+  return 1.5; // Default
+};
+
+// Helper: Calculate hours per month for a client
+const getClientHoursPerMonth = (client: ClientRow): number => {
+  const sessionsPerMonth = getCadenceSessionsPerMonth(client.cadence);
+  const durationHours = getDurationHours(client.session_duration);
+  return sessionsPerMonth * durationHours;
+};
+
+// Helper: Format currency
+const formatCurrency = (amount: number): string => {
+  if (amount >= 1000) {
+    return `$${(amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1)}k`;
+  }
+  return `$${amount.toLocaleString()}`;
+};
+
+// Helper: Format hours
+const formatHours = (hours: number): string => {
+  return `${Math.round(hours)} hrs`;
+};
+
 export default function ClientsPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -94,14 +135,39 @@ export default function ClientsPage() {
     return true;
   })
   
-  // Count by status for the tabs
-  const statusCounts = {
-    active: clients.filter(c => getEffectiveStatus(c) === 'active').length,
-    pending: clients.filter(c => getEffectiveStatus(c) === 'pending').length,
-    waiting: clients.filter(c => getEffectiveStatus(c) === 'waiting').length,
-    inactive: clients.filter(c => getEffectiveStatus(c) === 'inactive').length,
-    all: clients.filter(c => ['active', 'pending'].includes(getEffectiveStatus(c))).length,
-  }
+  // Helper to filter by revenue source
+  const applyRevenueFilter = (clientList: ClientRow[]) => {
+    if (revenueFilter === 'mochary-method') {
+      return clientList.filter(c => c.referral_source === 'Mochary Method');
+    }
+    return clientList;
+  };
+
+  // Get clients by status (before revenue filter)
+  const clientsByStatus = {
+    active: clients.filter(c => getEffectiveStatus(c) === 'active'),
+    pending: clients.filter(c => getEffectiveStatus(c) === 'pending'),
+    waiting: clients.filter(c => getEffectiveStatus(c) === 'waiting'),
+    inactive: clients.filter(c => getEffectiveStatus(c) === 'inactive'),
+    all: clients.filter(c => ['active', 'pending'].includes(getEffectiveStatus(c))),
+  };
+
+  // Calculate stats for each tab (with revenue filter applied)
+  const calculateTabStats = (clientList: ClientRow[]) => {
+    const filtered = applyRevenueFilter(clientList);
+    const count = filtered.length;
+    const revenue = filtered.reduce((sum, c) => sum + (c.monthly_fee || 0), 0);
+    const hours = filtered.reduce((sum, c) => sum + getClientHoursPerMonth(c), 0);
+    return { count, revenue, hours };
+  };
+
+  const tabStats = {
+    active: calculateTabStats(clientsByStatus.active),
+    pending: calculateTabStats(clientsByStatus.pending),
+    waiting: calculateTabStats(clientsByStatus.waiting),
+    inactive: { count: clientsByStatus.inactive.length, revenue: 0, hours: 0 },
+    all: calculateTabStats(clientsByStatus.all),
+  };
 
   if (loading) {
     return (
@@ -137,14 +203,31 @@ export default function ClientsPage() {
         </Link>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
-          <div className={`flex items-center gap-2 font-medium ${
-            filteredClients.length >= 20 ? 'text-danger' : 
-            filteredClients.length >= 18 ? 'text-warning' : 
-            'text-success'
-          }`}>
-            <Users className="h-5 w-5" />
-            <span className="text-2xl font-bold">{filteredClients.length}</span>
-          </div>
+          {statusFilter !== 'inactive' ? (
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-2xl font-bold text-foreground">{formatCurrency(tabStats[statusFilter].revenue)}</span>
+                <span className="text-sm">/mo</span>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-2xl font-bold text-foreground">{formatHours(tabStats[statusFilter].hours)}</span>
+                <span className="text-sm">/mo</span>
+              </div>
+              <div className={`flex items-center gap-2 font-medium ${
+                filteredClients.length >= 20 ? 'text-danger' : 
+                filteredClients.length >= 18 ? 'text-warning' : 
+                'text-success'
+              }`}>
+                <Users className="h-5 w-5" />
+                <span className="text-2xl font-bold">{filteredClients.length}</span>
+              </div>
+            </div>
+          ) : (
+            <div className={`flex items-center gap-2 font-medium text-muted-foreground`}>
+              <Users className="h-5 w-5" />
+              <span className="text-2xl font-bold">{filteredClients.length}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -158,7 +241,7 @@ export default function ClientsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Current ({statusCounts.all})
+          Current ({tabStats.all.count})
         </button>
         <button
           onClick={() => setStatusFilter('active')}
@@ -168,7 +251,7 @@ export default function ClientsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Active ({statusCounts.active})
+          Active ({tabStats.active.count})
         </button>
         <button
           onClick={() => setStatusFilter('pending')}
@@ -178,7 +261,7 @@ export default function ClientsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Pending ({statusCounts.pending})
+          Pending ({tabStats.pending.count})
         </button>
         <button
           onClick={() => setStatusFilter('waiting')}
@@ -188,7 +271,7 @@ export default function ClientsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Waitlist ({statusCounts.waiting})
+          Waitlist ({tabStats.waiting.count})
         </button>
         <button
           onClick={() => setStatusFilter('inactive')}
@@ -198,7 +281,7 @@ export default function ClientsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Inactive ({statusCounts.inactive})
+          Inactive ({tabStats.inactive.count})
         </button>
       </div>
 
