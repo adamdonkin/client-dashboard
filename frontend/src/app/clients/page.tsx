@@ -28,32 +28,18 @@ interface ClientRow {
 
 type StatusFilter = 'active' | 'pending' | 'waiting' | 'inactive' | 'all';
 
-// Helper: Convert cadence to sessions per month
-const getCadenceSessionsPerMonth = (cadence: string | null): number => {
-  if (!cadence) return 2; // Default to biweekly
+// Capacity: 9 blocks per week (each block = 90 min, 4 blocks/day)
+const TOTAL_BLOCKS_PER_WEEK = 9;
+
+// Helper: Convert cadence to blocks per week
+const getCadenceBlocksPerWeek = (cadence: string | null): number => {
+  if (!cadence) return 0.5; // Default to biweekly
   const lower = cadence.toLowerCase();
-  if (lower.includes('weekly') && !lower.includes('bi')) return 4;
-  if (lower.includes('biweekly') || lower.includes('bi-weekly')) return 2;
-  if (lower.includes('three weeks')) return 4 / 3; // ~1.33
-  if (lower.includes('monthly')) return 1;
-  return 2; // Default
-};
-
-// Helper: Convert duration string to hours
-const getDurationHours = (duration: string | null): number => {
-  if (!duration) return 1.5; // Default to 90 min
-  const match = duration.match(/(\d+)/);
-  if (match) {
-    return parseInt(match[1]) / 60;
-  }
-  return 1.5; // Default
-};
-
-// Helper: Calculate hours per month for a client
-const getClientHoursPerMonth = (client: ClientRow): number => {
-  const sessionsPerMonth = getCadenceSessionsPerMonth(client.cadence);
-  const durationHours = getDurationHours(client.session_duration);
-  return sessionsPerMonth * durationHours;
+  if (lower.includes('weekly') && !lower.includes('bi')) return 1.0;
+  if (lower.includes('biweekly') || lower.includes('bi-weekly')) return 0.5;
+  if (lower.includes('three weeks')) return 0.33;
+  if (lower.includes('monthly')) return 0.25;
+  return 0.5; // Default
 };
 
 // Helper: Format currency
@@ -62,11 +48,6 @@ const formatCurrency = (amount: number): string => {
     return `$${(amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1)}k`;
   }
   return `$${amount.toLocaleString()}`;
-};
-
-// Helper: Format hours
-const formatHours = (hours: number): string => {
-  return `${Math.round(hours)} hrs`;
 };
 
 export default function ClientsPage() {
@@ -157,15 +138,15 @@ export default function ClientsPage() {
     const filtered = applyRevenueFilter(clientList);
     const count = filtered.length;
     const revenue = filtered.reduce((sum, c) => sum + (c.monthly_fee || 0), 0);
-    const hours = filtered.reduce((sum, c) => sum + getClientHoursPerMonth(c), 0);
-    return { count, revenue, hours };
+    const blocks = filtered.reduce((sum, c) => sum + getCadenceBlocksPerWeek(c.cadence), 0);
+    return { count, revenue, blocks };
   };
 
   const tabStats = {
     active: calculateTabStats(clientsByStatus.active),
     pending: calculateTabStats(clientsByStatus.pending),
     waiting: calculateTabStats(clientsByStatus.waiting),
-    inactive: { count: clientsByStatus.inactive.length, revenue: 0, hours: 0 },
+    inactive: { count: clientsByStatus.inactive.length, revenue: 0, blocks: 0 },
     all: calculateTabStats(clientsByStatus.all),
   };
 
@@ -209,9 +190,21 @@ export default function ClientsPage() {
                 <span className="text-2xl font-bold text-foreground">{formatCurrency(tabStats[statusFilter].revenue)}</span>
                 <span className="text-sm">/mo</span>
               </div>
+              <div className="flex items-center gap-1">
+                <span className={`text-2xl font-bold ${
+                  tabStats[statusFilter].blocks > TOTAL_BLOCKS_PER_WEEK ? 'text-red-500' :
+                  tabStats[statusFilter].blocks >= TOTAL_BLOCKS_PER_WEEK - 1 ? 'text-amber-500' :
+                  'text-green-500'
+                }`}>
+                  {tabStats[statusFilter].blocks.toFixed(2)}
+                </span>
+                <span className="text-sm text-muted-foreground">/ {TOTAL_BLOCKS_PER_WEEK} blocks</span>
+              </div>
               <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-2xl font-bold text-foreground">{formatHours(tabStats[statusFilter].hours)}</span>
-                <span className="text-sm">/mo</span>
+                <span className="text-lg font-medium text-foreground">
+                  {(TOTAL_BLOCKS_PER_WEEK - tabStats[statusFilter].blocks).toFixed(2)}
+                </span>
+                <span className="text-sm">available</span>
               </div>
               <div className={`flex items-center gap-2 font-medium ${
                 filteredClients.length >= 20 ? 'text-danger' : 
