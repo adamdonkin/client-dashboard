@@ -60,7 +60,7 @@ export default function ClientsPage() {
   const supabase = createClientComponentClient()
   const [clients, setClients] = useState<ClientRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('all')
+  const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('mochary-method')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   useEffect(() => {

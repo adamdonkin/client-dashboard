@@ -31,7 +31,7 @@ interface StatsSectionProps {
 }
 
 export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionProps) {
-  const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('all');
+  const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('mochary-method');
   
   const handleFilterChange = (filter: RevenueFilterType) => {
     setRevenueFilter(filter);
