@@ -5,7 +5,17 @@ import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Users, ArrowLeft, Plus } from 'lucide-react'
 import { ClientsTable } from './ClientsTable'
 import { RevenueFilter, type RevenueFilterType } from '@/components/RevenueFilter'
 
@@ -55,6 +65,32 @@ const formatBlocks = (blocks: number): string => {
   return blocks % 1 === 0 ? blocks.toString() : blocks.toFixed(1);
 };
 
+interface NewClientForm {
+  name: string;
+  email: string;
+  company_name: string;
+  role: string;
+  location: string;
+  monthly_fee: string;
+  cadence: string;
+  session_duration: string;
+  status: ClientStatus;
+  referral_source: string;
+}
+
+const initialFormState: NewClientForm = {
+  name: '',
+  email: '',
+  company_name: '',
+  role: '',
+  location: '',
+  monthly_fee: '',
+  cadence: 'Biweekly',
+  session_duration: '90 min',
+  status: 'pending',
+  referral_source: 'Mochary Method',
+};
+
 export default function ClientsPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -62,6 +98,17 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true)
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('mochary-method')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  
+  // Add client dialog state
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newClient, setNewClient] = useState<NewClientForm>(initialFormState)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  
+  // Enum options from database
+  const [cadenceOptions, setCadenceOptions] = useState<string[]>([])
+  const [durationOptions, setDurationOptions] = useState<string[]>([])
+  const [referralOptions, setReferralOptions] = useState<string[]>([])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -70,10 +117,65 @@ export default function ClientsPage() {
         router.push('/auth/login')
       } else {
         fetchClients()
+        fetchEnumOptions()
       }
     }
     checkAuth()
   }, [])
+  
+  // Fetch enum values from database
+  const fetchEnumOptions = async () => {
+    // Fetch cadence enum values
+    const { data: cadenceData, error: cadenceError } = await supabase
+      .rpc('get_enum_values', { enum_name: 'cadence' });
+    if (cadenceError) {
+      // Fallback to querying distinct values from clients table
+      const { data: fallbackCadence } = await supabase
+        .from('clients')
+        .select('cadence')
+        .not('cadence', 'is', null);
+      if (fallbackCadence) {
+        const uniqueCadences = [...new Set(fallbackCadence.map(c => c.cadence).filter(Boolean))];
+        setCadenceOptions(uniqueCadences as string[]);
+      }
+    } else if (cadenceData) {
+      setCadenceOptions(cadenceData.map((row: { value: string }) => row.value));
+    }
+    
+    // Fetch session_duration enum values
+    const { data: durationData, error: durationError } = await supabase
+      .rpc('get_enum_values', { enum_name: 'session_duration' });
+    if (durationError) {
+      // Fallback to querying distinct values from clients table
+      const { data: fallbackDuration } = await supabase
+        .from('clients')
+        .select('session_duration')
+        .not('session_duration', 'is', null);
+      if (fallbackDuration) {
+        const uniqueDurations = [...new Set(fallbackDuration.map(d => d.session_duration).filter(Boolean))];
+        setDurationOptions(uniqueDurations as string[]);
+      }
+    } else if (durationData) {
+      setDurationOptions(durationData.map((row: { value: string }) => row.value));
+    }
+    
+    // Fetch referral_source enum values
+    const { data: referralData, error: referralError } = await supabase
+      .rpc('get_enum_values', { enum_name: 'referral_source' });
+    if (referralError) {
+      // Fallback to querying distinct values from clients table
+      const { data: fallbackReferral } = await supabase
+        .from('clients')
+        .select('referral_source')
+        .not('referral_source', 'is', null);
+      if (fallbackReferral) {
+        const uniqueReferrals = [...new Set(fallbackReferral.map(r => r.referral_source).filter(Boolean))];
+        setReferralOptions(uniqueReferrals as string[]);
+      }
+    } else if (referralData) {
+      setReferralOptions(referralData.map((row: { value: string }) => row.value));
+    }
+  }
 
   const fetchClients = async () => {
     setLoading(true)
@@ -89,6 +191,77 @@ export default function ClientsPage() {
       setClients(data || [])
     }
     setLoading(false)
+  }
+  
+  const handleAddClient = async () => {
+    // Validate required fields
+    if (!newClient.name.trim()) {
+      setSaveError('Name is required')
+      return
+    }
+    if (!newClient.email.trim()) {
+      setSaveError('Email is required')
+      return
+    }
+    
+    setIsSaving(true)
+    setSaveError(null)
+    
+    try {
+      // Get the current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setSaveError('Not authenticated')
+        setIsSaving(false)
+        return
+      }
+      
+      const clientData = {
+        user_id: user.id,
+        name: newClient.name.trim(),
+        email: newClient.email.trim(),
+        company_name: newClient.company_name.trim() || null,
+        role: newClient.role.trim() || null,
+        location: newClient.location.trim() || null,
+        monthly_fee: newClient.monthly_fee ? parseFloat(newClient.monthly_fee) : null,
+        cadence: newClient.cadence || null,
+        session_duration: newClient.session_duration || null,
+        status: newClient.status,
+        is_active: newClient.status === 'active' || newClient.status === 'pending',
+        referral_source: newClient.referral_source || null,
+      }
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .insert(clientData)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('Error adding client:', error)
+        setSaveError(error.message)
+      } else {
+        // Reset form and close dialog
+        setNewClient(initialFormState)
+        setIsAddDialogOpen(false)
+        // Refresh clients list
+        fetchClients()
+        // Navigate to the new client's detail page
+        if (data?.id) {
+          router.push(`/clients/${data.id}`)
+        }
+      }
+    } catch (err) {
+      console.error('Error adding client:', err)
+      setSaveError('An unexpected error occurred')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  
+  const handleFormChange = (field: keyof NewClientForm, value: string) => {
+    setNewClient(prev => ({ ...prev, [field]: value }))
+    setSaveError(null) // Clear error when user starts typing
   }
 
   // Get effective status (for backward compatibility with is_active)
@@ -180,13 +353,170 @@ export default function ClientsPage() {
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <Link 
-          href="/" 
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Dashboard
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link 
+            href="/" 
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Dashboard
+          </Link>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1">
+                <Plus className="h-4 w-4" />
+                Add Client
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Add New Client</DialogTitle>
+                <DialogDescription>
+                  Enter the details for the new client. Name and email are required.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                {saveError && (
+                  <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                    {saveError}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Name *</label>
+                    <input
+                      type="text"
+                      value={newClient.name}
+                      onChange={(e) => handleFormChange('name', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="John Smith"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Email *</label>
+                    <input
+                      type="email"
+                      value={newClient.email}
+                      onChange={(e) => handleFormChange('email', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="john@company.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Company</label>
+                    <input
+                      type="text"
+                      value={newClient.company_name}
+                      onChange={(e) => handleFormChange('company_name', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="Acme Inc."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Role</label>
+                    <input
+                      type="text"
+                      value={newClient.role}
+                      onChange={(e) => handleFormChange('role', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="CEO"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Location</label>
+                    <input
+                      type="text"
+                      value={newClient.location}
+                      onChange={(e) => handleFormChange('location', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="San Francisco"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Monthly Fee</label>
+                    <input
+                      type="number"
+                      value={newClient.monthly_fee}
+                      onChange={(e) => handleFormChange('monthly_fee', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Cadence</label>
+                    <select
+                      value={newClient.cadence}
+                      onChange={(e) => handleFormChange('cadence', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                    >
+                      <option value="">Select...</option>
+                      {cadenceOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Duration</label>
+                    <select
+                      value={newClient.session_duration}
+                      onChange={(e) => handleFormChange('session_duration', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                    >
+                      <option value="">Select...</option>
+                      {durationOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Status</label>
+                    <select
+                      value={newClient.status}
+                      onChange={(e) => handleFormChange('status', e.target.value as ClientStatus)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="active">Active</option>
+                      <option value="waiting">Waitlist</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Referral Source</label>
+                    <select
+                      value={newClient.referral_source}
+                      onChange={(e) => handleFormChange('referral_source', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                    >
+                      <option value="">Select...</option>
+                      {referralOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setNewClient(initialFormState)
+                    setSaveError(null)
+                    setIsAddDialogOpen(false)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAddClient}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving...' : 'Add Client'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
           {statusFilter !== 'inactive' ? (

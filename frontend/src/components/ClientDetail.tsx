@@ -20,7 +20,8 @@ import {
   Pencil,
   Check,
   RefreshCw,
-  Timer
+  Timer,
+  Phone
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
@@ -70,6 +71,18 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editMonthlyFee, setEditMonthlyFee] = useState(client.monthly_fee?.toString() || '');
   const [editCadence, setEditCadence] = useState(client.cadence || '');
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
+  
+  // Edit contact state
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editName, setEditName] = useState(client.client_name || '');
+  const [editEmail, setEditEmail] = useState(client.client_email || '');
+  const [editCompanyName, setEditCompanyName] = useState(client.company_name || '');
+  const [editPhone, setEditPhone] = useState(client.phone || '');
+  const [editSlack, setEditSlack] = useState(client.slack || '');
+  const [editEaName, setEditEaName] = useState(client.ea_name || '');
+  const [editEaEmail, setEditEaEmail] = useState(client.ea_email || '');
+  const [editDefactoMeeting, setEditDefactoMeeting] = useState(client.defacto_meeting || '');
+  const [editGranolaNotesFolder, setEditGranolaNotesFolder] = useState(client.granola_notes_folder || '');
   
   // Enum options from database
   const [cadenceOptions, setCadenceOptions] = useState<string[]>([]);
@@ -337,6 +350,68 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setIsEditingDetails(false);
   };
 
+  // Sync edit contact state when client changes
+  useEffect(() => {
+    setEditName(currentClient?.client_name || '');
+    setEditEmail(currentClient?.client_email || '');
+    setEditCompanyName(currentClient?.company_name || '');
+    setEditPhone(currentClient?.phone || '');
+    setEditSlack(currentClient?.slack || '');
+    setEditEaName(currentClient?.ea_name || '');
+    setEditEaEmail(currentClient?.ea_email || '');
+    setEditDefactoMeeting(currentClient?.defacto_meeting || '');
+    setEditGranolaNotesFolder(currentClient?.granola_notes_folder || '');
+  }, [currentClient]);
+
+  // Save contact info
+  const saveContact = async () => {
+    try {
+      setIsSaving(true);
+      const updates: Record<string, unknown> = {
+        name: editName || null,
+        email: editEmail || null,
+        company_name: editCompanyName || null,
+        phone: editPhone || null,
+        slack: editSlack || null,
+        ea_name: editEaName || null,
+        ea_email: editEaEmail || null,
+        defacto_meeting: editDefactoMeeting || null,
+        granola_notes_folder: editGranolaNotesFolder || null,
+      };
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', client.id);
+
+      if (updateError) {
+        console.error('Error saving contact:', updateError);
+      } else {
+        setCurrentClient(prev => prev ? { 
+          ...prev, 
+          client_name: editName || undefined,
+          client_email: editEmail || undefined,
+          company_name: editCompanyName || undefined,
+          phone: editPhone || undefined,
+          slack: editSlack || undefined,
+          ea_name: editEaName || undefined,
+          ea_email: editEaEmail || undefined,
+          defacto_meeting: editDefactoMeeting || undefined,
+          granola_notes_folder: editGranolaNotesFolder || undefined,
+        } : prev);
+      }
+    } catch (err) {
+      console.error('Error saving contact:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDoneEditingContact = () => {
+    saveContact();
+    setIsEditingContact(false);
+  };
+
   // Handle status change
   const handleStatusChange = async (newStatus: ClientStatus) => {
     try {
@@ -584,47 +659,177 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Contact & Communication */}
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Contact</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => isEditingContact ? handleDoneEditingContact() : setIsEditingContact(true)}
+              >
+                {isEditingContact ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Done
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </>
+                )}
+              </Button>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {currentClient?.client_email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
-                    {currentClient.client_email}
-                  </a>
+              {isEditingContact ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="Client name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Company</label>
+                      <input
+                        type="text"
+                        value={editCompanyName}
+                        onChange={(e) => setEditCompanyName(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="Company name"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Email</label>
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Phone</label>
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Slack URL</label>
+                      <input
+                        type="url"
+                        value={editSlack}
+                        onChange={(e) => setEditSlack(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="https://slack.com/..."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Meeting Link</label>
+                      <input
+                        type="url"
+                        value={editDefactoMeeting}
+                        onChange={(e) => setEditDefactoMeeting(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="https://zoom.us/..."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground">Granola Notes Folder</label>
+                      <input
+                        type="url"
+                        value={editGranolaNotesFolder}
+                        onChange={(e) => setEditGranolaNotesFolder(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">Executive Assistant</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground">EA Name</label>
+                        <input
+                          type="text"
+                          value={editEaName}
+                          onChange={(e) => setEditEaName(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          placeholder="EA name"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">EA Email</label>
+                        <input
+                          type="email"
+                          value={editEaEmail}
+                          onChange={(e) => setEditEaEmail(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          placeholder="ea@example.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-              {currentClient?.slack && (
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    Slack
-                  </a>
-                </div>
-              )}
-              {currentClient?.defacto_meeting && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <a href={currentClient.defacto_meeting} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    Meeting Link
-                  </a>
-                </div>
-              )}
-              {currentClient?.granola_notes_folder && (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <a href={currentClient.granola_notes_folder} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    Granola Notes
-                  </a>
-                </div>
-              )}
-              {(currentClient?.ea_name || currentClient?.ea_email) && (
-                <div className="flex items-center gap-2 pt-2 border-t">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
-                </div>
+              ) : (
+                <>
+                  {currentClient?.client_email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
+                        {currentClient.client_email}
+                      </a>
+                    </div>
+                  )}
+                  {currentClient?.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{currentClient.phone}</span>
+                    </div>
+                  )}
+                  {currentClient?.slack && (
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        Slack
+                      </a>
+                    </div>
+                  )}
+                  {currentClient?.defacto_meeting && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <a href={currentClient.defacto_meeting} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        Meeting Link
+                      </a>
+                    </div>
+                  )}
+                  {currentClient?.granola_notes_folder && (
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <a href={currentClient.granola_notes_folder} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        Granola Notes
+                      </a>
+                    </div>
+                  )}
+                  {(currentClient?.ea_name || currentClient?.ea_email) && (
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
+                    </div>
+                  )}
+                  {!currentClient?.client_email && !currentClient?.phone && !currentClient?.slack && !currentClient?.defacto_meeting && !currentClient?.granola_notes_folder && !currentClient?.ea_name && !currentClient?.ea_email && (
+                    <p className="text-muted-foreground">No contact information. Click Edit to add.</p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
