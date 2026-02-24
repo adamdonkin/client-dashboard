@@ -7,10 +7,16 @@
  * Usage: node scripts/run_historical_sync_once.js
  */
 
-// Configuration - Updated for Coaching Dashboard project
-const SUPABASE_URL = 'https://bhiwuvjltwvdkhcnwkkt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoaXd1dmpsdHd2ZGtoY253a2t0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNzQ4ODAsImV4cCI6MjA2NTg1MDg4MH0.GpzLOZTvdsWp2eGVKzS3QrS68gF5IQDKOV1iAV-6m8A';
-const USER_ID = '4587519f-dd12-4e18-be42-25854f6dfbe3'; // Replace with your user ID
+// Configuration - Uses environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const USER_ID = process.env.SUPABASE_USER_ID || '4587519f-dd12-4e18-be42-25854f6dfbe3';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables');
+  console.error('Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY before running this script');
+  process.exit(1);
+}
 
 async function runHistoricalSyncOnce() {
   console.log('🚀 Running One-time Historical Recovery Sync...');

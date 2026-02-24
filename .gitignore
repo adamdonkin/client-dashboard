@@ -1,1 +1,31 @@
+# dependencies
+node_modules/
+frontend/node_modules/
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# env files
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# existing
 sample_data.sql
+
+# build files
+BUILD_ZOOM_PIPELINE.md
+FIX_SECURITY_ISSUES.md
