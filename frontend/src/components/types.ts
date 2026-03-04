@@ -16,10 +16,12 @@ export interface Client {
   sessionType?: string
   ea_email?: string;
   ea_name?: string;
+  ea_slack?: string;
   location?: string;
   notes?: string;
   monthly_fee?: number;
   phone?: string;
   cadence?: string;
   session_duration?: string;
+  referral_source?: string;
 } 

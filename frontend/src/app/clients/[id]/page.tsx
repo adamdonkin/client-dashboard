@@ -61,6 +61,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
         location: data.location,
         ea_name: data.ea_name,
         ea_email: data.ea_email,
+        ea_slack: data.ea_slack,
         cadence: data.cadence,
         session_duration: data.session_duration,
       }

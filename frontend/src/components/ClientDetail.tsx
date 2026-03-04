@@ -81,6 +81,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editSlack, setEditSlack] = useState(client.slack || '');
   const [editEaName, setEditEaName] = useState(client.ea_name || '');
   const [editEaEmail, setEditEaEmail] = useState(client.ea_email || '');
+  const [editEaSlack, setEditEaSlack] = useState(client.ea_slack || '');
   const [editDefactoMeeting, setEditDefactoMeeting] = useState(client.defacto_meeting || '');
   const [editGranolaNotesFolder, setEditGranolaNotesFolder] = useState(client.granola_notes_folder || '');
   
@@ -218,7 +219,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration')
+        .select('ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration')
         .eq('id', client.id)
         .single();
       
@@ -359,6 +360,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setEditSlack(currentClient?.slack || '');
     setEditEaName(currentClient?.ea_name || '');
     setEditEaEmail(currentClient?.ea_email || '');
+    setEditEaSlack(currentClient?.ea_slack || '');
     setEditDefactoMeeting(currentClient?.defacto_meeting || '');
     setEditGranolaNotesFolder(currentClient?.granola_notes_folder || '');
   }, [currentClient]);
@@ -375,6 +377,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         slack: editSlack || null,
         ea_name: editEaName || null,
         ea_email: editEaEmail || null,
+        ea_slack: editEaSlack || null,
         defacto_meeting: editDefactoMeeting || null,
         granola_notes_folder: editGranolaNotesFolder || null,
       };
@@ -396,6 +399,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           slack: editSlack || undefined,
           ea_name: editEaName || undefined,
           ea_email: editEaEmail || undefined,
+          ea_slack: editEaSlack || undefined,
           defacto_meeting: editDefactoMeeting || undefined,
           granola_notes_folder: editGranolaNotesFolder || undefined,
         } : prev);
@@ -899,6 +903,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                           placeholder="ea@example.com"
                         />
                       </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-muted-foreground">EA Slack</label>
+                        <input
+                          type="url"
+                          value={editEaSlack}
+                          onChange={(e) => setEditEaSlack(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          placeholder="https://slack.com/..."
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -942,13 +956,22 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       </a>
                     </div>
                   )}
-                  {(currentClient?.ea_name || currentClient?.ea_email) && (
+                  {(currentClient?.ea_name || currentClient?.ea_email || currentClient?.ea_slack) && (
                     <div className="flex items-center gap-2 pt-2 border-t">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
+                      {currentClient?.ea_slack && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <a href={currentClient.ea_slack} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" />
+                            Slack
+                          </a>
+                        </>
+                      )}
                     </div>
                   )}
-                  {!currentClient?.client_email && !currentClient?.phone && !currentClient?.slack && !currentClient?.defacto_meeting && !currentClient?.granola_notes_folder && !currentClient?.ea_name && !currentClient?.ea_email && (
+                  {!currentClient?.client_email && !currentClient?.phone && !currentClient?.slack && !currentClient?.defacto_meeting && !currentClient?.granola_notes_folder && !currentClient?.ea_name && !currentClient?.ea_email && !currentClient?.ea_slack && (
                     <p className="text-muted-foreground">No contact information. Click Edit to add.</p>
                   )}
                 </>
