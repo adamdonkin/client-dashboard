@@ -176,6 +176,9 @@ serve(async (req)=>{
     
     console.log(`\n📊 Fetched ${allEvents.length} total events from ${calendarIds.length} calendars`);
     console.log('Calendar breakdown:', calendarStats);
+
+    // Build set of ALL event IDs Google returned (active + cancelled) for reconciliation
+    const allGoogleEventIds = new Set(allEvents.map((e: any) => e.id));
     
     // Filter events for clients
     const clientEmailsSet = new Set(clientEmails.map((e)=>e.toLowerCase()));
@@ -207,15 +210,82 @@ serve(async (req)=>{
     });
     console.log(`Processing ${filteredEvents.length} client events`);
     
+    // Collect all calendar_event_ids seen from Google so we can reconcile later
+    const seenCalendarEventIds = new Set<string>();
+
     // Process events
     let synced = 0;
     let cancelled = 0;
     let historical = 0;
     let errors = 0;
+    let reconciled = 0;
     for (const event of filteredEvents){
       try {
+        // Handle cancelled events FIRST — Google often strips attendee/time
+        // data from cancelled events, so we must process them before the
+        // attendee lookup that regular events need.
+        if (event.status === 'cancelled') {
+          const { data: existingEvent } = await supabase
+            .from('calendar_events')
+            .select('id, title, status')
+            .eq('calendar_event_id', event.id)
+            .eq('user_id', user_id)
+            .single();
+          
+          if (existingEvent && existingEvent.status !== 'cancelled') {
+            const { error: updateError } = await supabase
+              .from('calendar_events')
+              .update({
+                title: existingEvent.title.replace(/ \[CANCELLED\]$/, '') + ' [CANCELLED]',
+                status: 'cancelled',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingEvent.id);
+              
+            if (!updateError) {
+              cancelled++;
+              console.log(`Marked event as cancelled: ${event.id} - ${existingEvent.title}`);
+            } else {
+              console.error(`Error marking event as cancelled ${event.id}:`, updateError);
+              errors++;
+            }
+          } else if (!existingEvent) {
+            // Cancelled event we never synced — try to match via attendees if available
+            const clientEmail = event.attendees?.find((a: any) => clientEmailsSet.has(a.email?.toLowerCase()))?.email;
+            if (clientEmail) {
+              const { data: client } = await supabase.from('clients').select('id').eq('user_id', user_id).ilike('email', clientEmail).single();
+              if (client && event.start) {
+                const { error: insertError } = await supabase
+                  .from('calendar_events')
+                  .insert({
+                    user_id,
+                    client_id: client.id,
+                    calendar_event_id: event.id,
+                    title: (event.summary || 'No title') + ' [CANCELLED]',
+                    start_time: event.start.dateTime || event.start.date,
+                    end_time: event.end.dateTime || event.end.date,
+                    attendees: event.attendees,
+                    status: 'cancelled',
+                    updated_at: new Date().toISOString()
+                  });
+                if (!insertError) {
+                  cancelled++;
+                  if (historicalRecovery) historical++;
+                  console.log(`Inserted cancelled event: ${event.id} - ${event.summary}`);
+                } else {
+                  console.error(`Error inserting cancelled event ${event.id}:`, insertError);
+                  errors++;
+                }
+              }
+            } else {
+              console.log(`Skipping unknown cancelled event (no attendees, not in DB): ${event.id}`);
+            }
+          }
+          continue;
+        }
+
         // Find which client this event is for
-        const clientEmail = event.attendees?.find((a)=>clientEmailsSet.has(a.email?.toLowerCase()))?.email;
+        const clientEmail = event.attendees?.find((a: any) => clientEmailsSet.has(a.email?.toLowerCase()))?.email;
         if (!clientEmail) continue;
         // Get client ID
         const { data: client } = await supabase.from('clients').select('id').eq('user_id', user_id).ilike('email', clientEmail).single();
@@ -234,65 +304,6 @@ serve(async (req)=>{
           attendees: event.attendees,
           updated_at: new Date().toISOString()
         };
-        
-        // Handle cancelled events - keep them but mark them
-        if (event.status === 'cancelled') {
-          // Check if this event already exists in our database
-          const { data: existingEvent } = await supabase
-            .from('calendar_events')
-            .select('id, title, status')
-            .eq('calendar_event_id', event.id)
-            .eq('user_id', user_id)
-            .single();
-          
-          if (existingEvent) {
-            // Update existing event to mark it as cancelled
-            const cancelledEventData = {
-              ...eventData,
-              title: existingEvent.title + ' [CANCELLED]',
-              status: 'cancelled',
-              updated_at: new Date().toISOString()
-            };
-            
-            const { error: updateError } = await supabase
-              .from('calendar_events')
-              .update(cancelledEventData)
-              .eq('id', existingEvent.id);
-              
-            if (!updateError) {
-              cancelled++;
-              console.log(`Marked event as cancelled: ${event.id} - ${existingEvent.title}`);
-            } else {
-              console.error(`Error marking event as cancelled ${event.id}:`, updateError);
-              errors++;
-            }
-          } else {
-            // Insert new cancelled event (in case it was cancelled before we synced it)
-            const cancelledEventData = {
-              ...eventData,
-              title: eventData.title + ' [CANCELLED]',
-              status: 'cancelled'
-            };
-            
-            const { error: insertError } = await supabase
-              .from('calendar_events')
-              .insert(cancelledEventData);
-              
-            if (!insertError) {
-              cancelled++;
-              if (historicalRecovery) {
-                historical++;
-                console.log(`Recovered historical cancelled event: ${event.id} - ${eventData.title}`);
-              } else {
-                console.log(`Inserted cancelled event: ${event.id} - ${eventData.title}`);
-              }
-            } else {
-              console.error(`Error inserting cancelled event ${event.id}:`, insertError);
-              errors++;
-            }
-          }
-          continue;
-        }
         
         // Handle regular events
         const { error: upsertError } = await supabase.from('calendar_events').upsert(eventData, {
@@ -313,9 +324,45 @@ serve(async (req)=>{
         errors++;
       }
     }
+    // Reconcile: mark DB events as cancelled if they fall within the sync
+    // window but were NOT returned by Google (deleted or no longer visible).
+    const { data: dbEventsInWindow } = await supabase
+      .from('calendar_events')
+      .select('id, calendar_event_id, title, start_time, status')
+      .eq('user_id', user_id)
+      .gte('start_time', timeMin.toISOString())
+      .lte('start_time', timeMax.toISOString())
+      .or('status.is.null,status.neq.cancelled');
+
+    if (dbEventsInWindow) {
+      for (const dbEvent of dbEventsInWindow) {
+        if (!allGoogleEventIds.has(dbEvent.calendar_event_id)) {
+          const { error: reconcileError } = await supabase
+            .from('calendar_events')
+            .update({
+              status: 'cancelled',
+              title: dbEvent.title.replace(/ \[CANCELLED\]$/, '') + ' [CANCELLED]',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', dbEvent.id);
+
+          if (!reconcileError) {
+            reconciled++;
+            console.log(`Reconciled stale event (not in Google): ${dbEvent.calendar_event_id} - ${dbEvent.title} on ${dbEvent.start_time}`);
+          } else {
+            console.error(`Error reconciling event ${dbEvent.calendar_event_id}:`, reconcileError);
+            errors++;
+          }
+        }
+      }
+    }
+    if (reconciled > 0) {
+      console.log(`Reconciled ${reconciled} stale events not found in Google Calendar`);
+    }
+
     const result = {
       success: true,
-      message: `Sync complete: ${synced} events synced, ${cancelled} cancelled events tracked${historicalRecovery ? `, ${historical} historical events recovered` : ''}, ${errors} errors`,
+      message: `Sync complete: ${synced} synced, ${cancelled} cancelled, ${reconciled} reconciled${historicalRecovery ? `, ${historical} historical` : ''}, ${errors} errors`,
       stats: {
         totalFetched: allEvents.length,
         pagesProcessed: totalPageCount,
@@ -324,6 +371,7 @@ serve(async (req)=>{
         processed: filteredEvents.length,
         synced,
         cancelled,
+        reconciled,
         historical,
         errors,
         timeRange: {

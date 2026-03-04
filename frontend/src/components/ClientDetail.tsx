@@ -514,6 +514,61 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     );
   }
 
+  // Inline header editing
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [headerName, setHeaderName] = useState(currentClient?.client_name || '');
+  const [headerCompany, setHeaderCompany] = useState(currentClient?.company_name || '');
+  const [headerRole, setHeaderRole] = useState(currentClient?.role || '');
+
+  useEffect(() => {
+    setHeaderName(currentClient?.client_name || '');
+    setHeaderCompany(currentClient?.company_name || '');
+    setHeaderRole(currentClient?.role || '');
+  }, [currentClient?.client_name, currentClient?.company_name, currentClient?.role]);
+
+  const saveHeader = async () => {
+    try {
+      setIsSaving(true);
+      const updates: Record<string, unknown> = {
+        name: headerName || null,
+        company_name: headerCompany || null,
+        role: headerRole || null,
+      };
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', client.id);
+
+      if (updateError) {
+        console.error('Error saving header:', updateError);
+      } else {
+        const updated = {
+          ...currentClient!,
+          client_name: headerName || undefined,
+          company_name: headerCompany || undefined,
+          role: headerRole || undefined,
+        };
+        setCurrentClient(updated);
+        onClientUpdate?.(updated);
+        setEditName(headerName);
+        setEditCompanyName(headerCompany);
+        setEditRole(headerRole);
+      }
+    } catch (err) {
+      console.error('Error saving header:', err);
+    } finally {
+      setIsSaving(false);
+      setIsEditingHeader(false);
+    }
+  };
+
+  const cancelHeaderEdit = () => {
+    setHeaderName(currentClient?.client_name || '');
+    setHeaderCompany(currentClient?.company_name || '');
+    setHeaderRole(currentClient?.role || '');
+    setIsEditingHeader(false);
+  };
+
   // Safe rendering with null checks
   const clientName = currentClient?.client_name || 'Unknown Client';
 
@@ -532,36 +587,103 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-bold">{clientName}</h1>
-                  <Select
-                    value={currentClient?.status || 'active'}
-                    onValueChange={(value) => handleStatusChange(value as ClientStatus)}
-                  >
-                    <SelectTrigger className={`w-[120px] h-7 text-xs font-medium border-0 ${getStatusColor(currentClient?.status || 'active')}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(option.value)}`}>
-                            {option.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  {currentClient?.company_name && (
-                    <>
-                      <span className="font-medium">{currentClient.company_name}</span>
-                      <span>•</span>
-                    </>
-                  )}
-                  {currentClient?.role && <span>{currentClient.role}</span>}
-                </div>
+              <div className="flex-1">
+                {isEditingHeader ? (
+                  <div className="space-y-3">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={headerName}
+                      onChange={(e) => setHeaderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveHeader();
+                        if (e.key === 'Escape') cancelHeaderEdit();
+                      }}
+                      className="w-full text-3xl font-bold bg-transparent border-b-2 border-primary outline-none"
+                      placeholder="Client name"
+                    />
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={headerCompany}
+                        onChange={(e) => setHeaderCompany(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveHeader();
+                          if (e.key === 'Escape') cancelHeaderEdit();
+                        }}
+                        className="bg-transparent border-b border-muted-foreground/30 outline-none text-muted-foreground font-medium placeholder:text-muted-foreground/50"
+                        placeholder="Company"
+                      />
+                      <span className="text-muted-foreground">•</span>
+                      <input
+                        type="text"
+                        value={headerRole}
+                        onChange={(e) => setHeaderRole(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveHeader();
+                          if (e.key === 'Escape') cancelHeaderEdit();
+                        }}
+                        className="bg-transparent border-b border-muted-foreground/30 outline-none text-muted-foreground placeholder:text-muted-foreground/50"
+                        placeholder="Role"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button size="sm" onClick={saveHeader} disabled={isSaving}>
+                        <Check className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={cancelHeaderEdit}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h1
+                        className="text-3xl font-bold cursor-pointer hover:text-primary/80 transition-colors"
+                        onClick={() => setIsEditingHeader(true)}
+                        title="Click to edit"
+                      >
+                        {clientName}
+                      </h1>
+                      <Select
+                        value={currentClient?.status || 'active'}
+                        onValueChange={(value) => handleStatusChange(value as ClientStatus)}
+                      >
+                        <SelectTrigger className={`w-[120px] h-7 text-xs font-medium border-0 ${getStatusColor(currentClient?.status || 'active')}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(option.value)}`}>
+                                {option.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div
+                      className="flex items-center gap-2 text-muted-foreground cursor-pointer hover:text-muted-foreground/70 transition-colors"
+                      onClick={() => setIsEditingHeader(true)}
+                      title="Click to edit"
+                    >
+                      {currentClient?.company_name && (
+                        <>
+                          <span className="font-medium">{currentClient.company_name}</span>
+                          {currentClient?.role && <span>•</span>}
+                        </>
+                      )}
+                      {currentClient?.role && <span>{currentClient.role}</span>}
+                      {!currentClient?.company_name && !currentClient?.role && (
+                        <span className="text-muted-foreground/50 italic text-sm">Add company & role</span>
+                      )}
+                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </CardHeader>
