@@ -807,7 +807,15 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               {isEditingContact ? (
-                <div className="space-y-3">
+                <div
+                  className="space-y-3"
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleDoneEditingContact();
+                    }
+                  }}
+                >
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground">Name</label>
@@ -960,6 +968,15 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     <div className="flex items-center gap-2 pt-2 border-t">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
+                      {currentClient?.ea_email && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <a href={`mailto:${currentClient.ea_email}`} className="hover:underline flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            Email
+                          </a>
+                        </>
+                      )}
                       {currentClient?.ea_slack && (
                         <>
                           <span className="text-muted-foreground">•</span>
@@ -1003,7 +1020,14 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {isEditingDetails ? (
-                <>
+                <div
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleDoneEditingDetails();
+                    }
+                  }}
+                >
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground">Role</label>
@@ -1062,7 +1086,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       </select>
                     </div>
                   </div>
-                </>
+                </div>
               ) : (
                 <>
                   {currentClient?.role && (
