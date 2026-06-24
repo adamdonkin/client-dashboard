@@ -124,6 +124,9 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Update get_clients_needs_scheduling to only include active and pending clients
+-- Drop existing overloads first (PostgreSQL cannot change return type with CREATE OR REPLACE)
+DROP FUNCTION IF EXISTS get_clients_needs_scheduling();
+DROP FUNCTION IF EXISTS get_clients_needs_scheduling(uuid);
 CREATE OR REPLACE FUNCTION get_clients_needs_scheduling()
 RETURNS TABLE(
   client_id uuid,

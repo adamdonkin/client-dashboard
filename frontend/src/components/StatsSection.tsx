@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Calendar, TrendingUp, BarChart3, DollarSign, Target, Users, Clock, Gauge } from 'lucide-react';
+import { Calendar, TrendingUp, DollarSign, Target, Users, Clock, Gauge } from 'lucide-react';
 import { RevenueFilter, RevenueFilterType } from './RevenueFilter';
 
 interface RevenueStats {

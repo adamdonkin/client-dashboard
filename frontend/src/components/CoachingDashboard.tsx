@@ -6,7 +6,7 @@ import { ClientListView } from "./ClientListView";
 import { StatsSection } from "./StatsSection";
 import { useAuth } from '@/components/auth/AuthProvider'
 import { RevenueFilterType } from './RevenueFilter'
-import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2, Globe } from 'lucide-react'
+import { Users, RefreshCw, Calendar, Mail, MessageSquare, Loader2, Globe, ListChecks } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
@@ -153,6 +153,13 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
               >
                 <Users className="h-4 w-4" />
                 {totalClients} Clients
+              </Link>
+              <Link 
+                href="/actions" 
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ListChecks className="h-4 w-4" />
+                Actions
               </Link>
               <Link 
                 href="/timezones" 

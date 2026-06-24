@@ -18,6 +18,7 @@ export interface Client {
   days_since_last_session?: number;
   next_session_date?: string;
   priority_level?: string;
+  referral_source?: string;
 }
 
 export interface ClientDetailData {
