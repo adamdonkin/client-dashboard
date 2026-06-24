@@ -10,74 +10,8 @@ import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, RefreshCw, S
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { ClientActionGroup, ClientAction } from '@/app/api/actions/route'
 import { formatRelativeDate } from '@/utils/date-utils'
-import { format, isPast, parseISO, isThisWeek } from 'date-fns'
-
-function formatDueDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  return format(parseISO(dateStr), 'MMM d')
-}
-
-function isOverdue(dateStr: string | null): boolean {
-  if (!dateStr) return false
-  return isPast(parseISO(dateStr))
-}
-
-function SourceBadge({ source }: { source: 'defacto' | 'granola' }) {
-  if (source === 'defacto') {
-    return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
-        Defacto
-      </Badge>
-    )
-  }
-  return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/30 text-success font-medium">
-      Granola
-    </Badge>
-  )
-}
-
-
-function ActionRow({ action }: { action: ClientAction }) {
-  const overdue = isOverdue(action.due_date)
-  const clickable = !!action.source_url
-
-  function handleClick() {
-    if (action.source_url) {
-      window.open(action.source_url, '_blank', 'noopener')
-    }
-  }
-
-  return (
-    <div
-      className={`py-2.5 px-4 hover:bg-muted/50 rounded-md transition-colors ${clickable ? 'cursor-pointer' : ''}`}
-      onClick={handleClick}
-    >
-      <div className="flex items-center gap-3">
-        <div className="shrink-0 w-[52px]">
-          <SourceBadge source={action.source} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground leading-snug">{action.title}</p>
-          {action.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{action.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {action.due_date && (
-            <span className={`text-xs flex items-center gap-1 ${overdue ? 'text-danger' : 'text-muted-foreground'}`}>
-              <Calendar className="h-3 w-3" />
-              {formatDueDate(action.due_date)}
-            </span>
-          )}
-          {!action.due_date && (
-            <span className="text-xs text-muted-foreground w-[60px] text-right">—</span>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+import { parseISO, isThisWeek } from 'date-fns'
+import { ActionRow, SourceBadge, formatDueDate, isOverdue } from '@/components/ActionRow'
 
 function ClientGroup({ group }: { group: ClientActionGroup }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)

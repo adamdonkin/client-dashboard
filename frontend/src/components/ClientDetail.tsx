@@ -26,6 +26,8 @@ import {
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { ActionRow } from '@/components/ActionRow';
+import type { ActionItem } from '@/components/ActionRow';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -58,6 +60,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
+  const [clientActions, setClientActions] = useState<ActionItem[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
@@ -210,6 +214,37 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
     if (client.id) {
         fetchSessionHistory();
+    }
+  }, [client.id]);
+
+  // Fetch actions for this client
+  useEffect(() => {
+    const fetchActions = async () => {
+      try {
+        setActionsLoading(true);
+        const { data, error } = await supabase
+          .from('client_actions')
+          .select('id, title, description, source, due_date, source_url')
+          .eq('client_id', client.id)
+          .eq('status', 'to_do')
+          .order('due_date', { ascending: true, nullsFirst: false });
+
+        if (error) {
+          console.error('Error fetching client actions:', error);
+          setClientActions([]);
+        } else {
+          setClientActions(data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching client actions:', err);
+        setClientActions([]);
+      } finally {
+        setActionsLoading(false);
+      }
+    };
+
+    if (client.id) {
+      fetchActions();
     }
   }, [client.id]);
 
@@ -643,9 +678,9 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-1">
                       <h1
-                        className="text-3xl font-bold cursor-pointer hover:text-primary/80 transition-colors"
+                        className="text-2xl font-bold cursor-pointer hover:text-primary/80 transition-colors"
                         onClick={() => setIsEditingHeader(true)}
                         title="Click to edit"
                       >
@@ -691,28 +726,17 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                <Calendar className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Next Session</p>
-                  <p className="font-semibold text-foreground">
-                    {currentClient.next_session_date ? formatDateWithTime(currentClient.next_session_date) : 'Not scheduled'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                <Clock className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Last Session</p>
-                  <p className="font-semibold text-foreground">
-                    {currentClient.last_session_date 
-                      ? formatDateWithTime(currentClient.last_session_date)
-                      : 'None'}
-                  </p>
-                </div>
-              </div>
+          <CardContent className="pt-0">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                Last: <span className="font-medium text-foreground">{currentClient.last_session_date ? formatDateWithTime(currentClient.last_session_date) : 'None'}</span>
+              </span>
+              <span className="text-border">·</span>
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Next: <span className="font-medium text-foreground">{currentClient.next_session_date ? formatDateWithTime(currentClient.next_session_date) : 'Not scheduled'}</span>
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -926,51 +950,53 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 </div>
               ) : (
                 <>
-                  {currentClient?.client_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
-                        {currentClient.client_email}
-                      </a>
-                    </div>
-                  )}
-                  {currentClient?.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{currentClient.phone}</span>
-                    </div>
-                  )}
-                  {currentClient?.slack && (
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        Slack
-                      </a>
-                    </div>
-                  )}
-                  {currentClient?.defacto_meeting && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <a href={currentClient.defacto_meeting} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        Meeting Link
-                      </a>
-                    </div>
-                  )}
-                  {currentClient?.granola_notes_folder && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <a href={currentClient.granola_notes_folder} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        Granola Notes
-                      </a>
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {currentClient?.client_email && (
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
+                          {currentClient.client_email}
+                        </a>
+                      </div>
+                    )}
+                    {currentClient?.phone && (
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>{currentClient.phone}</span>
+                      </div>
+                    )}
+                    {currentClient?.slack && (
+                      <div className="flex items-center gap-1.5">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          Slack
+                        </a>
+                      </div>
+                    )}
+                    {currentClient?.defacto_meeting && (
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={currentClient.defacto_meeting} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          Meeting Link
+                        </a>
+                      </div>
+                    )}
+                    {currentClient?.granola_notes_folder && (
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={currentClient.granola_notes_folder} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          Granola Notes
+                        </a>
+                      </div>
+                    )}
+                  </div>
                   {(currentClient?.ea_name || currentClient?.ea_email || currentClient?.ea_slack) && (
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                      <User className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 pt-1.5 border-t">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
                       {currentClient?.ea_email && (
                         <>
-                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">·</span>
                           <a href={`mailto:${currentClient.ea_email}`} className="hover:underline flex items-center gap-1">
                             <Mail className="h-3 w-3" />
                             Email
@@ -979,7 +1005,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       )}
                       {currentClient?.ea_slack && (
                         <>
-                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">·</span>
                           <a href={currentClient.ea_slack} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
                             <MessageSquare className="h-3 w-3" />
                             Slack
@@ -1018,7 +1044,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 )}
               </Button>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+            <CardContent className="space-y-2 text-sm">
               {isEditingDetails ? (
                 <div
                   onKeyDown={(e) => {
@@ -1088,44 +1114,34 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   </div>
                 </div>
               ) : (
-                <>
-                  {currentClient?.role && (
-                    <div>
-                      <span className="text-muted-foreground">Role:</span>{' '}
-                      <span className="font-semibold">{currentClient.role}</span>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                   {currentClient?.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>{currentClient.location}</span>
                     </div>
                   )}
                   {currentClient?.monthly_fee && (
                     <div>
-                      <span className="text-muted-foreground">Monthly Fee:</span>{' '}
-                      <span className="font-semibold">${Number(currentClient.monthly_fee).toLocaleString()}</span>
+                      <span className="text-muted-foreground">Fee:</span>{' '}
+                      <span className="font-medium">${Number(currentClient.monthly_fee).toLocaleString()}/mo</span>
                     </div>
                   )}
-                  {(currentClient?.cadence || currentClient?.session_duration) && (
-                    <div className="flex items-center gap-4">
-                      {currentClient?.cadence && (
-                        <div>
-                          <span className="text-muted-foreground">Cadence:</span>{' '}
-                          <span className="font-semibold">{currentClient.cadence}</span>
-                        </div>
-                      )}
-                      {currentClient?.session_duration && (
-                        <div>
-                          <span className="text-muted-foreground">Duration:</span>{' '}
-                          <span className="font-semibold">{currentClient.session_duration}</span>
-                        </div>
-                      )}
+                  {currentClient?.cadence && (
+                    <div>
+                      <span className="text-muted-foreground">Cadence:</span>{' '}
+                      <span className="font-medium">{currentClient.cadence}</span>
                     </div>
                   )}
-                </>
+                  {currentClient?.session_duration && (
+                    <div>
+                      <span className="text-muted-foreground">Duration:</span>{' '}
+                      <span className="font-medium">{currentClient.session_duration}</span>
+                    </div>
+                  )}
+                </div>
               )}
-              <div className="flex items-center gap-4 pt-2 border-t">
+              <div className="flex items-center gap-4 pt-1.5 border-t">
                 <div>
                   <span className="text-muted-foreground">Sessions:</span>{' '}
                   <span className="font-semibold">{loading ? '...' : sessionHistory.length}</span>
@@ -1147,6 +1163,35 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             </CardContent>
           </Card>
         </div>
+
+        {/* Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Actions
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({actionsLoading ? '...' : clientActions.length})
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {actionsLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading actions...
+              </div>
+            ) : clientActions.length > 0 ? (
+              <div className="divide-y divide-border">
+                {clientActions.map((action) => (
+                  <ActionRow key={action.id} action={action} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No active actions for this client.
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Session History */}
         <Card>
