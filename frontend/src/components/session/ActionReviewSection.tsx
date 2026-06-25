@@ -33,7 +33,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
         .select('id, title, description, source, due_date, status')
         .eq('client_id', clientId)
         .eq('status', 'to_do')
-        .neq('session_note_id', sessionNoteId)
+        .or(`session_note_id.is.null,session_note_id.neq.${sessionNoteId}`)
         .order('due_date', { ascending: true, nullsFirst: false })
 
       setActions(data || [])
