@@ -6,7 +6,7 @@ export interface ClientAction {
   id: string
   title: string
   description: string | null
-  source: 'defacto' | 'granola'
+  source: 'defacto' | 'granola' | 'session'
   status: 'to_do' | 'completed' | 'cancelled'
   due_date: string | null
   created_date: string | null

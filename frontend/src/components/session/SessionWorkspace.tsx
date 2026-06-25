@@ -1,0 +1,314 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { ArrowLeft } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { toast } from 'sonner'
+import { formatRelativeDate } from '@/utils/date-utils'
+import { SessionEditor, SlashCommandHandler } from './SessionEditor'
+import { EditableActionRow } from './EditableActionRow'
+import { ActionForm } from './ActionForm'
+import { ActionReviewSection } from './ActionReviewSection'
+import { SessionSummary } from './SessionSummary'
+
+interface CalendarEvent {
+  id: string
+  client_id: string
+  start_time: string
+  end_time: string
+  title: string
+}
+
+interface ClientInfo {
+  id: string
+  name: string
+  company_name: string | null
+  role: string | null
+}
+
+interface SessionWorkspaceProps {
+  calendarEvent: CalendarEvent
+  client: ClientInfo | null
+  sessionNoteId: string
+  onBack: () => void
+}
+
+export function SessionWorkspace({
+  calendarEvent,
+  client,
+  sessionNoteId,
+  onBack,
+}: SessionWorkspaceProps) {
+  const supabase = createClientComponentClient()
+  const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
+  const [topicsContent, setTopicsContent] = useState<any>(undefined)
+  const [dataLoaded, setDataLoaded] = useState(false)
+  const [actionsModified, setActionsModified] = useState<string[]>([])
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('session_notes')
+        .select('connection_notes, topics_content')
+        .eq('id', sessionNoteId)
+        .single()
+
+      setConnectionNotes(data?.connection_notes || null)
+      setTopicsContent(data?.topics_content || null)
+      setDataLoaded(true)
+    }
+    load()
+  }, [sessionNoteId, supabase])
+
+  const handleConnectionUpdate = useCallback(async (content: any) => {
+    await supabase
+      .from('session_notes')
+      .update({ connection_notes: content, updated_at: new Date().toISOString() })
+      .eq('id', sessionNoteId)
+  }, [sessionNoteId, supabase])
+
+  const handleTopicsUpdate = useCallback(async (content: any) => {
+    await supabase
+      .from('session_notes')
+      .update({ topics_content: content, updated_at: new Date().toISOString() })
+      .eq('id', sessionNoteId)
+  }, [sessionNoteId, supabase])
+
+  const trackActionModified = useCallback((actionId: string) => {
+    setActionsModified(prev => prev.includes(actionId) ? prev : [...prev, actionId])
+  }, [])
+
+  type ActionData = { id: string; title: string; description: string | null; due_date: string | null; status: string }
+
+  const [showActionForm, setShowActionForm] = useState<'connection' | 'topics' | null>(null)
+  const [actionPrefill, setActionPrefill] = useState('')
+  const [sessionActions, setSessionActions] = useState<ActionData[]>([])
+
+  const openActionForm = (section: 'connection' | 'topics', prefillTitle?: string) => {
+    setActionPrefill(prefillTitle || '')
+    setShowActionForm(section)
+  }
+
+  const handleActionCreated = (action: ActionData) => {
+    setSessionActions(prev => [...prev, action])
+    trackActionModified(action.id)
+    setShowActionForm(null)
+    setActionPrefill('')
+  }
+
+  const deleteSessionAction = (action: ActionData) => {
+    setSessionActions(prev => prev.filter(a => a.id !== action.id))
+    const timeoutId = setTimeout(async () => {
+      await supabase.from('client_actions').delete().eq('id', action.id)
+    }, 5000)
+    toast('Action deleted', {
+      action: { label: 'Undo', onClick: () => { clearTimeout(timeoutId); setSessionActions(prev => [...prev, action]) } },
+      duration: 5000,
+    })
+  }
+
+  const issueTemplateContent = [
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Topic title' }] },
+    { type: 'bulletList', content: [
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'Describe the problem' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'How did you help create this problem?' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: "What's your proposed solution?" }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+    ]},
+  ]
+
+  const insertIssueTemplate = (editor: any, title?: string) => {
+    const pos = editor.state.selection.from
+    const content = title
+      ? [
+          { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: title }] },
+          ...issueTemplateContent.slice(1),
+        ]
+      : issueTemplateContent
+    editor.chain().focus().insertContent(content).run()
+    if (!title) {
+      // Select "Topic title" text so user can type over it
+      setTimeout(() => {
+        const doc = editor.state.doc
+        let headingPos: number | null = null
+        doc.descendants((node: any, nodePos: number) => {
+          if (headingPos !== null) return false
+          if (node.type.name === 'heading' && nodePos >= pos - 1) {
+            headingPos = nodePos
+            return false
+          }
+        })
+        if (headingPos !== null) {
+          const headingNode = doc.nodeAt(headingPos)
+          if (headingNode) {
+            const from = headingPos + 1
+            const to = from + headingNode.content.size
+            editor.chain().focus().setTextSelection({ from, to }).run()
+          }
+        }
+      }, 10)
+    }
+  }
+
+  const handleTopicsSlashCommand: SlashCommandHandler = (item, editor) => {
+    if (item.id === 'action') {
+      openActionForm('topics')
+    } else if (item.id === 'issue') {
+      insertIssueTemplate(editor)
+    }
+  }
+
+  const handleConnSlashCommand: SlashCommandHandler = (item, editor) => {
+    if (item.id === 'action') {
+      openActionForm('connection')
+    } else if (item.id === 'issue') {
+      insertIssueTemplate(editor)
+    }
+  }
+
+  const sessionTime = format(parseISO(calendarEvent.start_time), 'h:mm a')
+  const sessionDate = formatRelativeDate(calendarEvent.start_time)
+  const durationMins = Math.round(
+    (new Date(calendarEvent.end_time).getTime() - new Date(calendarEvent.start_time).getTime()) / 60000
+  )
+
+  const clientName = client?.name || 'Unknown Client'
+  const subtitle = [client?.company_name, client?.role].filter(Boolean).join(' · ')
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Slim header */}
+      <div className="border-b border-border/50 sticky top-0 bg-background z-10">
+        <div className="max-w-2xl mx-auto px-6 py-3 flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-[15px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+          <div className="text-center">
+            <p className="text-[15px] font-medium text-foreground">{clientName}</p>
+            {subtitle && (
+              <p className="text-[13px] text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+          <span className="text-[13px] text-muted-foreground">
+            {sessionDate} · {sessionTime} · {durationMins} min
+          </span>
+        </div>
+      </div>
+
+      {/* Document body */}
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-10">
+        {/* Connection */}
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Connection
+          </h2>
+          {dataLoaded ? (
+            <SessionEditor
+              content={connectionNotes}
+              onUpdate={handleConnectionUpdate}
+              placeholder="What's happening in each other's lives..."
+              autofocus
+              onActionTrigger={(prefill) => openActionForm('connection', prefill)}
+              onSlashCommand={handleConnSlashCommand}
+              onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+            />
+          ) : (
+            <div className="min-h-[60px]" />
+          )}
+
+          {showActionForm === 'connection' && (
+            <ActionForm
+              clientId={calendarEvent.client_id}
+              sessionNoteId={sessionNoteId}
+              prefillTitle={actionPrefill}
+              onCreated={handleActionCreated}
+              onCancel={() => { setShowActionForm(null); setActionPrefill('') }}
+            />
+          )}
+        </section>
+
+        <hr className="border-border/50" />
+
+        {/* Action Review */}
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Action Review
+          </h2>
+          <ActionReviewSection
+            clientId={calendarEvent.client_id}
+            onActionToggled={trackActionModified}
+          />
+        </section>
+
+        <hr className="border-border/50" />
+
+        {/* Topics */}
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Topics
+          </h2>
+          {dataLoaded ? (
+            <SessionEditor
+              content={topicsContent}
+              onUpdate={handleTopicsUpdate}
+              placeholder="Start typing or use /issue to add a topic..."
+              onActionTrigger={(prefill) => openActionForm('topics', prefill)}
+              onSlashCommand={handleTopicsSlashCommand}
+              onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+            />
+          ) : (
+            <div className="min-h-[1.5em]" />
+          )}
+
+          {sessionActions.length > 0 && (
+            <div className="space-y-1.5 mt-3">
+              {sessionActions.map(action => (
+                <EditableActionRow
+                  key={action.id}
+                  action={action}
+                  onDelete={() => deleteSessionAction(action)}
+                />
+              ))}
+            </div>
+          )}
+
+          {showActionForm === 'topics' && (
+            <ActionForm
+              clientId={calendarEvent.client_id}
+              sessionNoteId={sessionNoteId}
+              prefillTitle={actionPrefill}
+              onCreated={handleActionCreated}
+              onCancel={() => { setShowActionForm(null); setActionPrefill('') }}
+            />
+          )}
+        </section>
+
+        <hr className="border-border/50" />
+
+        {/* Session Summary */}
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Session Summary
+          </h2>
+          <SessionSummary
+            sessionNoteId={sessionNoteId}
+            actionsModified={actionsModified}
+          />
+        </section>
+      </div>
+    </div>
+  )
+}

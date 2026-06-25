@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ interface ClientDetailProps {
 }
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
+  const router = useRouter();
   const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
@@ -266,7 +268,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch next upcoming session
       const { data: nextSessionData } = await supabase
         .from('calendar_events')
-        .select('start_time')
+        .select('id, start_time')
         .eq('client_id', client.id)
         .gt('start_time', new Date().toISOString())
         .or('status.is.null,status.neq.cancelled')
@@ -292,6 +294,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           ...data, 
           status: effectiveStatus,
           next_session_date: nextSessionData?.start_time || null,
+          next_session_event_id: nextSessionData?.id || null,
           last_session_date: lastSessionData?.start_time || null,
         };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
@@ -735,7 +738,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               <span className="text-border">·</span>
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
-                Next: <span className="font-medium text-foreground">{currentClient.next_session_date ? formatDateWithTime(currentClient.next_session_date) : 'Not scheduled'}</span>
+                Next: {currentClient.next_session_date ? (
+                  (currentClient as any).next_session_event_id ? (
+                    <a
+                      href={`/sessions/${(currentClient as any).next_session_event_id}`}
+                      className="font-medium text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push(`/sessions/${(currentClient as any).next_session_event_id}`)
+                      }}
+                    >
+                      {formatDateWithTime(currentClient.next_session_date)}
+                    </a>
+                  ) : (
+                    <span className="font-medium text-foreground">{formatDateWithTime(currentClient.next_session_date)}</span>
+                  )
+                ) : (
+                  <span className="font-medium text-foreground">Not scheduled</span>
+                )}
               </span>
             </div>
           </CardContent>
@@ -1212,7 +1232,10 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
               <div className="space-y-4">
                 {sessionHistory.map((session, index) => (
                   <div key={session.session_id}>
-                    <div className="flex items-start gap-4">
+                    <div
+                      className="flex items-start gap-4 cursor-pointer hover:bg-muted/50 rounded-md -mx-2 px-2 py-1 transition-colors"
+                      onClick={() => router.push(`/sessions/${session.session_id}`)}
+                    >
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
                         {getSessionIcon(session.session_status)}
                       </div>

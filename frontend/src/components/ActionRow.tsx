@@ -8,7 +8,7 @@ export interface ActionItem {
   id: string
   title: string
   description: string | null
-  source: 'defacto' | 'granola'
+  source: 'defacto' | 'granola' | 'session'
   due_date: string | null
   source_url: string | null
 }
@@ -23,11 +23,18 @@ export function isOverdue(dateStr: string | null): boolean {
   return isPast(parseISO(dateStr))
 }
 
-export function SourceBadge({ source }: { source: 'defacto' | 'granola' }) {
+export function SourceBadge({ source }: { source: 'defacto' | 'granola' | 'session' }) {
   if (source === 'defacto') {
     return (
       <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
         Defacto
+      </Badge>
+    )
+  }
+  if (source === 'session') {
+    return (
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary font-medium">
+        Session
       </Badge>
     )
   }

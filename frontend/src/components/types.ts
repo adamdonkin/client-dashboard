@@ -8,6 +8,7 @@ export interface Client {
   role?: string
   last_session_date?: string | Date
   next_session_date?: string | Date
+  next_session_event_id?: string
   granola_notes_folder?: string
   defacto_meeting?: string
   company_name?: string

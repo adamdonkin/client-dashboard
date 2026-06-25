@@ -74,7 +74,19 @@ export function ClientListView({ clients, title, badgeColor }: ClientListViewPro
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     {client.next_session_date ? (
-                      <span>{formatRelativeDate(client.next_session_date)}</span>
+                      client.next_session_event_id ? (
+                        <span
+                          className="text-primary hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/sessions/${client.next_session_event_id}`)
+                          }}
+                        >
+                          {formatRelativeDate(client.next_session_date)}
+                        </span>
+                      ) : (
+                        <span>{formatRelativeDate(client.next_session_date)}</span>
+                      )
                     ) : (
                       <span>Not scheduled</span>
                     )}
