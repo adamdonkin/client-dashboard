@@ -94,10 +94,10 @@ export function EditableActionRow({ action, onDelete, onToggle, extra }: Editabl
   const hasDescription = editingDesc || !!description
 
   return (
-    <div className={`group flex ${hasDescription ? 'items-start' : 'items-center'} gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50`}>
+    <div className="group flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50">
       <button
         onClick={handleToggle}
-        className={`${hasDescription ? 'mt-0.5' : ''} shrink-0 h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors ${
+        className={`shrink-0 h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors ${
           isCompleted
             ? 'bg-primary border-primary text-primary-foreground'
             : 'border-muted-foreground/40 hover:border-primary'
