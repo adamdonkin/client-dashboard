@@ -5,8 +5,9 @@ import StarterKit from '@tiptap/starter-kit'
 import BulletList from '@tiptap/extension-bullet-list'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bold, Italic, Heading1, Zap, AlertTriangle } from 'lucide-react'
+import { Bold, Italic, Heading1, List, ListOrdered, Zap, AlertTriangle } from 'lucide-react'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
+import { ActionBlock } from './ActionBlockExtension'
 
 export type SlashCommandHandler = (command: SlashCommandItem, editor: any) => void
 
@@ -15,7 +16,9 @@ interface SessionEditorProps {
   onUpdate: (content: any) => void
   placeholder?: string
   autofocus?: boolean
-  onActionTrigger?: (prefillTitle?: string) => void
+  clientId?: string
+  sessionNoteId?: string
+  onActionCreated?: (actionId: string) => void
   onSlashCommand?: SlashCommandHandler
   onSelectionIssue?: (selectedText: string, editor: any) => void
 }
@@ -25,13 +28,13 @@ export function SessionEditor({
   onUpdate,
   placeholder = 'Start typing...',
   autofocus = false,
-  onActionTrigger,
+  clientId,
+  sessionNoteId,
+  onActionCreated,
   onSlashCommand,
   onSelectionIssue,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
-  const onActionTriggerRef = useRef(onActionTrigger)
-  onActionTriggerRef.current = onActionTrigger
   const onSlashCommandRef = useRef(onSlashCommand)
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
@@ -77,6 +80,11 @@ export function SessionEditor({
       Placeholder.configure({
         placeholder,
       }),
+      ...(clientId && sessionNoteId ? [ActionBlock.configure({
+        clientId,
+        sessionNoteId,
+        onActionCreated,
+      })] : []),
     ],
     content: content || undefined,
     autofocus,
@@ -86,18 +94,33 @@ export function SessionEditor({
       },
       handleKeyDown: (view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'a') {
-          if (onActionTriggerRef.current) {
+          const ed = editorRef.current
+          if (ed && ed.extensionManager.extensions.find((e: any) => e.name === 'actionBlock')) {
             event.preventDefault()
-            const ed = editorRef.current
-            let selectedText: string | undefined
-            if (ed) {
-              const { from, to } = ed.state.selection
-              if (from !== to) {
-                selectedText = ed.state.doc.textBetween(from, to, ' ')
-              }
+            let prefill = ''
+            const { from, to } = ed.state.selection
+            if (from !== to) {
+              prefill = ed.state.doc.textBetween(from, to, ' ')
+              ed.chain().focus().deleteRange({ from, to }).run()
             }
-            onActionTriggerRef.current(selectedText)
+            ed.chain().focus().insertContent({
+              type: 'actionBlock',
+              attrs: { actionId: '', prefillTitle: prefill },
+            }).run()
             return true
+          }
+        }
+
+        if (event.key === 'Enter' && !event.shiftKey) {
+          const ed = editorRef.current
+          if (ed && ed.isActive('heading')) {
+            const { $from } = ed.state.selection
+            const isAtEnd = $from.parentOffset === $from.parent.content.size
+            if (isAtEnd) {
+              event.preventDefault()
+              ed.chain().focus().insertContentAt(ed.state.selection.to, { type: 'paragraph' }).focus().run()
+              return true
+            }
           }
         }
 
@@ -207,10 +230,16 @@ export function SessionEditor({
     const ed = editorRef.current
     if (!ed) return
     const { from, to } = ed.state.selection
-    const selectedText = ed.state.doc.textBetween(from, to, ' ')
-    if (onActionTriggerRef.current) {
-      onActionTriggerRef.current(selectedText)
+    let prefill = ''
+    if (from !== to) {
+      prefill = ed.state.doc.textBetween(from, to, ' ')
+      ed.chain().focus().deleteRange({ from, to }).run()
     }
+    ed.chain().focus().insertContent({
+      type: 'actionBlock',
+      attrs: { actionId: '', prefillTitle: prefill },
+    }).run()
+    setSelectionToolbar(null)
   }
 
   const handleBubbleIssue = () => {
@@ -249,6 +278,18 @@ export function SessionEditor({
             className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <Heading1 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('bulletList') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('orderedList') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+          >
+            <ListOrdered className="h-3.5 w-3.5" />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
           <button

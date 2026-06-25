@@ -4,13 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ArrowLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
-import { toast } from 'sonner'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { SessionEditor, SlashCommandHandler } from './SessionEditor'
-import { EditableActionRow } from './EditableActionRow'
-import { ActionForm } from './ActionForm'
 import { ActionReviewSection } from './ActionReviewSection'
-import { SessionSummary } from './SessionSummary'
 
 interface CalendarEvent {
   id: string
@@ -44,7 +40,6 @@ export function SessionWorkspace({
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
   const [topicsContent, setTopicsContent] = useState<any>(undefined)
   const [dataLoaded, setDataLoaded] = useState(false)
-  const [actionsModified, setActionsModified] = useState<string[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -75,46 +70,11 @@ export function SessionWorkspace({
       .eq('id', sessionNoteId)
   }, [sessionNoteId, supabase])
 
-  const trackActionModified = useCallback((actionId: string) => {
-    setActionsModified(prev => prev.includes(actionId) ? prev : [...prev, actionId])
-  }, [])
-
-  type ActionData = { id: string; title: string; description: string | null; due_date: string | null; status: string }
-
-  const [showActionForm, setShowActionForm] = useState<'connection' | 'topics' | null>(null)
-  const [actionPrefill, setActionPrefill] = useState('')
-  const [sessionActions, setSessionActions] = useState<ActionData[]>([])
-
-  const openActionForm = (section: 'connection' | 'topics', prefillTitle?: string) => {
-    setActionPrefill(prefillTitle || '')
-    setShowActionForm(section)
-  }
-
-  const handleActionCreated = (action: ActionData) => {
-    setSessionActions(prev => [...prev, action])
-    trackActionModified(action.id)
-    setShowActionForm(null)
-    setActionPrefill('')
-  }
-
-  const deleteSessionAction = (action: ActionData) => {
-    setSessionActions(prev => prev.filter(a => a.id !== action.id))
-    const timeoutId = setTimeout(async () => {
-      await supabase.from('client_actions').delete().eq('id', action.id)
-    }, 5000)
-    toast('Action deleted', {
-      action: { label: 'Undo', onClick: () => { clearTimeout(timeoutId); setSessionActions(prev => [...prev, action]) } },
-      duration: 5000,
-    })
-  }
+  const noopActionCallback = useCallback((_actionId: string) => {}, [])
 
   const issueTemplateContent = [
     { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Topic title' }] },
     { type: 'bulletList', content: [
-      { type: 'listItem', content: [
-        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'Describe the problem' }] },
-        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
-      ]},
       { type: 'listItem', content: [
         { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'How did you help create this problem?' }] },
         { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
@@ -159,17 +119,12 @@ export function SessionWorkspace({
     }
   }
 
-  const handleTopicsSlashCommand: SlashCommandHandler = (item, editor) => {
+  const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
-      openActionForm('topics')
-    } else if (item.id === 'issue') {
-      insertIssueTemplate(editor)
-    }
-  }
-
-  const handleConnSlashCommand: SlashCommandHandler = (item, editor) => {
-    if (item.id === 'action') {
-      openActionForm('connection')
+      editor.chain().focus().insertContent({
+        type: 'actionBlock',
+        attrs: { actionId: '', prefillTitle: '' },
+      }).run()
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
     }
@@ -219,24 +174,16 @@ export function SessionWorkspace({
             <SessionEditor
               content={connectionNotes}
               onUpdate={handleConnectionUpdate}
-              placeholder="What's happening in each other's lives..."
+              placeholder="Tell me something good…"
               autofocus
-              onActionTrigger={(prefill) => openActionForm('connection', prefill)}
-              onSlashCommand={handleConnSlashCommand}
+              clientId={calendarEvent.client_id}
+              sessionNoteId={sessionNoteId}
+              onActionCreated={noopActionCallback}
+              onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
             />
           ) : (
-            <div className="min-h-[60px]" />
-          )}
-
-          {showActionForm === 'connection' && (
-            <ActionForm
-              clientId={calendarEvent.client_id}
-              sessionNoteId={sessionNoteId}
-              prefillTitle={actionPrefill}
-              onCreated={handleActionCreated}
-              onCancel={() => { setShowActionForm(null); setActionPrefill('') }}
-            />
+            <div className="min-h-[1.5em]" />
           )}
         </section>
 
@@ -249,7 +196,7 @@ export function SessionWorkspace({
           </h2>
           <ActionReviewSection
             clientId={calendarEvent.client_id}
-            onActionToggled={trackActionModified}
+            onActionToggled={noopActionCallback}
           />
         </section>
 
@@ -265,49 +212,17 @@ export function SessionWorkspace({
               content={topicsContent}
               onUpdate={handleTopicsUpdate}
               placeholder="Start typing or use /issue to add a topic..."
-              onActionTrigger={(prefill) => openActionForm('topics', prefill)}
-              onSlashCommand={handleTopicsSlashCommand}
+              clientId={calendarEvent.client_id}
+              sessionNoteId={sessionNoteId}
+              onActionCreated={noopActionCallback}
+              onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
             />
           ) : (
             <div className="min-h-[1.5em]" />
           )}
-
-          {sessionActions.length > 0 && (
-            <div className="space-y-1.5 mt-3">
-              {sessionActions.map(action => (
-                <EditableActionRow
-                  key={action.id}
-                  action={action}
-                  onDelete={() => deleteSessionAction(action)}
-                />
-              ))}
-            </div>
-          )}
-
-          {showActionForm === 'topics' && (
-            <ActionForm
-              clientId={calendarEvent.client_id}
-              sessionNoteId={sessionNoteId}
-              prefillTitle={actionPrefill}
-              onCreated={handleActionCreated}
-              onCancel={() => { setShowActionForm(null); setActionPrefill('') }}
-            />
-          )}
         </section>
 
-        <hr className="border-border/50" />
-
-        {/* Session Summary */}
-        <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Session Summary
-          </h2>
-          <SessionSummary
-            sessionNoteId={sessionNoteId}
-            actionsModified={actionsModified}
-          />
-        </section>
       </div>
     </div>
   )

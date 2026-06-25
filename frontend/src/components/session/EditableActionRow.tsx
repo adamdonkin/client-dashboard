@@ -91,17 +91,19 @@ export function EditableActionRow({ action, onDelete, onToggle, extra }: Editabl
     }
   }
 
+  const hasDescription = editingDesc || !!description
+
   return (
-    <div className="group flex items-start gap-3 py-2 px-3 rounded-md bg-muted/30 border border-border/50">
+    <div className={`group flex ${hasDescription ? 'items-start' : 'items-center'} gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50`}>
       <button
         onClick={handleToggle}
-        className={`mt-0.5 shrink-0 h-4.5 w-4.5 rounded border flex items-center justify-center transition-colors ${
+        className={`${hasDescription ? 'mt-0.5' : ''} shrink-0 h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors ${
           isCompleted
             ? 'bg-primary border-primary text-primary-foreground'
             : 'border-muted-foreground/40 hover:border-primary'
         }`}
       >
-        {isCompleted && <Check className="h-3 w-3" />}
+        {isCompleted && <Check className="h-2.5 w-2.5" />}
       </button>
 
       <div className="flex-1 min-w-0">
@@ -143,14 +145,14 @@ export function EditableActionRow({ action, onDelete, onToggle, extra }: Editabl
             placeholder="Add description..."
             className="w-full text-[13px] text-muted-foreground bg-transparent outline-none mt-0.5"
           />
-        ) : (
+        ) : description ? (
           <p
             onClick={() => setEditingDesc(true)}
-            className="text-[13px] text-muted-foreground mt-0.5 cursor-text min-h-[1em]"
+            className="text-[13px] text-muted-foreground mt-0.5 cursor-text"
           >
-            {description || <span className="opacity-0 group-hover:opacity-50">Add description...</span>}
+            {description}
           </p>
-        )}
+        ) : null}
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
