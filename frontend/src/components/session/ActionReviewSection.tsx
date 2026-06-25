@@ -17,10 +17,11 @@ interface ReviewAction {
 
 interface ActionReviewSectionProps {
   clientId: string
+  sessionNoteId: string
   onActionToggled: (actionId: string) => void
 }
 
-export function ActionReviewSection({ clientId, onActionToggled }: ActionReviewSectionProps) {
+export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }: ActionReviewSectionProps) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ReviewAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,13 +33,14 @@ export function ActionReviewSection({ clientId, onActionToggled }: ActionReviewS
         .select('id, title, description, source, due_date, status')
         .eq('client_id', clientId)
         .eq('status', 'to_do')
+        .neq('session_note_id', sessionNoteId)
         .order('due_date', { ascending: true, nullsFirst: false })
 
       setActions(data || [])
       setLoading(false)
     }
     fetch()
-  }, [clientId, supabase])
+  }, [clientId, sessionNoteId, supabase])
 
   const toggleAction = async (actionId: string) => {
     const action = actions.find(a => a.id === actionId)

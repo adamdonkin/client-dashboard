@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Cloud, CloudOff, Loader2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
-import { SessionEditor, SlashCommandHandler } from './SessionEditor'
+import { SessionEditor, SlashCommandHandler, SaveStatus } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 
 interface CalendarEvent {
@@ -40,6 +40,7 @@ export function SessionWorkspace({
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
   const [topicsContent, setTopicsContent] = useState<any>(undefined)
   const [dataLoaded, setDataLoaded] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
   useEffect(() => {
     const load = async () => {
@@ -157,14 +158,21 @@ export function SessionWorkspace({
               <p className="text-[13px] text-muted-foreground">{subtitle}</p>
             )}
           </div>
-          <span className="text-[13px] text-muted-foreground">
-            {sessionDate} · {sessionTime} · {durationMins} min
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-muted-foreground">
+              {sessionDate} · {sessionTime} · {durationMins} min
+            </span>
+            <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
+              {saveStatus === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" />Saving</>}
+              {saveStatus === 'saved' && <><Cloud className="h-3 w-3" />Saved</>}
+              {saveStatus === 'error' && <><CloudOff className="h-3 w-3 text-destructive" />Error</>}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Document body */}
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-10">
+      <div className="max-w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10">
         {/* Connection */}
         <section>
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
@@ -174,6 +182,7 @@ export function SessionWorkspace({
             <SessionEditor
               content={connectionNotes}
               onUpdate={handleConnectionUpdate}
+              onSaveStatusChange={setSaveStatus}
               placeholder="Tell me something good…"
               autofocus
               clientId={calendarEvent.client_id}
@@ -196,6 +205,7 @@ export function SessionWorkspace({
           </h2>
           <ActionReviewSection
             clientId={calendarEvent.client_id}
+            sessionNoteId={sessionNoteId}
             onActionToggled={noopActionCallback}
           />
         </section>
@@ -211,6 +221,7 @@ export function SessionWorkspace({
             <SessionEditor
               content={topicsContent}
               onUpdate={handleTopicsUpdate}
+              onSaveStatusChange={setSaveStatus}
               placeholder="Start typing or use /issue to add a topic..."
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}

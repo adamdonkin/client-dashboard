@@ -11,9 +11,12 @@ import { ActionBlock } from './ActionBlockExtension'
 
 export type SlashCommandHandler = (command: SlashCommandItem, editor: any) => void
 
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
 interface SessionEditorProps {
   content: any
   onUpdate: (content: any) => void
+  onSaveStatusChange?: (status: SaveStatus) => void
   placeholder?: string
   autofocus?: boolean
   clientId?: string
@@ -26,6 +29,7 @@ interface SessionEditorProps {
 export function SessionEditor({
   content,
   onUpdate,
+  onSaveStatusChange,
   placeholder = 'Start typing...',
   autofocus = false,
   clientId,
@@ -35,6 +39,11 @@ export function SessionEditor({
   onSelectionIssue,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingSaveRef = useRef(false)
+  const onUpdateRef = useRef(onUpdate)
+  onUpdateRef.current = onUpdate
+  const onSaveStatusRef = useRef(onSaveStatusChange)
+  onSaveStatusRef.current = onSaveStatusChange
   const onSlashCommandRef = useRef(onSlashCommand)
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
@@ -181,9 +190,18 @@ export function SessionEditor({
       }
 
       if (debounceRef.current) clearTimeout(debounceRef.current)
-      debounceRef.current = setTimeout(() => {
-        onUpdate(ed.getJSON())
-      }, 1500)
+      pendingSaveRef.current = true
+      debounceRef.current = setTimeout(async () => {
+        onSaveStatusRef.current?.('saving')
+        try {
+          await onUpdateRef.current(ed.getJSON())
+          onSaveStatusRef.current?.('saved')
+          setTimeout(() => onSaveStatusRef.current?.('idle'), 2000)
+        } catch {
+          onSaveStatusRef.current?.('error')
+        }
+        pendingSaveRef.current = false
+      }, 1000)
     },
   })
 
@@ -203,9 +221,15 @@ export function SessionEditor({
       return
     }
     const coords = ed.view.coordsAtPos(from)
+    const endCoords = ed.view.coordsAtPos(to)
     const containerRect = containerRef.current.getBoundingClientRect()
+    const toolbarHeight = 40
+    const spaceAbove = coords.top - containerRect.top
+    const showAbove = spaceAbove > toolbarHeight + 8
     setSelectionToolbar({
-      top: coords.top - containerRect.top - 40,
+      top: showAbove
+        ? coords.top - containerRect.top - toolbarHeight
+        : endCoords.bottom - containerRect.top + 8,
       left: coords.left - containerRect.left,
     })
   }, [])
@@ -214,17 +238,33 @@ export function SessionEditor({
     const ed = editorRef.current
     if (!ed) return
     ed.on('selectionUpdate', updateSelectionToolbar)
-    ed.on('blur', () => setTimeout(() => setSelectionToolbar(null), 200))
+    ed.on('blur', () => {
+      setTimeout(() => setSelectionToolbar(null), 200)
+      flushSave()
+    })
     return () => {
       ed.off('selectionUpdate', updateSelectionToolbar)
     }
   }, [editor, updateSelectionToolbar])
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
+  const flushSave = useCallback(() => {
+    const ed = editorRef.current
+    if (debounceRef.current && ed && pendingSaveRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+      pendingSaveRef.current = false
+      onUpdateRef.current(ed.getJSON())
     }
   }, [])
+
+  useEffect(() => {
+    const handleBeforeUnload = () => flushSave()
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      flushSave()
+    }
+  }, [flushSave])
 
   const handleBubbleAction = () => {
     const ed = editorRef.current
