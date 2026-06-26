@@ -226,7 +226,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         setActionsLoading(true);
         const { data, error } = await supabase
           .from('client_actions')
-          .select('id, title, description, source, due_date, source_url')
+          .select('id, title, description, source, due_date, source_url, status')
           .eq('client_id', client.id)
           .eq('status', 'to_do')
           .order('due_date', { ascending: true, nullsFirst: false });
@@ -757,6 +757,13 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   <span className="font-medium text-foreground">Not scheduled</span>
                 )}
               </span>
+              <span className="text-border">·</span>
+              <button
+                onClick={() => router.push(`/sessions/new?clientId=${client.id}`)}
+                className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                Start Session
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -1200,9 +1207,15 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 Loading actions...
               </div>
             ) : clientActions.length > 0 ? (
-              <div className="divide-y divide-border">
+              <div className="space-y-1.5">
                 {clientActions.map((action) => (
-                  <ActionRow key={action.id} action={action} />
+                  <ActionRow
+                    key={action.id}
+                    action={action}
+                    onChanged={(updated) => setClientActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))}
+                    onRemoved={(id) => setClientActions(prev => prev.filter(a => a.id !== id))}
+                    showSource
+                  />
                 ))}
               </div>
             ) : (

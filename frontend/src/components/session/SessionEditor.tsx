@@ -40,10 +40,30 @@ export function SessionEditor({
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const pendingSaveRef = useRef(false)
+  const lastContentRef = useRef<any>(null)
   const onUpdateRef = useRef(onUpdate)
   onUpdateRef.current = onUpdate
   const onSaveStatusRef = useRef(onSaveStatusChange)
   onSaveStatusRef.current = onSaveStatusChange
+
+  const saveWithRetry = useCallback(async (content: any, retries = 2) => {
+    onSaveStatusRef.current?.('saving')
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await onUpdateRef.current(content)
+        onSaveStatusRef.current?.('saved')
+        pendingSaveRef.current = false
+        setTimeout(() => onSaveStatusRef.current?.('idle'), 2000)
+        return
+      } catch {
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        }
+      }
+    }
+    onSaveStatusRef.current?.('error')
+    pendingSaveRef.current = false
+  }, [])
   const onSlashCommandRef = useRef(onSlashCommand)
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
@@ -112,10 +132,10 @@ export function SessionEditor({
               prefill = ed.state.doc.textBetween(from, to, ' ')
               ed.chain().focus().deleteRange({ from, to }).run()
             }
-            ed.chain().focus().insertContent({
-              type: 'actionBlock',
-              attrs: { actionId: '', prefillTitle: prefill },
-            }).run()
+            ed.chain().focus().insertContent([
+              { type: 'actionBlock', attrs: { actionId: '', prefillTitle: prefill } },
+              { type: 'paragraph' },
+            ]).run()
             return true
           }
         }
@@ -191,17 +211,10 @@ export function SessionEditor({
 
       if (debounceRef.current) clearTimeout(debounceRef.current)
       pendingSaveRef.current = true
-      debounceRef.current = setTimeout(async () => {
-        onSaveStatusRef.current?.('saving')
-        try {
-          await onUpdateRef.current(ed.getJSON())
-          onSaveStatusRef.current?.('saved')
-          setTimeout(() => onSaveStatusRef.current?.('idle'), 2000)
-        } catch {
-          onSaveStatusRef.current?.('error')
-        }
-        pendingSaveRef.current = false
-      }, 1000)
+      lastContentRef.current = ed.getJSON()
+      debounceRef.current = setTimeout(() => {
+        saveWithRetry(lastContentRef.current)
+      }, 500)
     },
   })
 
@@ -252,13 +265,22 @@ export function SessionEditor({
     if (debounceRef.current && ed && pendingSaveRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
-      pendingSaveRef.current = false
-      onUpdateRef.current(ed.getJSON())
+      lastContentRef.current = ed.getJSON()
+      saveWithRetry(lastContentRef.current)
     }
-  }, [])
+  }, [saveWithRetry])
 
   useEffect(() => {
-    const handleBeforeUnload = () => flushSave()
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        e.preventDefault()
+        const ed = editorRef.current
+        if (ed) {
+          const content = ed.getJSON()
+          onUpdateRef.current(content)
+        }
+      }
+    }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
@@ -275,10 +297,10 @@ export function SessionEditor({
       prefill = ed.state.doc.textBetween(from, to, ' ')
       ed.chain().focus().deleteRange({ from, to }).run()
     }
-    ed.chain().focus().insertContent({
-      type: 'actionBlock',
-      attrs: { actionId: '', prefillTitle: prefill },
-    }).run()
+    ed.chain().focus().insertContent([
+      { type: 'actionBlock', attrs: { actionId: '', prefillTitle: prefill } },
+      { type: 'paragraph' },
+    ]).run()
     setSelectionToolbar(null)
   }
 

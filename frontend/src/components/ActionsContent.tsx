@@ -11,10 +11,12 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { ClientActionGroup, ClientAction } from '@/app/api/actions/route'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { parseISO, isThisWeek } from 'date-fns'
-import { ActionRow, SourceBadge, formatDueDate, isOverdue } from '@/components/ActionRow'
+import { ActionRow } from '@/components/ActionRow'
+import type { ActionItem } from '@/components/ActionRow'
 
 function ClientGroup({ group }: { group: ClientActionGroup }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)
+  const [actions, setActions] = useState(group.actions)
   const router = useRouter()
 
   return (
@@ -52,19 +54,25 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
               </span>
             )}
             <Badge variant="secondary" className="text-xs">
-              {group.actions.length} {group.actions.length === 1 ? 'action' : 'actions'}
+              {actions.length} {actions.length === 1 ? 'action' : 'actions'}
             </Badge>
           </div>
         </div>
       </CardHeader>
       {expanded && (
         <CardContent className="pt-2 pb-2">
-          {group.actions.length === 0 ? (
+          {actions.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2 px-4">No active actions</p>
           ) : (
-            <div className="divide-y divide-border">
-              {group.actions.map((action) => (
-                <ActionRow key={action.id} action={action} />
+            <div className="space-y-1.5 px-2">
+              {actions.map((action) => (
+                <ActionRow
+                  key={action.id}
+                  action={action}
+                  onChanged={(updated) => setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))}
+                  onRemoved={(id) => setActions(prev => prev.filter(a => a.id !== id))}
+                  showSource
+                />
               ))}
             </div>
           )}
@@ -112,41 +120,24 @@ function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
       </p>
       <Card>
         <CardContent className="pt-4 pb-2">
-          <div className="divide-y divide-border">
+          <div className="space-y-1">
             {dueThisWeek.map((action) => {
-              const overdue = isOverdue(action.due_date)
-              const clickable = !!action.source_url
-
               return (
-                <div
-                  key={action.id}
-                  className={`py-2.5 px-4 hover:bg-muted/50 rounded-md transition-colors ${clickable ? 'cursor-pointer' : ''}`}
-                  onClick={() => clickable && window.open(action.source_url!, '_blank', 'noopener')}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="shrink-0 w-[52px]">
-                      <SourceBadge source={action.source} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground leading-snug">{action.title}</p>
-                      {action.description && (
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{action.description}</p>
-                      )}
-                    </div>
-                    <span
-                      className="text-xs text-primary hover:underline cursor-pointer shrink-0 w-[120px]"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (action.client_id) router.push(`/clients/${action.client_id}`)
-                      }}
-                    >
-                      {action.client_name}
-                    </span>
-                    <span className={`text-xs flex items-center gap-1 shrink-0 w-[60px] ${overdue ? 'text-danger' : 'text-muted-foreground'}`}>
-                      <Calendar className="h-3 w-3" />
-                      {formatDueDate(action.due_date)}
-                    </span>
+                <div key={action.id} className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <ActionRow
+                      action={action}
+                      showSource
+                    />
                   </div>
+                  <span
+                    className="text-xs text-primary hover:underline cursor-pointer shrink-0"
+                    onClick={() => {
+                      if (action.client_id) router.push(`/clients/${action.client_id}`)
+                    }}
+                  >
+                    {action.client_name}
+                  </span>
                 </div>
               )
             })}

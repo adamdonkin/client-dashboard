@@ -122,10 +122,10 @@ export function SessionWorkspace({
 
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
-      editor.chain().focus().insertContent({
-        type: 'actionBlock',
-        attrs: { actionId: '', prefillTitle: '' },
-      }).run()
+      editor.chain().focus().insertContent([
+        { type: 'actionBlock', attrs: { actionId: '', prefillTitle: '' } },
+        { type: 'paragraph' },
+      ]).run()
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
     }
@@ -162,10 +162,10 @@ export function SessionWorkspace({
             <span className="text-[13px] text-muted-foreground">
               {sessionDate} · {sessionTime} · {durationMins} min
             </span>
-            <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
+            <span className={`text-[11px] flex items-center gap-1 ${saveStatus === 'error' ? 'text-destructive font-medium' : 'text-muted-foreground/60'}`}>
               {saveStatus === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" />Saving</>}
               {saveStatus === 'saved' && <><Cloud className="h-3 w-3" />Saved</>}
-              {saveStatus === 'error' && <><CloudOff className="h-3 w-3 text-destructive" />Error</>}
+              {saveStatus === 'error' && <><CloudOff className="h-3 w-3" />Save failed</>}
             </span>
           </div>
         </div>
