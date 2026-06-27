@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Check, X, Trash2 } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { format, isPast, isToday, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { toast } from 'sonner'
 import { ActionDatePicker } from '@/components/session/ActionDatePicker'
 import { ActionDetailDialog } from '@/components/session/ActionDetailDialog'
 import { ActionReviewDialog } from '@/components/session/ActionReviewDialog'
@@ -117,28 +116,6 @@ export function ActionRow({
       .then()
   }
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const deletedAction = { ...action }
-
-    onRemoved?.(action.id)
-
-    const timeoutId = setTimeout(async () => {
-      await supabase.from('client_actions').delete().eq('id', deletedAction.id)
-    }, 5000)
-
-    toast('Action deleted', {
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          clearTimeout(timeoutId)
-          onChanged?.(deletedAction)
-        },
-      },
-      duration: 5000,
-    })
-  }
-
   const handleNotDone = (e: React.MouseEvent) => {
     e.stopPropagation()
     setReviewOpen(true)
@@ -187,7 +164,7 @@ export function ActionRow({
         <div className="flex-1 min-w-0">
           <span
             className={cn(
-              'text-[14px] leading-snug',
+              'action-row-title text-[13px] leading-[1.15]',
               isResolved ? 'line-through text-muted-foreground' : 'text-foreground',
             )}
           >
@@ -211,15 +188,6 @@ export function ActionRow({
               className={overdue ? 'text-danger' : undefined}
             />
           </div>
-
-          {!isResolved && (
-            <button
-              onClick={handleDelete}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
 
           {showReviewButtons && (
             <div className="flex items-center gap-0.5">
@@ -248,6 +216,10 @@ export function ActionRow({
           open={detailOpen}
           onOpenChange={setDetailOpen}
           onUpdated={handleDetailUpdated}
+          onDeleted={(id) => {
+            setDetailOpen(false)
+            onRemoved?.(id)
+          }}
         />
       )}
 

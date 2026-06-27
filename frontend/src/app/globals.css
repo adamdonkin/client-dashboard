@@ -143,6 +143,11 @@
   font-family: var(--font-lora), Georgia, serif;
 }
 
+.session-editor .ProseMirror .action-row-title {
+  line-height: 1.15;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
 .session-editor .ProseMirror > p:last-child:empty,
 .session-editor .ProseMirror > p:last-child:has(br:only-child) {
   display: none;

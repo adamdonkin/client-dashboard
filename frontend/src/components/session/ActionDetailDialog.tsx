@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import {
   Dialog,
@@ -28,6 +29,7 @@ interface ActionDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUpdated?: (updated: ActionDetailAction) => void
+  onDeleted?: (id: string) => void
 }
 
 export function ActionDetailDialog({
@@ -35,6 +37,7 @@ export function ActionDetailDialog({
   open,
   onOpenChange,
   onUpdated,
+  onDeleted,
 }: ActionDetailDialogProps) {
   const supabase = createClientComponentClient()
   const [title, setTitle] = useState(action.title)
@@ -73,6 +76,25 @@ export function ActionDetailDialog({
     onUpdated?.(updated)
     setSaving(false)
     onOpenChange(false)
+  }
+
+  const handleDelete = () => {
+    onOpenChange(false)
+    onDeleted?.(action.id)
+
+    const timeoutId = setTimeout(async () => {
+      await supabase.from('client_actions').delete().eq('id', action.id)
+    }, 5000)
+
+    toast('Action deleted', {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(timeoutId)
+        },
+      },
+      duration: 5000,
+    })
   }
 
   const history = action.review_history || []
@@ -146,7 +168,7 @@ export function ActionDetailDialog({
             </div>
           )}
 
-          <div className="flex gap-3 pt-1">
+          <div className="flex items-center gap-3 pt-1">
             <Button
               onClick={handleSave}
               disabled={saving || !hasChanges || !title.trim()}
@@ -163,6 +185,16 @@ export function ActionDetailDialog({
             >
               Cancel
             </Button>
+            {onDeleted && (
+              <Button
+                variant="ghost"
+                onClick={handleDelete}
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

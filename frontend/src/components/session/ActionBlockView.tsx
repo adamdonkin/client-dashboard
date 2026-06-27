@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { GripVertical } from 'lucide-react'
-import { format, addDays } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailDialog } from './ActionDetailDialog'
+import { ActionCreateForm } from './ActionCreateForm'
 
 export function ActionBlockView({ node, updateAttributes, deleteNode, extension }: any) {
   const supabase = createClientComponentClient()
@@ -18,14 +18,8 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
   const [loading, setLoading] = useState(!!actionId)
   const [detailOpen, setDetailOpen] = useState(false)
 
-  const [title, setTitle] = useState(prefillTitle || '')
-  const titleRef = useRef<HTMLInputElement>(null)
-
   useEffect(() => {
-    if (!actionId) {
-      setTimeout(() => titleRef.current?.focus(), 50)
-      return
-    }
+    if (!actionId) return
     const fetchAction = async () => {
       const { data } = await supabase
         .from('client_actions')
@@ -38,8 +32,7 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
     fetchAction()
   }, [actionId, supabase])
 
-  const submitCreate = async (quickSave = false) => {
-    if (!title.trim()) return
+  const submitCreate = async (title: string, dueDate: string) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
@@ -50,9 +43,9 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,
-        title: title.trim(),
+        title,
         status: 'to_do',
-        due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+        due_date: dueDate,
         session_note_id: sessionNoteId,
       })
       .select('id, title, description, due_date, status')
@@ -62,35 +55,17 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
       setAction(data)
       updateAttributes({ actionId: data.id, prefillTitle: '' })
       onActionCreated?.(data.id)
-      if (!quickSave) setDetailOpen(true)
     }
-  }
-
-  const cancelCreate = () => {
-    deleteNode()
   }
 
   if (!actionId) {
     return (
       <NodeViewWrapper className="my-2" data-drag-handle>
-        <div className="rounded-md bg-muted/30 border border-primary/30 py-2 px-3">
-          <div className="flex items-center gap-2">
-            <div className="shrink-0 h-3.5 w-3.5 rounded-sm border border-muted-foreground/40" />
-            <input
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); submitCreate(e.metaKey || e.ctrlKey) }
-                if (e.key === 'Escape') cancelCreate()
-              }}
-              placeholder="Action title..."
-              className="flex-1 text-[14px] bg-transparent outline-none"
-            />
-            <button onClick={submitCreate} className="text-[13px] text-primary font-medium hover:text-primary/80">Add</button>
-          </div>
-        </div>
+        <ActionCreateForm
+          onSubmit={submitCreate}
+          onCancel={deleteNode}
+          prefillTitle={prefillTitle || ''}
+        />
       </NodeViewWrapper>
     )
   }

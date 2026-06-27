@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { SessionEditor, SlashCommandHandler, SaveStatus } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
+import { ActionsSidebar } from './ActionsSidebar'
 
 interface CalendarEvent {
   id: string
@@ -171,69 +172,82 @@ export function SessionWorkspace({
         </div>
       </div>
 
-      {/* Document body */}
-      <div className="max-w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10">
-        {/* Connection */}
-        <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Connection
-          </h2>
-          {dataLoaded ? (
-            <SessionEditor
-              content={connectionNotes}
-              onUpdate={handleConnectionUpdate}
-              onSaveStatusChange={setSaveStatus}
-              placeholder="Tell me something good…"
-              autofocus
+      {/* Document body with floating actions card */}
+      <div className="relative">
+        {/* Floating actions card */}
+        <div className="hidden xl:block absolute right-6 top-8 w-[320px]">
+          <div className="sticky top-20">
+            <div className="rounded-lg border border-border/60 bg-card shadow-sm overflow-hidden">
+              <ActionsSidebar
+                clientId={calendarEvent.client_id}
+                sessionNoteId={sessionNoteId}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10">
+          {/* Connection */}
+          <section>
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+              Connection
+            </h2>
+            {dataLoaded ? (
+              <SessionEditor
+                content={connectionNotes}
+                onUpdate={handleConnectionUpdate}
+                onSaveStatusChange={setSaveStatus}
+                placeholder="Tell me something good…"
+                autofocus
+                clientId={calendarEvent.client_id}
+                sessionNoteId={sessionNoteId}
+                onActionCreated={noopActionCallback}
+                onSlashCommand={handleSlashCommand}
+                onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              />
+            ) : (
+              <div className="min-h-[1.5em]" />
+            )}
+          </section>
+
+          <hr className="border-border/50" />
+
+          {/* Action Review */}
+          <section>
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+              Action Review
+            </h2>
+            <ActionReviewSection
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}
-              onActionCreated={noopActionCallback}
-              onSlashCommand={handleSlashCommand}
-              onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onActionToggled={noopActionCallback}
             />
-          ) : (
-            <div className="min-h-[1.5em]" />
-          )}
-        </section>
+          </section>
 
-        <hr className="border-border/50" />
+          <hr className="border-border/50" />
 
-        {/* Action Review */}
-        <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Action Review
-          </h2>
-          <ActionReviewSection
-            clientId={calendarEvent.client_id}
-            sessionNoteId={sessionNoteId}
-            onActionToggled={noopActionCallback}
-          />
-        </section>
-
-        <hr className="border-border/50" />
-
-        {/* Topics */}
-        <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Topics
-          </h2>
-          {dataLoaded ? (
-            <SessionEditor
-              content={topicsContent}
-              onUpdate={handleTopicsUpdate}
-              onSaveStatusChange={setSaveStatus}
-              placeholder="Start typing or use /issue to add a topic..."
-              clientId={calendarEvent.client_id}
-              sessionNoteId={sessionNoteId}
-              onActionCreated={noopActionCallback}
-              onSlashCommand={handleSlashCommand}
-              onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
-            />
-          ) : (
-            <div className="min-h-[1.5em]" />
-          )}
-        </section>
-
+          {/* Topics */}
+          <section>
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+              Topics
+            </h2>
+            {dataLoaded ? (
+              <SessionEditor
+                content={topicsContent}
+                onUpdate={handleTopicsUpdate}
+                onSaveStatusChange={setSaveStatus}
+                placeholder="Start typing or use /issue to add a topic..."
+                clientId={calendarEvent.client_id}
+                sessionNoteId={sessionNoteId}
+                onActionCreated={noopActionCallback}
+                onSlashCommand={handleSlashCommand}
+                onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              />
+            ) : (
+              <div className="min-h-[1.5em]" />
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )

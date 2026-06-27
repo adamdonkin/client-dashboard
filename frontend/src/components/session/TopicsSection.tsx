@@ -6,8 +6,7 @@ import { Plus } from 'lucide-react'
 import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { SlashCommandItem } from './SlashCommandMenu'
 import { ActionRow } from '@/components/ActionRow'
-import { ActionDetailDialog } from './ActionDetailDialog'
-import { format, addDays } from 'date-fns'
+import { ActionCreateForm } from './ActionCreateForm'
 
 interface Topic {
   id: string
@@ -174,9 +173,6 @@ function TopicBlock({
 }: TopicBlockProps) {
   const supabase = createClientComponentClient()
   const [showActionForm, setShowActionForm] = useState(false)
-  const [actionTitle, setActionTitle] = useState('')
-  const actionTitleRef = useRef<HTMLInputElement>(null)
-  const [detailAction, setDetailAction] = useState<TopicAction | null>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -194,7 +190,6 @@ function TopicBlock({
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
       setShowActionForm(true)
-      setTimeout(() => actionTitleRef.current?.focus(), 50)
     } else if (item.id === 'issue') {
       const issueTemplate = {
         type: 'bulletList',
@@ -234,13 +229,9 @@ function TopicBlock({
     }
   }
 
-  const submitAction = async (quickSave = false) => {
-    if (!actionTitle.trim()) return
-
+  const submitAction = async (title: string, dueDate: string) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-
-    const dueDate = format(addDays(new Date(), 7), 'yyyy-MM-dd')
 
     const { data, error } = await supabase
       .from('client_actions')
@@ -249,7 +240,7 @@ function TopicBlock({
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,
-        title: actionTitle.trim(),
+        title,
         status: 'to_do',
         due_date: dueDate,
         session_note_id: sessionNoteId,
@@ -260,28 +251,11 @@ function TopicBlock({
 
     if (data) {
       onActionCreated(data.id, data)
-      setActionTitle('')
       setShowActionForm(false)
-      if (!quickSave) setDetailAction(data)
     }
   }
 
   const [topicActions, setTopicActions] = useState<TopicAction[]>(topic.actions)
-
-  useEffect(() => {
-    setTopicActions(topic.actions)
-  }, [topic.actions])
-
-  const handleActionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      submitAction(e.metaKey || e.ctrlKey)
-    }
-    if (e.key === 'Escape') {
-      setShowActionForm(false)
-      setActionTitle('')
-    }
-  }
 
   return (
     <div className="space-y-2">
@@ -311,10 +285,7 @@ function TopicBlock({
           }}
           onUpdate={onContentChange}
           placeholder="Start typing notes..."
-          onActionTrigger={() => {
-            setShowActionForm(true)
-            setTimeout(() => actionTitleRef.current?.focus(), 50)
-          }}
+          onActionTrigger={() => setShowActionForm(true)}
           onSlashCommand={handleSlashCommand}
         />
       </div>
@@ -334,40 +305,13 @@ function TopicBlock({
       )}
 
       {/* Add action form */}
-      {showActionForm ? (
-        <div className="rounded-md bg-muted/30 border border-primary/30 py-2 px-3">
-          <div className="flex items-center gap-2">
-            <div className="shrink-0 h-3.5 w-3.5 rounded-sm border border-muted-foreground/40" />
-            <input
-              ref={actionTitleRef}
-              type="text"
-              value={actionTitle}
-              onChange={(e) => setActionTitle(e.target.value)}
-              onKeyDown={handleActionKeyDown}
-              placeholder="Action title..."
-              className="flex-1 text-[14px] bg-transparent outline-none"
-              autoFocus
-            />
-            <button
-              onClick={submitAction}
-              className="text-[13px] text-primary font-medium hover:text-primary/80"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {detailAction && (
-        <ActionDetailDialog
-          action={detailAction}
-          open={!!detailAction}
-          onOpenChange={(open) => { if (!open) setDetailAction(null) }}
-          onUpdated={(updated) => {
-            setTopicActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-          }}
+      {showActionForm && (
+        <ActionCreateForm
+          onSubmit={submitAction}
+          onCancel={() => setShowActionForm(false)}
         />
       )}
+
     </div>
   )
 }
