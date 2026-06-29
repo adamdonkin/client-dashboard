@@ -1,11 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Loader2 } from 'lucide-react'
 
 export default function NewSessionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <NewSessionContent />
+    </Suspense>
+  )
+}
+
+function NewSessionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
