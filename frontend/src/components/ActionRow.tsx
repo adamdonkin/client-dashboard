@@ -14,7 +14,7 @@ export interface ActionItem {
   id: string
   title: string
   description?: string | null
-  source?: 'defacto' | 'granola' | 'session'
+  source?: string | null
   due_date: string | null
   status: string
   source_url?: string | null
@@ -37,7 +37,7 @@ function isDueOrOverdue(dateStr: string | null): boolean {
   return isToday(d) || isPast(d)
 }
 
-export function SourceBadge({ source }: { source: 'defacto' | 'granola' | 'session' }) {
+export function SourceBadge({ source }: { source: string | null }) {
   if (source === 'defacto') {
     return (
       <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
@@ -52,11 +52,14 @@ export function SourceBadge({ source }: { source: 'defacto' | 'granola' | 'sessi
       </Badge>
     )
   }
-  return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/30 text-success font-medium">
-      Granola
-    </Badge>
-  )
+  if (source === 'granola') {
+    return (
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/30 text-success font-medium">
+        Granola
+      </Badge>
+    )
+  }
+  return null
 }
 
 interface ActionRowProps {

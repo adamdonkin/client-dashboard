@@ -180,6 +180,14 @@
   margin-bottom: 0.5em;
 }
 
+.session-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  color: var(--muted-foreground);
+}
+
 .session-editor .ProseMirror strong {
   font-weight: 600;
 }

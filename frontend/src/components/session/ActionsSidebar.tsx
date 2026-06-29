@@ -66,9 +66,27 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
 
   return (
     <div className="px-4 py-4">
-        <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-          Session Actions
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+            Session Actions
+          </h3>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title="Add action"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {showCreateForm && (
+          <div className="mb-2">
+            <ActionCreateForm
+              onSubmit={handleCreateAction}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          </div>
+        )}
 
         {loading ? (
           <p className="text-[13px] text-muted-foreground">Loading...</p>
@@ -85,23 +103,6 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
               />
             ))}
           </div>
-        )}
-
-        {showCreateForm ? (
-          <div className="mt-2">
-            <ActionCreateForm
-              onSubmit={handleCreateAction}
-              onCancel={() => setShowCreateForm(false)}
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-1 mt-3 text-[13px] text-primary hover:text-primary/80 transition-colors cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add action
-          </button>
         )}
     </div>
   )

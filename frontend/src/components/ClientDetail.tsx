@@ -22,13 +22,15 @@ import {
   Check,
   RefreshCw,
   Timer,
-  Phone
+  Phone,
+  Plus
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { ActionRow } from '@/components/ActionRow';
 import type { ActionItem } from '@/components/ActionRow';
+import { ActionCreateForm } from '@/components/session/ActionCreateForm';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -64,6 +66,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [clientActions, setClientActions] = useState<ActionItem[]>([]);
   const [actionsLoading, setActionsLoading] = useState(true);
+  const [showActionCreate, setShowActionCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
@@ -1194,14 +1197,51 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
         {/* Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              Actions
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({actionsLoading ? '...' : clientActions.length})
-              </span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                Actions
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  ({actionsLoading ? '...' : clientActions.length})
+                </span>
+              </CardTitle>
+              <button
+                onClick={() => setShowActionCreate(true)}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Add action"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
+            {showActionCreate && (
+              <div className="mb-3">
+                <ActionCreateForm
+                  onSubmit={async (title, dueDate) => {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    if (!session) return
+                    const { data } = await supabase
+                      .from('client_actions')
+                      .insert({
+                        user_id: session.user.id,
+                        client_id: client.id,
+                        source: 'manual',
+                        source_id: `manual-${Date.now()}`,
+                        title,
+                        status: 'to_do',
+                        due_date: dueDate,
+                      })
+                      .select('id, title, description, due_date, status, source')
+                      .single()
+                    if (data) {
+                      setClientActions(prev => [data, ...prev])
+                      setShowActionCreate(false)
+                    }
+                  }}
+                  onCancel={() => setShowActionCreate(false)}
+                />
+              </div>
+            )}
             {actionsLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 Loading actions...
@@ -1218,11 +1258,11 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   />
                 ))}
               </div>
-            ) : (
+            ) : !showActionCreate ? (
               <div className="text-center py-8 text-muted-foreground">
                 No active actions for this client.
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
 

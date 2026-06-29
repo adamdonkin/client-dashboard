@@ -6,11 +6,11 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SessionWorkspace } from '@/components/session/SessionWorkspace'
 import { Loader2, AlertTriangle } from 'lucide-react'
 
-const LOCK_STALE_MS = 45_000
-const HEARTBEAT_MS = 15_000
+const LOCK_STALE_MS = 30_000
+const HEARTBEAT_MS = 10_000
 
 interface SessionPageProps {
-  params: Promise<{ eventId: string }>
+  params: Promise<{ id: string }>
 }
 
 interface CalendarEvent {
@@ -41,122 +41,173 @@ export default function SessionPage({ params }: SessionPageProps) {
   const tabIdRef = useRef<string>(`tab-${Date.now()}-${Math.random().toString(36).slice(2)}`)
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null)
   const noteIdRef = useRef<string | null>(null)
+  const tokenRef = useRef<string | null>(null)
 
-  const releaseLock = useCallback(async () => {
+  const releaseLock = useCallback(() => {
     const noteId = noteIdRef.current
-    if (!noteId) return
-    await supabase
-      .from('session_notes')
-      .update({ locked_by: null, locked_at: null })
-      .eq('id', noteId)
-      .eq('locked_by', tabIdRef.current)
-  }, [supabase])
+    const token = tokenRef.current
+    if (!noteId || !token) return
+
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current)
+      heartbeatRef.current = null
+    }
+
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/session_notes?id=eq.${noteId}&locked_by=eq.${tabIdRef.current}`
+    try {
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${token}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ locked_by: null, locked_at: null }),
+        keepalive: true,
+      })
+    } catch {}
+    noteIdRef.current = null
+  }, [])
 
   useEffect(() => {
     const init = async () => {
-      const { eventId } = await params
+      const { id } = await params
 
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth/login')
         return
       }
+      tokenRef.current = session.access_token
 
-      const { data: event, error: eventErr } = await supabase
-        .from('calendar_events')
-        .select('id, client_id, start_time, end_time, title')
-        .eq('id', eventId)
+      // Try to find an existing session_notes row by ID first
+      let noteRow = await supabase
+        .from('session_notes')
+        .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+        .eq('id', id)
         .single()
+        .then(r => r.data)
 
-      if (eventErr || !event) {
-        console.error('Event fetch error:', eventErr)
-        setError(`Session not found: ${eventErr?.message || 'No event data'}`)
-        setLoading(false)
+      // If not found, treat the ID as a calendar_event_id (backward compat)
+      let event: CalendarEvent | null = null
+      if (!noteRow) {
+        const { data: eventData, error: eventErr } = await supabase
+          .from('calendar_events')
+          .select('id, client_id, start_time, end_time, title')
+          .eq('id', id)
+          .single()
+
+        if (eventErr || !eventData) {
+          setError('Session not found')
+          setLoading(false)
+          return
+        }
+
+        event = eventData
+
+        // Look up or create the session_notes row for this calendar event
+        const { data: existingNote } = await supabase
+          .from('session_notes')
+          .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+          .eq('user_id', session.user.id)
+          .eq('calendar_event_id', event.id)
+          .single()
+
+        if (existingNote) {
+          noteRow = existingNote
+        } else {
+          const { data: created, error: createErr } = await supabase
+            .from('session_notes')
+            .insert({
+              user_id: session.user.id,
+              client_id: event.client_id,
+              calendar_event_id: event.id,
+              session_date: event.start_time,
+            })
+            .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+            .single()
+
+          if (createErr || !created) {
+            setError(`Failed to create session: ${createErr?.message || 'Unknown error'}`)
+            setLoading(false)
+            return
+          }
+          noteRow = created
+        }
+
+        // Redirect to the canonical note-based URL
+        router.replace(`/sessions/${noteRow.id}`)
         return
       }
 
-      setCalendarEvent(event)
+      // If we have a calendar_event_id, fetch the event for display
+      if (!event && noteRow.calendar_event_id) {
+        const { data: eventData } = await supabase
+          .from('calendar_events')
+          .select('id, client_id, start_time, end_time, title')
+          .eq('id', noteRow.calendar_event_id)
+          .single()
+        event = eventData
+      }
 
-      if (event.client_id) {
+      // Build the calendar event object (real or synthetic for ad hoc)
+      const calEvent: CalendarEvent = event || {
+        id: noteRow.id,
+        client_id: noteRow.client_id,
+        start_time: noteRow.session_date || new Date().toISOString(),
+        end_time: noteRow.session_date || new Date().toISOString(),
+        title: 'Ad-hoc Session',
+      }
+      setCalendarEvent(calEvent)
+
+      // Fetch client info
+      if (noteRow.client_id) {
         const { data: clientData } = await supabase
           .from('clients')
           .select('id, name, company_name, role')
-          .eq('id', event.client_id)
+          .eq('id', noteRow.client_id)
           .single()
         if (clientData) setClient(clientData)
       }
 
-      let noteId: string
-      const { data: existing } = await supabase
-        .from('session_notes')
-        .select('id, locked_by, locked_at')
-        .eq('user_id', session.user.id)
-        .eq('calendar_event_id', event.id)
-        .single()
-
-      if (existing) {
-        noteId = existing.id
-
-        if (existing.locked_by && existing.locked_by !== tabIdRef.current && existing.locked_at) {
-          const lockAge = Date.now() - new Date(existing.locked_at).getTime()
-          if (lockAge < LOCK_STALE_MS) {
-            setSessionNoteId(noteId)
-            setLocked(true)
-            setLoading(false)
-            return
-          }
-        }
-      } else {
-        const { data: created, error: createErr } = await supabase
-          .from('session_notes')
-          .insert({
-            user_id: session.user.id,
-            client_id: event.client_id,
-            calendar_event_id: event.id,
-            session_date: event.start_time,
-          })
-          .select('id')
-          .single()
-
-        if (createErr) {
-          console.error('Failed to create session_notes:', createErr)
-          setError(`Failed to create session workspace: ${createErr.message}`)
+      // Handle locking
+      if (noteRow.locked_by && noteRow.locked_by !== tabIdRef.current && noteRow.locked_at) {
+        const lockAge = Date.now() - new Date(noteRow.locked_at).getTime()
+        if (lockAge < LOCK_STALE_MS) {
+          setSessionNoteId(noteRow.id)
+          setLocked(true)
           setLoading(false)
           return
         }
-        noteId = created!.id
       }
 
-      noteIdRef.current = noteId
+      noteIdRef.current = noteRow.id
 
       await supabase
         .from('session_notes')
         .update({ locked_by: tabIdRef.current, locked_at: new Date().toISOString() })
-        .eq('id', noteId)
+        .eq('id', noteRow.id)
 
       heartbeatRef.current = setInterval(async () => {
         await supabase
           .from('session_notes')
           .update({ locked_at: new Date().toISOString() })
-          .eq('id', noteId)
+          .eq('id', noteRow.id)
           .eq('locked_by', tabIdRef.current)
       }, HEARTBEAT_MS)
 
-      setSessionNoteId(noteId)
+      setSessionNoteId(noteRow.id)
       setLoading(false)
     }
 
     init()
 
-    const handleBeforeUnload = () => {
-      releaseLock()
-    }
-
+    const handleBeforeUnload = () => releaseLock()
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current)
       releaseLock()
     }
   }, [params, router, supabase, releaseLock])

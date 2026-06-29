@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import BulletList from '@tiptap/extension-bullet-list'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bold, Italic, Heading1, List, ListOrdered, Zap, AlertTriangle } from 'lucide-react'
+import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Zap, AlertTriangle } from 'lucide-react'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
 
@@ -352,6 +352,12 @@ export function SessionEditor({
             className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('orderedList') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <ListOrdered className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('blockquote') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+          >
+            <TextQuote className="h-3.5 w-3.5" />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
           <button
