@@ -65,11 +65,11 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
   }
 
   return (
-    <div className="px-4 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+    <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest">
             Session Actions
-          </h3>
+          </h2>
           <button
             onClick={() => setShowCreateForm(true)}
             className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
