@@ -282,7 +282,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch last session (most recent past session)
       const { data: lastSessionData } = await supabase
         .from('calendar_events')
-        .select('start_time')
+        .select('id, start_time')
         .eq('client_id', client.id)
         .lte('start_time', new Date().toISOString())
         .or('status.is.null,status.neq.cancelled')
@@ -299,6 +299,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           next_session_date: nextSessionData?.start_time || null,
           next_session_event_id: nextSessionData?.id || null,
           last_session_date: lastSessionData?.start_time || null,
+          last_session_event_id: lastSessionData?.id || null,
         };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
       }
@@ -736,7 +737,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" />
-                Last: <span className="font-medium text-foreground">{currentClient.last_session_date ? formatDateWithTime(currentClient.last_session_date) : 'None'}</span>
+                Last: {currentClient.last_session_date ? (
+                  (currentClient as any).last_session_event_id ? (
+                    <a
+                      href={`/sessions/${(currentClient as any).last_session_event_id}`}
+                      className="font-medium text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push(`/sessions/${(currentClient as any).last_session_event_id}`)
+                      }}
+                    >
+                      {formatDateWithTime(currentClient.last_session_date)}
+                    </a>
+                  ) : (
+                    <span className="font-medium text-foreground">{formatDateWithTime(currentClient.last_session_date)}</span>
+                  )
+                ) : (
+                  <span className="font-medium text-foreground">None</span>
+                )}
               </span>
               <span className="text-border">·</span>
               <span className="flex items-center gap-1.5">
