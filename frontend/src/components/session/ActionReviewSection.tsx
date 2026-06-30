@@ -74,11 +74,11 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
   }
 
   if (loading) {
-    return <p className="text-[15px] text-muted-foreground">Loading actions...</p>
+    return <p className="text-lg text-muted-foreground">Loading actions...</p>
   }
 
   if (actions.length === 0 && completedActions.length === 0 && !showCompleted) {
-    return <p className="text-[15px] text-muted-foreground">No open actions</p>
+    return <p className="text-lg text-muted-foreground">No open actions</p>
   }
 
   return (
@@ -95,7 +95,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
 
       <button
         onClick={() => setShowCompleted(prev => !prev)}
-        className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer pt-1"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer pt-1"
       >
         {showCompleted ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {showCompleted
@@ -118,7 +118,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
       )}
 
       {showCompleted && completedActions.length === 0 && (
-        <p className="text-[12px] text-muted-foreground pl-4">No actions completed this week</p>
+        <p className="text-sm text-muted-foreground pl-4">No actions completed this week</p>
       )}
     </div>
   )

@@ -42,10 +42,10 @@ export function ActionCreateForm({ onSubmit, onCancel, prefillTitle = '', autoFo
             if (e.key === 'Escape') onCancel()
           }}
           placeholder="Action title..."
-          className="flex-1 text-[13px] bg-transparent outline-none"
+          className="flex-1 text-base bg-transparent outline-none"
         />
         <ActionDatePicker value={dueDate} onChange={setDueDate} />
-        <button onClick={handleSubmit} className="text-[13px] text-primary font-medium hover:text-primary/80 cursor-pointer">Add</button>
+        <button onClick={handleSubmit} className="text-base text-primary font-medium hover:text-primary/80 cursor-pointer">Add</button>
         <button onClick={onCancel} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" title="Cancel">
           <X className="h-3.5 w-3.5" />
         </button>

@@ -150,22 +150,22 @@ export function SessionWorkspace({
         <div className="px-6 py-3 flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-[15px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-lg text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
           <div className="text-center">
-            <p className="text-[15px] font-medium text-foreground">{clientName}</p>
+            <p className="text-lg font-medium text-foreground">{clientName}</p>
             {subtitle && (
-              <p className="text-[13px] text-muted-foreground">{subtitle}</p>
+              <p className="text-base text-muted-foreground">{subtitle}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-base text-muted-foreground">
               {sessionDate} · {sessionTime} · {durationMins} min
             </span>
-            <span className={`text-[11px] flex items-center gap-1 ${saveStatus === 'error' ? 'text-destructive font-medium' : 'text-muted-foreground/60'}`}>
+            <span className={`text-xs flex items-center gap-1 ${saveStatus === 'error' ? 'text-destructive font-medium' : 'text-muted-foreground/60'}`}>
               {saveStatus === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" />Saving</>}
               {saveStatus === 'saved' && <><Cloud className="h-3 w-3" />Saved</>}
               {saveStatus === 'error' && <><CloudOff className="h-3 w-3" />Save failed</>}
@@ -178,7 +178,7 @@ export function SessionWorkspace({
       <div className="w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10 max-sm:w-full max-sm:px-4">
         {/* Connection */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+          <h2 className="text-base font-medium text-muted-foreground uppercase tracking-widest mb-4">
             Connection
           </h2>
           {dataLoaded ? (
@@ -203,7 +203,7 @@ export function SessionWorkspace({
 
         {/* Action Review */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+          <h2 className="text-base font-medium text-muted-foreground uppercase tracking-widest mb-4">
             Action Review
           </h2>
           <ActionReviewSection
@@ -217,7 +217,7 @@ export function SessionWorkspace({
 
         {/* Topics */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+          <h2 className="text-base font-medium text-muted-foreground uppercase tracking-widest mb-4">
             Topics
           </h2>
           {dataLoaded ? (

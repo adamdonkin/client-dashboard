@@ -110,9 +110,9 @@ export function ActionReviewDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v) }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-medium">{action.title}</DialogTitle>
+          <DialogTitle className="text-lg font-medium">{action.title}</DialogTitle>
           {action.due_date && (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Due: {format(new Date(action.due_date + (action.due_date.length <= 10 ? 'T00:00:00' : '')), 'MMM d, yyyy')}
             </p>
           )}
@@ -120,7 +120,7 @@ export function ActionReviewDialog({
 
         {stillWant === null ? (
           <div className="space-y-3 pt-2">
-            <p className="text-[14px] text-muted-foreground">Do you still want to do this?</p>
+            <p className="text-md text-muted-foreground">Do you still want to do this?</p>
             <div className="flex gap-3">
               <Button
                 onClick={() => setStillWant(true)}
@@ -141,7 +141,7 @@ export function ActionReviewDialog({
         ) : (
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] text-muted-foreground">New due date</span>
+              <span className="text-base text-muted-foreground">New due date</span>
               <ActionDatePicker
                 value={newDueDate}
                 onChange={setNewDueDate}
@@ -151,7 +151,7 @@ export function ActionReviewDialog({
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 text-[14px] border rounded-md bg-background min-h-[100px] resize-none"
+              className="w-full px-3 py-2 text-md border rounded-md bg-background min-h-[100px] resize-none"
             />
 
             <div className="flex gap-3">

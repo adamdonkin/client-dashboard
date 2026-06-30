@@ -73,7 +73,7 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
   if (loading) {
     return (
       <NodeViewWrapper className="my-2">
-        <div className="py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 text-[13px] text-muted-foreground">
+        <div className="py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 text-base text-muted-foreground">
           Loading action...
         </div>
       </NodeViewWrapper>
@@ -83,7 +83,7 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
   if (!action) {
     return (
       <NodeViewWrapper className="my-2">
-        <div className="py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 text-[13px] text-muted-foreground">
+        <div className="py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 text-base text-muted-foreground">
           Action not found
         </div>
       </NodeViewWrapper>
