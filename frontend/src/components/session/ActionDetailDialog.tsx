@@ -112,7 +112,7 @@ export function ActionDetailDialog({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-ui-lg font-medium bg-transparent outline-none border-b border-transparent focus:border-border pb-1"
+              className="w-full text-[15px] font-medium bg-transparent outline-none border-b border-transparent focus:border-border pb-1"
               placeholder="Action title..."
             />
           </div>
@@ -122,11 +122,11 @@ export function ActionDetailDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add notes or context..."
-              className="w-full px-0 py-1 text-ui-md bg-transparent outline-none min-h-[80px] resize-none text-foreground placeholder:text-muted-foreground/50"
+              className="w-full px-0 py-1 text-[14px] bg-transparent outline-none min-h-[80px] resize-none text-foreground placeholder:text-muted-foreground/50"
             />
           </div>
 
-          <div className="flex items-center gap-3 text-ui-base">
+          <div className="flex items-center gap-3 text-[13px]">
             <span className="text-muted-foreground">Due</span>
             <ActionDatePicker
               value={dueDate ? (dueDate.length > 10 ? dueDate.slice(0, 10) : dueDate) : ''}
@@ -142,9 +142,9 @@ export function ActionDetailDialog({
 
           {history.length > 0 && (
             <div className="border-t pt-3 space-y-2">
-              <p className="text-ui-sm font-medium text-muted-foreground uppercase tracking-wider">Review History</p>
+              <p className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">Review History</p>
               {history.map((entry: any, i: number) => (
-                <div key={i} className="text-ui-base text-muted-foreground space-y-0.5">
+                <div key={i} className="text-[13px] text-muted-foreground space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground">
                       {entry.outcome === 'extended' ? 'Extended' : entry.outcome === 'cancelled' ? 'Cancelled' : entry.outcome}
@@ -155,13 +155,13 @@ export function ActionDetailDialog({
                     )}
                   </div>
                   {entry.notes && (
-                    <p className="whitespace-pre-wrap text-ui-base pl-0 text-muted-foreground">{entry.notes}</p>
+                    <p className="whitespace-pre-wrap text-[13px] pl-0 text-muted-foreground">{entry.notes}</p>
                   )}
                   {entry.blocked_by && (
-                    <p className="text-ui-base">Blocked: {entry.blocked_by}</p>
+                    <p className="text-[13px]">Blocked: {entry.blocked_by}</p>
                   )}
                   {entry.will_do && (
-                    <p className="text-ui-base">Will do: {entry.will_do}</p>
+                    <p className="text-[13px]">Will do: {entry.will_do}</p>
                   )}
                 </div>
               ))}

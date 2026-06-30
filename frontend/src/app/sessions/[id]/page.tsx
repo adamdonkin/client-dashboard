@@ -225,15 +225,15 @@ export default function SessionPage({ params }: SessionPageProps) {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center max-w-md space-y-4">
           <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
-          <p className="text-ui-lg font-medium text-foreground">This session is open elsewhere</p>
-          <p className="text-ui-base text-muted-foreground">
+          <p className="text-[15px] font-medium text-foreground">This session is open elsewhere</p>
+          <p className="text-[13px] text-muted-foreground">
             To prevent data loss, only one window can edit a session at a time. Close the other window or tab first, then reload this page.
           </p>
           <div className="flex gap-3 justify-center">
-            <button onClick={() => router.back()} className="text-ui-base text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => router.back()} className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">
               Go back
             </button>
-            <button onClick={() => window.location.reload()} className="text-ui-base text-primary hover:text-primary/80 font-medium transition-colors">
+            <button onClick={() => window.location.reload()} className="text-[13px] text-primary hover:text-primary/80 font-medium transition-colors">
               Reload
             </button>
           </div>

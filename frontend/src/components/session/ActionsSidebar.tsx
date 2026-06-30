@@ -67,7 +67,7 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
   return (
     <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-ui-xs font-semibold text-muted-foreground uppercase tracking-widest">
+          <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
             Session Actions
           </h3>
           <button
@@ -89,9 +89,9 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
         )}
 
         {loading ? (
-          <p className="text-ui-base text-muted-foreground">Loading...</p>
+          <p className="text-[13px] text-muted-foreground">Loading...</p>
         ) : sessionActions.length === 0 && !showCreateForm ? (
-          <p className="text-ui-base text-muted-foreground/50">No actions yet</p>
+          <p className="text-[13px] text-muted-foreground/50">No actions yet</p>
         ) : (
           <div className="space-y-1.5">
             {sessionActions.map(action => (

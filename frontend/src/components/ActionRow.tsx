@@ -40,21 +40,21 @@ function isDueOrOverdue(dateStr: string | null): boolean {
 export function SourceBadge({ source }: { source: string | null }) {
   if (source === 'defacto') {
     return (
-      <Badge variant="outline" className="text-ui-2xs px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
         Defacto
       </Badge>
     )
   }
   if (source === 'session') {
     return (
-      <Badge variant="outline" className="text-ui-2xs px-1.5 py-0 border-primary/30 text-primary font-medium">
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary font-medium">
         Session
       </Badge>
     )
   }
   if (source === 'granola') {
     return (
-      <Badge variant="outline" className="text-ui-2xs px-1.5 py-0 border-success/30 text-success font-medium">
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/30 text-success font-medium">
         Granola
       </Badge>
     )
@@ -167,7 +167,7 @@ export function ActionRow({
         <div className="flex-1 min-w-0">
           <span
             className={cn(
-              'action-row-title text-ui-base leading-[1.15]',
+              'action-row-title text-[13px] leading-[1.15]',
               isResolved ? 'line-through text-muted-foreground' : 'text-foreground',
             )}
           >
@@ -181,7 +181,7 @@ export function ActionRow({
           )}
 
           {isResolved && action.status === 'cancelled' && (
-            <span className="text-ui-2xs font-semibold uppercase tracking-wider text-muted-foreground">Cancelled</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cancelled</span>
           )}
 
           <div onClick={(e) => e.stopPropagation()}>
