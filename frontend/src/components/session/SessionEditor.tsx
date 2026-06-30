@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import BulletList from '@tiptap/extension-bullet-list'
+import { ListKit } from '@tiptap/extension-list'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Zap, AlertTriangle } from 'lucide-react'
@@ -104,8 +104,10 @@ export function SessionEditor({
     extensions: [
       StarterKit.configure({
         bulletList: false,
+        orderedList: false,
+        listItem: false,
       }),
-      BulletList,
+      ListKit,
       Placeholder.configure({
         placeholder,
       }),
