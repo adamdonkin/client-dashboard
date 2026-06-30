@@ -53,93 +53,94 @@
 }
 
 :root {
-  /* Typography scale */
-  --text-2xs: 10px;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-md: 14px;
-  --text-lg: 15px;
-  --text-editor-body: 0.9375rem;
-  --text-editor-h2: 1.1875rem;
-  --text-editor-h3: 1.0625rem;
+  /* Typography scale — change --text-root to shift everything */
+  --text-root: 13px;
+  --text-2xs: calc(var(--text-root) - 3px);
+  --text-xs: calc(var(--text-root) - 2px);
+  --text-sm: calc(var(--text-root) - 1px);
+  --text-base: var(--text-root);
+  --text-md: calc(var(--text-root) + 1px);
+  --text-lg: calc(var(--text-root) + 2px);
+  --text-editor-body: var(--text-lg);
+  --text-editor-h2: calc(var(--text-root) + 6px);
+  --text-editor-h3: calc(var(--text-root) + 4px);
 
   --radius: 0.625rem;
   /* Radix Sand palette - exact values from @radix-ui/colors */
-  --background: hsl(50, 20%, 99%);           /* sand1 */
-  --foreground: hsl(50, 6%, 10%);            /* sand12 */
-  --card: hsl(50, 20%, 99%);                 /* sand1 */
-  --card-foreground: hsl(50, 6%, 10%);       /* sand12 */
-  --popover: hsl(50, 20%, 99%);              /* sand1 */
-  --popover-foreground: hsl(50, 6%, 10%);    /* sand12 */
-  --primary: hsl(50, 6%, 10%);               /* sand12 */
-  --primary-foreground: hsl(50, 20%, 99%);   /* sand1 */
-  --secondary: hsl(50, 6%, 93%);             /* sand4 */
-  --secondary-foreground: hsl(50, 6%, 10%);  /* sand12 */
-  --muted: hsl(50, 6%, 93%);                 /* sand4 */
-  --muted-foreground: hsl(50, 4%, 42%);      /* sand11 */
-  --accent: hsl(50, 5%, 88%);                /* sand5 */
-  --accent-foreground: hsl(50, 6%, 10%);     /* sand12 */
-  --destructive: hsl(358, 75%, 59%);         /* red9 */
-  --border: hsl(50, 6%, 90%);                /* sand6 */
-  --input: hsl(50, 6%, 90%);                 /* sand6 */
-  --ring: hsl(50, 5%, 53%);                  /* sand8 */
+  --background: hsl(50, 20%, 99%); /* sand1 */
+  --foreground: hsl(50, 6%, 10%); /* sand12 */
+  --card: hsl(50, 20%, 99%); /* sand1 */
+  --card-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --popover: hsl(50, 20%, 99%); /* sand1 */
+  --popover-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --primary: hsl(50, 6%, 10%); /* sand12 */
+  --primary-foreground: hsl(50, 20%, 99%); /* sand1 */
+  --secondary: hsl(50, 6%, 93%); /* sand4 */
+  --secondary-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --muted: hsl(50, 6%, 93%); /* sand4 */
+  --muted-foreground: hsl(50, 4%, 42%); /* sand11 */
+  --accent: hsl(50, 5%, 88%); /* sand5 */
+  --accent-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --destructive: hsl(358, 75%, 59%); /* red9 */
+  --border: hsl(50, 6%, 90%); /* sand6 */
+  --input: hsl(50, 6%, 90%); /* sand6 */
+  --ring: hsl(50, 5%, 53%); /* sand8 */
   --chart-1: hsl(358, 75%, 59%);
   --chart-2: hsl(173, 80%, 36%);
   --chart-3: hsl(221, 83%, 53%);
   --chart-4: hsl(43, 96%, 56%);
   --chart-5: hsl(27, 96%, 61%);
-  --sidebar: hsl(50, 9%, 97%);               /* sand2 */
-  --sidebar-foreground: hsl(50, 6%, 10%);    /* sand12 */
-  --sidebar-primary: hsl(50, 6%, 10%);       /* sand12 */
+  --sidebar: hsl(50, 9%, 97%); /* sand2 */
+  --sidebar-foreground: hsl(50, 6%, 10%); /* sand12 */
+  --sidebar-primary: hsl(50, 6%, 10%); /* sand12 */
   --sidebar-primary-foreground: hsl(50, 20%, 99%); /* sand1 */
-  --sidebar-accent: hsl(50, 5%, 88%);        /* sand5 */
+  --sidebar-accent: hsl(50, 5%, 88%); /* sand5 */
   --sidebar-accent-foreground: hsl(50, 6%, 10%); /* sand12 */
-  --sidebar-border: hsl(50, 6%, 90%);        /* sand6 */
-  --sidebar-ring: hsl(50, 5%, 53%);          /* sand8 */
+  --sidebar-border: hsl(50, 6%, 90%); /* sand6 */
+  --sidebar-ring: hsl(50, 5%, 53%); /* sand8 */
   /* Radix traffic light colors - step 11 for text */
-  --success: hsl(131, 41%, 46%);             /* grass11 */
-  --warning: hsl(39, 95%, 50%);              /* amber11 */
-  --danger: hsl(358, 65%, 49%);              /* red11 */
+  --success: hsl(131, 41%, 46%); /* grass11 */
+  --warning: hsl(39, 95%, 50%); /* amber11 */
+  --danger: hsl(358, 65%, 49%); /* red11 */
 }
 
 .dark {
   /* Radix Sand Dark palette - exact values from @radix-ui/colors */
-  --background: hsl(61, 2%, 8%);             /* sandDark1 */
-  --foreground: hsl(56, 4%, 92%);            /* sandDark12 */
-  --card: hsl(60, 3%, 11%);                  /* sandDark2 */
-  --card-foreground: hsl(56, 4%, 92%);       /* sandDark12 */
-  --popover: hsl(60, 3%, 11%);               /* sandDark2 */
-  --popover-foreground: hsl(56, 4%, 92%);    /* sandDark12 */
-  --primary: hsl(56, 4%, 92%);               /* sandDark12 */
-  --primary-foreground: hsl(61, 2%, 8%);     /* sandDark1 */
-  --secondary: hsl(60, 3%, 17%);             /* sandDark4 */
+  --background: hsl(61, 2%, 8%); /* sandDark1 */
+  --foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --card: hsl(60, 3%, 11%); /* sandDark2 */
+  --card-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --popover: hsl(60, 3%, 11%); /* sandDark2 */
+  --popover-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --primary: hsl(56, 4%, 92%); /* sandDark12 */
+  --primary-foreground: hsl(61, 2%, 8%); /* sandDark1 */
+  --secondary: hsl(60, 3%, 17%); /* sandDark4 */
   --secondary-foreground: hsl(56, 4%, 92%); /* sandDark12 */
-  --muted: hsl(60, 3%, 17%);                 /* sandDark4 */
-  --muted-foreground: hsl(55, 3%, 63%);      /* sandDark11 */
-  --accent: hsl(59, 3%, 22%);                /* sandDark5 */
-  --accent-foreground: hsl(56, 4%, 92%);     /* sandDark12 */
-  --destructive: hsl(358, 75%, 59%);         /* red9 */
-  --border: hsl(58, 3%, 18%);                /* sandDark4 - subtler */
-  --input: hsl(58, 3%, 26%);                 /* sandDark6 */
-  --ring: hsl(51, 3%, 41%);                  /* sandDark8 */
+  --muted: hsl(60, 3%, 17%); /* sandDark4 */
+  --muted-foreground: hsl(55, 3%, 63%); /* sandDark11 */
+  --accent: hsl(59, 3%, 22%); /* sandDark5 */
+  --accent-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --destructive: hsl(358, 75%, 59%); /* red9 */
+  --border: hsl(58, 3%, 18%); /* sandDark4 - subtler */
+  --input: hsl(58, 3%, 26%); /* sandDark6 */
+  --ring: hsl(51, 3%, 41%); /* sandDark8 */
   --chart-1: hsl(358, 75%, 59%);
   --chart-2: hsl(173, 80%, 36%);
   --chart-3: hsl(221, 83%, 53%);
   --chart-4: hsl(43, 96%, 56%);
   --chart-5: hsl(27, 96%, 61%);
-  --sidebar: hsl(60, 3%, 11%);               /* sandDark2 */
-  --sidebar-foreground: hsl(56, 4%, 92%);    /* sandDark12 */
-  --sidebar-primary: hsl(56, 4%, 92%);       /* sandDark12 */
+  --sidebar: hsl(60, 3%, 11%); /* sandDark2 */
+  --sidebar-foreground: hsl(56, 4%, 92%); /* sandDark12 */
+  --sidebar-primary: hsl(56, 4%, 92%); /* sandDark12 */
   --sidebar-primary-foreground: hsl(61, 2%, 8%); /* sandDark1 */
-  --sidebar-accent: hsl(59, 3%, 22%);        /* sandDark5 */
+  --sidebar-accent: hsl(59, 3%, 22%); /* sandDark5 */
   --sidebar-accent-foreground: hsl(56, 4%, 92%); /* sandDark12 */
-  --sidebar-border: hsl(58, 3%, 26%);        /* sandDark6 */
-  --sidebar-ring: hsl(51, 3%, 41%);          /* sandDark8 */
+  --sidebar-border: hsl(58, 3%, 26%); /* sandDark6 */
+  --sidebar-ring: hsl(51, 3%, 41%); /* sandDark8 */
   /* Radix traffic light colors - step 11 for text (dark mode) */
-  --success: hsl(131, 43%, 57%);             /* grassDark11 */
-  --warning: hsl(39, 100%, 57%);             /* amberDark11 */
-  --danger: hsl(358, 100%, 69%);             /* redDark11 */
+  --success: hsl(131, 43%, 57%); /* grassDark11 */
+  --warning: hsl(39, 100%, 57%); /* amberDark11 */
+  --danger: hsl(358, 100%, 69%); /* redDark11 */
 }
 
 @layer base {
@@ -157,12 +158,14 @@
   min-height: 1.5em;
   font-size: var(--text-editor-body);
   line-height: 1.625;
-  font-family: var(--font-lora), Georgia, serif;
+  font-family:
+    var(--font-lora), Georgia, serif;
 }
 
 .session-editor .ProseMirror .action-row-title {
   line-height: 1.15;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family:
+    var(--font-geist-sans), system-ui, sans-serif;
 }
 
 .session-editor .ProseMirror > p:last-child:empty,
@@ -227,7 +230,7 @@
 
 /* Action block nodes use sans-serif UI font, not the editor's serif */
 .session-editor .ProseMirror [data-node-view-wrapper] {
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family:
+    var(--font-geist-sans), sans-serif;
   font-size: var(--text-editor-body);
 }
-
