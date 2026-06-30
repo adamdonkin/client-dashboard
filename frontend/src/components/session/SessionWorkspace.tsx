@@ -175,7 +175,7 @@ export function SessionWorkspace({
       </div>
 
       {/* Document body */}
-      <div className="max-w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10">
+      <div className="w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10 max-sm:w-full max-sm:px-4">
         {/* Connection */}
         <section>
           <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
