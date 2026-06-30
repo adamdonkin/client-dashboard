@@ -364,14 +364,14 @@ export function SessionEditor({
           <div className="w-px h-4 bg-border mx-0.5" />
           <button
             onClick={handleBubbleAction}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-base"
+            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-ui-base"
           >
             <Zap className="h-3.5 w-3.5" />
             Action
           </button>
           <button
             onClick={handleBubbleIssue}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-base"
+            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-ui-base"
           >
             <AlertTriangle className="h-3.5 w-3.5" />
             Issue

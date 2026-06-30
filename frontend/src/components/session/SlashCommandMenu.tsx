@@ -56,7 +56,7 @@ export const SlashCommandMenu = forwardRef<any, SlashCommandMenuProps>(
           <button
             key={item.id}
             onClick={() => command(item)}
-            className={`flex items-center gap-3 w-full px-3 py-2 text-left text-lg transition-colors ${
+            className={`flex items-center gap-3 w-full px-3 py-2 text-left text-ui-lg transition-colors ${
               index === selectedIndex
                 ? 'bg-accent text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50'

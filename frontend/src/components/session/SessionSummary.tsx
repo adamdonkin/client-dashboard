@@ -53,14 +53,14 @@ export function SessionSummary({ sessionNoteId, actionsModified }: SessionSummar
   }, [sessionNoteId, actionsModified, supabase])
 
   if (loading) {
-    return <p className="text-lg text-muted-foreground">Loading summary...</p>
+    return <p className="text-ui-lg text-muted-foreground">Loading summary...</p>
   }
 
   const hasContent = createdActions.length > 0 || completedActions.length > 0
 
   if (!hasContent) {
     return (
-      <p className="text-lg text-muted-foreground">
+      <p className="text-ui-lg text-muted-foreground">
         Actions created and completed during this session will appear here.
       </p>
     )
@@ -70,16 +70,16 @@ export function SessionSummary({ sessionNoteId, actionsModified }: SessionSummar
     <div className="space-y-4">
       {createdActions.length > 0 && (
         <div>
-          <p className="text-base font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+          <p className="text-ui-base font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
             <Plus className="h-3 w-3" />
             New actions ({createdActions.length})
           </p>
           <div className="space-y-1">
             {createdActions.map(action => (
               <div key={action.id} className="flex items-center gap-3 py-1.5 px-3 rounded bg-muted/30">
-                <span className="text-lg flex-1">{action.title}</span>
+                <span className="text-ui-lg flex-1">{action.title}</span>
                 {action.due_date && (
-                  <span className="text-base text-muted-foreground flex items-center gap-1">
+                  <span className="text-ui-base text-muted-foreground flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(action.due_date), 'MMM d')}
                   </span>
@@ -92,14 +92,14 @@ export function SessionSummary({ sessionNoteId, actionsModified }: SessionSummar
 
       {completedActions.length > 0 && (
         <div>
-          <p className="text-base font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+          <p className="text-ui-base font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
             <Check className="h-3 w-3" />
             Completed ({completedActions.length})
           </p>
           <div className="space-y-1">
             {completedActions.map(action => (
               <div key={action.id} className="flex items-center gap-3 py-1.5 px-3 rounded bg-muted/30">
-                <span className="text-lg flex-1 line-through text-muted-foreground">{action.title}</span>
+                <span className="text-ui-lg flex-1 line-through text-muted-foreground">{action.title}</span>
               </div>
             ))}
           </div>

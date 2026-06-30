@@ -37,7 +37,7 @@ export function ActionDatePicker({
         <button
           type="button"
           className={cn(
-            'text-base text-muted-foreground flex items-center gap-1 cursor-pointer hover:text-foreground border border-border/50 rounded px-1.5 py-0.5 bg-transparent',
+            'text-ui-base text-muted-foreground flex items-center gap-1 cursor-pointer hover:text-foreground border border-border/50 rounded px-1.5 py-0.5 bg-transparent',
             className
           )}
         >

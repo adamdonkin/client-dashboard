@@ -110,7 +110,7 @@ export function TopicsSection({ sessionNoteId, clientId, onActionCreated }: Topi
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading topics...</p>
+    return <p className="text-ui-sm text-muted-foreground">Loading topics...</p>
   }
 
   return (
@@ -139,7 +139,7 @@ export function TopicsSection({ sessionNoteId, clientId, onActionCreated }: Topi
 
       <button
         onClick={addTopic}
-        className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+        className="flex items-center gap-1.5 text-ui-sm text-primary hover:text-primary/80 transition-colors"
       >
         <Plus className="h-4 w-4" />
         Add topic
@@ -260,7 +260,7 @@ function TopicBlock({
   return (
     <div className="space-y-2">
       <div className="flex gap-1.5 items-baseline">
-        <span className="text-base font-semibold text-foreground select-none">{index + 1}.</span>
+        <span className="text-ui-base font-semibold text-foreground select-none">{index + 1}.</span>
         <textarea
           ref={(el) => {
             if (isLast && titleRef) (titleRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
@@ -274,7 +274,7 @@ function TopicBlock({
           onKeyDown={handleTitleKeyDown}
           placeholder="Topic title..."
           rows={1}
-          className="flex-1 text-base font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50 resize-none overflow-hidden"
+          className="flex-1 text-ui-base font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50 resize-none overflow-hidden"
         />
       </div>
       <div ref={editorContainerRef}>
