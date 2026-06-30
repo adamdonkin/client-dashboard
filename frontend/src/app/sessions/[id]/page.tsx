@@ -38,7 +38,16 @@ export default function SessionPage({ params }: SessionPageProps) {
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [sessionNoteId, setSessionNoteId] = useState<string | null>(null)
 
-  const tabIdRef = useRef<string>(`tab-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const tabIdRef = useRef<string>(
+    typeof window !== 'undefined'
+      ? sessionStorage.getItem('session-tab-id') ??
+        (() => {
+          const id = `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`
+          sessionStorage.setItem('session-tab-id', id)
+          return id
+        })()
+      : `tab-${Date.now()}`
+  )
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null)
   const noteIdRef = useRef<string | null>(null)
   const tokenRef = useRef<string | null>(null)
