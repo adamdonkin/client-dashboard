@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { ArrowLeft, Cloud, CloudOff, Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
-import { SessionEditor, SlashCommandHandler, SaveStatus } from './SessionEditor'
+import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
 
@@ -41,7 +41,7 @@ export function SessionWorkspace({
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
   const [topicsContent, setTopicsContent] = useState<any>(undefined)
   const [dataLoaded, setDataLoaded] = useState(false)
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+
 
   useEffect(() => {
     const load = async () => {
@@ -165,11 +165,6 @@ export function SessionWorkspace({
             <span className="text-[13px] text-muted-foreground">
               {sessionDate} · {sessionTime} · {durationMins} min
             </span>
-            <span className={`text-[11px] flex items-center gap-1 ${saveStatus === 'error' ? 'text-destructive font-medium' : 'text-muted-foreground/60'}`}>
-              {saveStatus === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" />Saving</>}
-              {saveStatus === 'saved' && <><Cloud className="h-3 w-3" />Saved</>}
-              {saveStatus === 'error' && <><CloudOff className="h-3 w-3" />Save failed</>}
-            </span>
           </div>
         </div>
       </div>
@@ -185,7 +180,7 @@ export function SessionWorkspace({
             <SessionEditor
               content={connectionNotes}
               onUpdate={handleConnectionUpdate}
-              onSaveStatusChange={setSaveStatus}
+
               placeholder="Tell me something good…"
               autofocus
               clientId={calendarEvent.client_id}
@@ -224,7 +219,7 @@ export function SessionWorkspace({
             <SessionEditor
               content={topicsContent}
               onUpdate={handleTopicsUpdate}
-              onSaveStatusChange={setSaveStatus}
+
               placeholder="Start typing or use /issue to add a topic..."
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}
