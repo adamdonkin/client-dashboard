@@ -257,8 +257,16 @@ export function SessionEditor({
       setTimeout(() => setSelectionToolbar(null), 200)
       flushSave()
     })
+
+    const editorDom = ed.view.dom
+    const trapTab = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') e.preventDefault()
+    }
+    editorDom.addEventListener('keydown', trapTab)
+
     return () => {
       ed.off('selectionUpdate', updateSelectionToolbar)
+      editorDom.removeEventListener('keydown', trapTab)
     }
   }, [editor, updateSelectionToolbar])
 
