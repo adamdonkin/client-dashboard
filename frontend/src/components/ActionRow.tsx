@@ -192,7 +192,7 @@ export function ActionRow({
         <div className="flex-1 min-w-0">
           <span
             className={cn(
-              'action-row-title text-[13px] leading-[1.15]',
+              'action-row-title text-[14px] !leading-[16px]',
               isResolved ? 'line-through text-muted-foreground' : 'text-foreground',
             )}
           >

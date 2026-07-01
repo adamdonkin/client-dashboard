@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Plus } from 'lucide-react'
+import { Plus, Copy, Check } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionCreateForm } from './ActionCreateForm'
@@ -64,19 +65,52 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
     }
   }
 
+  const [copied, setCopied] = useState(false)
+
+  const copyActions = async () => {
+    const openActions = sessionActions.filter(a => a.status === 'to_do')
+    const items = openActions.map(a => {
+      const date = a.due_date ? ` by ${format(parseISO(a.due_date.length > 10 ? a.due_date.slice(0, 10) : a.due_date), 'MMM d')}` : ''
+      return { text: `${a.title}${date}` }
+    })
+
+    const plain = `Actions:\n${items.map(i => `• ${i.text}`).join('\n')}`
+    const html = `<b>Actions:</b><ul>${items.map(i => `<li>${i.text}</li>`).join('')}</ul>`
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([plain], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      }),
+    ])
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
             Session Actions
           </h3>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Add action"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {sessionActions.filter(a => a.status === 'to_do').length > 0 && (
+              <button
+                onClick={copyActions}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Copy actions to clipboard"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Add action"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {showCreateForm && (

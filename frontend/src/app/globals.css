@@ -145,8 +145,12 @@
   font-feature-settings: 'kern' 1, 'liga' 1;
 }
 
+.action-row-title {
+  line-height: 16px !important;
+}
+
 .session-editor .ProseMirror .action-row-title {
-  line-height: 1.15;
+  line-height: 16px;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
