@@ -250,7 +250,7 @@ export function ActionDetailDialog({
           <div className="flex items-center gap-3 pt-1">
             <Button
               onClick={handleSave}
-              disabled={saving || !hasChanges || !title.trim()}
+              disabled={saving || !title.trim()}
               className="flex-1"
               size="sm"
             >
