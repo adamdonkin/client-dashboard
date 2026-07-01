@@ -6,6 +6,7 @@ export interface ClientAction {
   id: string
   title: string
   description: string | null
+  description_content: any | null
   source: 'defacto' | 'granola' | 'session'
   status: 'to_do' | 'completed' | 'cancelled'
   due_date: string | null
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     const { data: actions, error } = await supabase
       .from('client_actions')
       .select(`
-        id, title, description, source, status, due_date, created_date,
+        id, title, description, description_content, source, status, due_date, created_date,
         note_title, source_url, session_note_id, synced_at, client_id,
         clients!client_actions_client_id_fkey (
           name, company_name, role
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
         id: action.id,
         title: action.title,
         description: action.description,
+        description_content: action.description_content,
         source: action.source,
         status: action.status,
         due_date: action.due_date,

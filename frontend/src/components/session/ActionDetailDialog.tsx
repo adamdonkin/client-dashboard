@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import { ListKit } from '@tiptap/extension-list'
+import Placeholder from '@tiptap/extension-placeholder'
 import {
   Dialog,
   DialogContent,
@@ -18,9 +22,12 @@ interface ActionDetailAction {
   id: string
   title: string
   description?: string | null
+  description_content?: any | null
   due_date: string | null
   status: string
   source?: 'defacto' | 'granola' | 'session'
+  source_url?: string | null
+  session_note_id?: string | null
   review_history?: any[]
 }
 
@@ -41,28 +48,83 @@ export function ActionDetailDialog({
 }: ActionDetailDialogProps) {
   const supabase = createClientComponentClient()
   const [title, setTitle] = useState(action.title)
-  const [description, setDescription] = useState(action.description || '')
   const [dueDate, setDueDate] = useState(action.due_date || '')
   const [saving, setSaving] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const actionIdRef = useRef(action.id)
 
   useEffect(() => {
     setTitle(action.title)
-    setDescription(action.description || '')
     setDueDate(action.due_date || '')
+    actionIdRef.current = action.id
   }, [action])
 
-  const hasChanges =
-    title.trim() !== action.title ||
-    (description.trim() || null) !== (action.description || null) ||
-    (dueDate || null) !== (action.due_date || null)
+  const initialContent = action.description_content || (
+    action.description
+      ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: action.description }] }] }
+      : undefined
+  )
+
+  const saveDescription = useCallback(async (content: any) => {
+    const plainText = extractPlainText(content)
+    await supabase
+      .from('client_actions')
+      .update({
+        description_content: content,
+        description: plainText || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', actionIdRef.current)
+  }, [supabase])
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+      }),
+      ListKit,
+      Placeholder.configure({
+        placeholder: 'Add notes or context...',
+      }),
+    ],
+    content: initialContent || undefined,
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[60px] text-foreground text-[14px]',
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        saveDescription(ed.getJSON())
+      }, 500)
+    },
+  }, [action.id])
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  const hasTitleChanges = title.trim() !== action.title
+  const hasDateChanges = (dueDate || null) !== (action.due_date || null)
+  const hasChanges = hasTitleChanges || hasDateChanges
 
   const handleSave = async () => {
     if (!title.trim()) return
     setSaving(true)
 
+    if (debounceRef.current && editor) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+      await saveDescription(editor.getJSON())
+    }
+
     const updates: Record<string, any> = {
       title: title.trim(),
-      description: description.trim() || null,
       due_date: dueDate || null,
       updated_at: new Date().toISOString(),
     }
@@ -72,10 +134,32 @@ export function ActionDetailDialog({
       .update(updates)
       .eq('id', action.id)
 
-    const updated = { ...action, ...updates }
+    const descContent = editor?.getJSON() || action.description_content
+    const updated = {
+      ...action,
+      ...updates,
+      description_content: descContent,
+      description: extractPlainText(descContent),
+    }
     onUpdated?.(updated)
     setSaving(false)
     onOpenChange(false)
+  }
+
+  const handleClose = async (isOpen: boolean) => {
+    if (!isOpen && debounceRef.current && editor) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+      await saveDescription(editor.getJSON())
+
+      const descContent = editor.getJSON()
+      onUpdated?.({
+        ...action,
+        description_content: descContent,
+        description: extractPlainText(descContent),
+      })
+    }
+    onOpenChange(isOpen)
   }
 
   const handleDelete = () => {
@@ -100,7 +184,7 @@ export function ActionDetailDialog({
   const history = action.review_history || []
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="sr-only">Edit action</DialogTitle>
@@ -117,13 +201,8 @@ export function ActionDetailDialog({
             />
           </div>
 
-          <div>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add notes or context..."
-              className="w-full px-0 py-1 text-[14px] bg-transparent outline-none min-h-[80px] resize-none text-foreground placeholder:text-muted-foreground/50"
-            />
+          <div className="action-description-editor">
+            <EditorContent editor={editor} />
           </div>
 
           <div className="flex items-center gap-3 text-[13px]">
@@ -179,7 +258,7 @@ export function ActionDetailDialog({
             </Button>
             <Button
               variant="ghost"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleClose(false)}
               className="flex-1"
               size="sm"
             >
@@ -200,4 +279,23 @@ export function ActionDetailDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function extractPlainText(content: any): string {
+  if (!content) return ''
+  const parts: string[] = []
+  function walk(node: any) {
+    if (node.type === 'text') {
+      parts.push(node.text || '')
+    } else if (node.content) {
+      for (const child of node.content) {
+        walk(child)
+      }
+      if (node.type === 'paragraph' || node.type === 'listItem') {
+        parts.push('\n')
+      }
+    }
+  }
+  walk(content)
+  return parts.join('').trim()
 }

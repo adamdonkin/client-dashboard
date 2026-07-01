@@ -22,7 +22,7 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
   const fetchSessionActions = useCallback(async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
       .eq('session_note_id', sessionNoteId)
       .order('created_at', { ascending: true })
 

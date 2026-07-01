@@ -15,6 +15,7 @@ export interface ActionItem {
   id: string
   title: string
   description?: string | null
+  description_content?: any | null
   source?: string | null
   due_date: string | null
   status: string
@@ -108,7 +109,7 @@ export function ActionRow({
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Keep in sync if parent passes new data
-  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title) {
+  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
     setAction(initialAction)
   }
 
@@ -152,7 +153,7 @@ export function ActionRow({
   const handleReviewUpdated = async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
       .eq('id', action.id)
       .single()
 

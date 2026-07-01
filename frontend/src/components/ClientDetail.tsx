@@ -229,7 +229,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         setActionsLoading(true);
         const { data, error } = await supabase
           .from('client_actions')
-          .select('id, title, description, source, due_date, source_url, session_note_id, status')
+          .select('id, title, description, description_content, source, due_date, source_url, session_note_id, status')
           .eq('client_id', client.id)
           .eq('status', 'to_do')
           .order('due_date', { ascending: true, nullsFirst: false });

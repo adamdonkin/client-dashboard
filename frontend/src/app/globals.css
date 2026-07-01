@@ -234,3 +234,37 @@
   font-size: 1rem;
 }
 
+/* Action description mini-editor */
+.action-description-editor .ProseMirror {
+  outline: none;
+  min-height: 60px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.action-description-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  pointer-events: none;
+  height: 0;
+}
+
+.action-description-editor .ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.action-description-editor .ProseMirror ul ul {
+  list-style-type: circle;
+}
+
+.action-description-editor .ProseMirror ul li {
+  margin-bottom: 0.25em;
+}
+
+.action-description-editor .ProseMirror strong {
+  font-weight: 600;
+}
+
