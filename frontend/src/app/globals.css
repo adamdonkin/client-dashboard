@@ -138,14 +138,20 @@
 .session-editor .ProseMirror {
   outline: none;
   min-height: 1.5em;
-  font-size: 0.9375rem;
-  line-height: 1.625;
+  font-size: 1rem;
+  line-height: 1.6;
   font-family: var(--font-lora), Georgia, serif;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1;
 }
 
 .session-editor .ProseMirror .action-row-title {
   line-height: 1.15;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.session-editor .ProseMirror p {
+  margin-bottom: 0.25em;
 }
 
 .session-editor .ProseMirror > p:last-child:empty,
@@ -169,7 +175,7 @@
 
 .session-editor .ProseMirror ul ul {
   list-style-type: circle;
-  margin-top: 0.5em;
+  margin-top: 0.15em;
 }
 
 .session-editor .ProseMirror ul ul ul {
@@ -178,6 +184,14 @@
 
 .session-editor .ProseMirror ul li {
   margin-bottom: 0.5em;
+}
+
+.session-editor .ProseMirror ul ul li {
+  margin-bottom: 0.25em;
+}
+
+.session-editor .ProseMirror li:has(> ul) {
+  margin-bottom: 0.75em;
 }
 
 .session-editor .ProseMirror blockquote {
@@ -196,21 +210,23 @@
 .session-editor .ProseMirror h2,
 .session-editor .ProseMirror h3 {
   font-weight: 600;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   margin-bottom: 0.5rem;
 }
 
 .session-editor .ProseMirror h2 {
-  font-size: 1.1875rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
 }
 
 .session-editor .ProseMirror h3 {
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
 }
 
 /* Action block nodes use sans-serif UI font, not the editor's serif */
 .session-editor .ProseMirror [data-node-view-wrapper] {
   font-family: var(--font-geist-sans), sans-serif;
-  font-size: 0.9375rem;
+  font-size: 1rem;
 }
 

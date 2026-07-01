@@ -66,7 +66,19 @@ export function ClientListView({ clients, title, badgeColor }: ClientListViewPro
                 </TableCell>
                 <TableCell className="text-sm">
                   {client.last_session_date
-                    ? formatLastSessionDate(client.last_session_date)
+                    ? client.last_session_event_id ? (
+                        <span
+                          className="text-primary hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/sessions/${client.last_session_event_id}`)
+                          }}
+                        >
+                          {formatLastSessionDate(client.last_session_date)}
+                        </span>
+                      ) : (
+                        formatLastSessionDate(client.last_session_date)
+                      )
                     : 'None'
                   }
                 </TableCell>
