@@ -135,7 +135,7 @@ export function ActionDetailDialog({
             {action.source && (
               <>
                 <span className="text-border">|</span>
-                <SourceBadge source={action.source} />
+                <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
               </>
             )}
           </div>

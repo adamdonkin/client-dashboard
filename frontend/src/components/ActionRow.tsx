@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Check, X } from 'lucide-react'
 import { format, isPast, isToday, parseISO } from 'date-fns'
@@ -18,6 +19,7 @@ export interface ActionItem {
   due_date: string | null
   status: string
   source_url?: string | null
+  session_note_id?: string | null
   review_history?: any[]
 }
 
@@ -37,24 +39,47 @@ function isDueOrOverdue(dateStr: string | null): boolean {
   return isToday(d) || isPast(d)
 }
 
-export function SourceBadge({ source }: { source: string | null }) {
+export function SourceBadge({ source, sourceUrl, sessionNoteId }: { source: string | null, sourceUrl?: string | null, sessionNoteId?: string | null }) {
+  const router = useRouter()
+
+  const handleClick = (e: React.MouseEvent, href: string, external?: boolean) => {
+    e.stopPropagation()
+    if (external) {
+      window.open(href, '_blank', 'noopener')
+    } else {
+      router.push(href)
+    }
+  }
+
   if (source === 'defacto') {
     return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium">
+      <Badge
+        variant="outline"
+        className={cn('text-[10px] px-1.5 py-0 border-chart-3/30 text-chart-3 font-medium', sourceUrl && 'cursor-pointer hover:bg-chart-3/10')}
+        onClick={sourceUrl ? (e) => handleClick(e, sourceUrl, true) : undefined}
+      >
         Defacto
       </Badge>
     )
   }
   if (source === 'session') {
     return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary font-medium">
+      <Badge
+        variant="outline"
+        className={cn('text-[10px] px-1.5 py-0 border-primary/30 text-primary font-medium', sessionNoteId && 'cursor-pointer hover:bg-primary/10')}
+        onClick={sessionNoteId ? (e) => handleClick(e, `/sessions/${sessionNoteId}`) : undefined}
+      >
         Session
       </Badge>
     )
   }
   if (source === 'granola') {
     return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/30 text-success font-medium">
+      <Badge
+        variant="outline"
+        className={cn('text-[10px] px-1.5 py-0 border-success/30 text-success font-medium', sourceUrl && 'cursor-pointer hover:bg-success/10')}
+        onClick={sourceUrl ? (e) => handleClick(e, sourceUrl, true) : undefined}
+      >
         Granola
       </Badge>
     )
@@ -127,7 +152,7 @@ export function ActionRow({
   const handleReviewUpdated = async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, source, due_date, status, review_history')
+      .select('id, title, description, source, source_url, session_note_id, due_date, status, review_history')
       .eq('id', action.id)
       .single()
 
@@ -177,7 +202,7 @@ export function ActionRow({
 
         <div className="flex items-center gap-2 shrink-0">
           {showSource && action.source && (
-            <SourceBadge source={action.source} />
+            <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
           )}
 
           {isResolved && action.status === 'cancelled' && (

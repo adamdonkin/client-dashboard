@@ -12,6 +12,7 @@ export interface ClientAction {
   created_date: string | null
   note_title: string | null
   source_url: string | null
+  session_note_id: string | null
   client_id: string | null
   client_name: string
   company_name: string
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       .from('client_actions')
       .select(`
         id, title, description, source, status, due_date, created_date,
-        note_title, source_url, synced_at, client_id,
+        note_title, source_url, session_note_id, synced_at, client_id,
         clients!client_actions_client_id_fkey (
           name, company_name, role
         )
@@ -117,6 +118,7 @@ export async function GET(request: NextRequest) {
         created_date: action.created_date,
         note_title: action.note_title,
         source_url: action.source_url,
+        session_note_id: action.session_note_id,
         client_id: action.client_id,
         client_name: client?.name || 'Unmatched',
         company_name: client?.company_name || '',

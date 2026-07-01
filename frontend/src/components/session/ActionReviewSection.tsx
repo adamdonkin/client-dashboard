@@ -22,7 +22,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
   const fetchActions = useCallback(async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, source, due_date, status, review_history')
+      .select('id, title, description, source, source_url, session_note_id, due_date, status, review_history')
       .eq('client_id', clientId)
       .eq('status', 'to_do')
       .or(`session_note_id.is.null,session_note_id.neq.${sessionNoteId}`)
@@ -38,7 +38,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
 
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, source, due_date, status, review_history')
+      .select('id, title, description, source, source_url, session_note_id, due_date, status, review_history')
       .eq('client_id', clientId)
       .eq('status', 'completed')
       .gte('updated_at', since.toISOString())
