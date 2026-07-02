@@ -24,6 +24,7 @@ interface SessionEditorProps {
   onActionCreated?: (actionId: string) => void
   onSlashCommand?: SlashCommandHandler
   onSelectionIssue?: (selectedText: string, editor: any) => void
+  onEditorReady?: (editor: any) => void
 }
 
 export function SessionEditor({
@@ -37,6 +38,7 @@ export function SessionEditor({
   onActionCreated,
   onSlashCommand,
   onSelectionIssue,
+  onEditorReady,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const pendingSaveRef = useRef(false)
@@ -221,8 +223,11 @@ export function SessionEditor({
   })
 
   useEffect(() => {
-    if (editor) editorRef.current = editor
-  }, [editor])
+    if (editor) {
+      editorRef.current = editor
+      onEditorReady?.(editor)
+    }
+  }, [editor, onEditorReady])
 
   const updateSelectionToolbar = useCallback(() => {
     const ed = editorRef.current

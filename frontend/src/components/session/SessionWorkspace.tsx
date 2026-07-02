@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Copy, Check } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
+import { copyTiptapContent } from '@/utils/tiptap-clipboard'
 import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
@@ -41,6 +42,19 @@ export function SessionWorkspace({
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
   const [topicsContent, setTopicsContent] = useState<any>(undefined)
   const [dataLoaded, setDataLoaded] = useState(false)
+  const connectionEditorRef = useRef<any>(null)
+  const topicsEditorRef = useRef<any>(null)
+  const [copiedSection, setCopiedSection] = useState<string | null>(null)
+
+  const handleCopySection = async (editorRef: React.RefObject<any>, sectionName: string) => {
+    const ed = editorRef.current
+    if (!ed) return
+    const success = await copyTiptapContent(ed.getJSON())
+    if (success) {
+      setCopiedSection(sectionName)
+      setTimeout(() => setCopiedSection(null), 2000)
+    }
+  }
 
 
   useEffect(() => {
@@ -173,14 +187,22 @@ export function SessionWorkspace({
       <div className="w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10 max-sm:w-full max-sm:px-4">
         {/* Connection */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Connection
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest">
+              Connection
+            </h2>
+            <button
+              onClick={() => handleCopySection(connectionEditorRef, 'connection')}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Copy to clipboard"
+            >
+              {copiedSection === 'connection' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
           {dataLoaded ? (
             <SessionEditor
               content={connectionNotes}
               onUpdate={handleConnectionUpdate}
-
               placeholder="Tell me something good…"
               autofocus
               clientId={calendarEvent.client_id}
@@ -188,6 +210,7 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onEditorReady={(ed) => { connectionEditorRef.current = ed }}
             />
           ) : (
             <div className="min-h-[1.5em]" />
@@ -212,20 +235,29 @@ export function SessionWorkspace({
 
         {/* Topics */}
         <section>
-          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
-            Topics
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest">
+              Topics
+            </h2>
+            <button
+              onClick={() => handleCopySection(topicsEditorRef, 'topics')}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Copy to clipboard"
+            >
+              {copiedSection === 'topics' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
           {dataLoaded ? (
             <SessionEditor
               content={topicsContent}
               onUpdate={handleTopicsUpdate}
-
               placeholder="Start typing or use /issue to add a topic..."
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onEditorReady={(ed) => { topicsEditorRef.current = ed }}
             />
           ) : (
             <div className="min-h-[1.5em]" />
