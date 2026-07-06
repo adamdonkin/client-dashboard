@@ -11,9 +11,10 @@ import { ActionCreateForm } from './ActionCreateForm'
 interface ActionsSidebarProps {
   clientId: string
   sessionNoteId: string
+  refreshKey?: number
 }
 
-export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps) {
+export function ActionsSidebar({ clientId, sessionNoteId, refreshKey }: ActionsSidebarProps) {
   const supabase = createClientComponentClient()
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,11 +35,9 @@ export function ActionsSidebar({ clientId, sessionNoteId }: ActionsSidebarProps)
     fetchSessionActions()
   }, [fetchSessionActions])
 
-  // Poll for new session actions (created via inline editor blocks)
   useEffect(() => {
-    const interval = setInterval(fetchSessionActions, 3000)
-    return () => clearInterval(interval)
-  }, [fetchSessionActions])
+    if (refreshKey && refreshKey > 0) fetchSessionActions()
+  }, [refreshKey, fetchSessionActions])
 
   const handleCreateAction = async (title: string, dueDate: string) => {
     const { data: { session } } = await supabase.auth.getSession()

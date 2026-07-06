@@ -26,6 +26,7 @@ interface SessionEditorProps {
   onSlashCommand?: SlashCommandHandler
   onSelectionIssue?: (selectedText: string, editor: any) => void
   onEditorReady?: (editor: any) => void
+  onCreateAction?: (title: string) => void
 }
 
 export function SessionEditor({
@@ -40,6 +41,7 @@ export function SessionEditor({
   onSlashCommand,
   onSelectionIssue,
   onEditorReady,
+  onCreateAction,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const pendingSaveRef = useRef(false)
@@ -71,6 +73,8 @@ export function SessionEditor({
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
   onSelectionIssueRef.current = onSelectionIssue
+  const onCreateActionRef = useRef(onCreateAction)
+  onCreateActionRef.current = onCreateAction
 
   const [slashActive, setSlashActive] = useState(false)
   const [slashQuery, setSlashQuery] = useState('')
@@ -141,16 +145,7 @@ export function SessionEditor({
           const ed = editorRef.current
           if (ed && ed.extensionManager.extensions.find((e: any) => e.name === 'actionBlock')) {
             event.preventDefault()
-            let prefill = ''
-            const { from, to } = ed.state.selection
-            if (from !== to) {
-              prefill = ed.state.doc.textBetween(from, to, ' ')
-              ed.chain().focus().deleteRange({ from, to }).run()
-            }
-            ed.chain().focus().insertContent([
-              { type: 'actionBlock', attrs: { actionId: '', prefillTitle: prefill } },
-              { type: 'paragraph' },
-            ]).run()
+            insertActionFromSelection(ed)
             return true
           }
         }
@@ -314,19 +309,26 @@ export function SessionEditor({
     }
   }, [flushSave])
 
+  const insertActionFromSelection = (ed: any) => {
+    const { from, to } = ed.state.selection
+    if (from === to) return
+
+    const title = ed.state.doc.textBetween(from, to, ' ').trim()
+    if (!title) return
+
+    ed.chain()
+      .focus()
+      .deleteRange({ from, to })
+      .insertContentAt(from, `[ ] ${title}`)
+      .run()
+
+    onCreateActionRef.current?.(title)
+  }
+
   const handleBubbleAction = () => {
     const ed = editorRef.current
     if (!ed) return
-    const { from, to } = ed.state.selection
-    let prefill = ''
-    if (from !== to) {
-      prefill = ed.state.doc.textBetween(from, to, ' ')
-      ed.chain().focus().deleteRange({ from, to }).run()
-    }
-    ed.chain().focus().insertContent([
-      { type: 'actionBlock', attrs: { actionId: '', prefillTitle: prefill } },
-      { type: 'paragraph' },
-    ]).run()
+    insertActionFromSelection(ed)
     setSelectionToolbar(null)
   }
 

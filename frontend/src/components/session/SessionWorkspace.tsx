@@ -65,8 +65,8 @@ export function SessionWorkspace({
         .eq('id', sessionNoteId)
         .single()
 
-      setConnectionNotes(data?.connection_notes || null)
-      setTopicsContent(data?.topics_content || null)
+      setConnectionNotes(stripActionBlocks(data?.connection_notes) || null)
+      setTopicsContent(stripActionBlocks(data?.topics_content) || null)
       setDataLoaded(true)
     }
     load()
@@ -89,6 +89,31 @@ export function SessionWorkspace({
   }, [sessionNoteId, supabase])
 
   const noopActionCallback = useCallback((_actionId: string) => {}, [])
+  const [actionRefreshKey, setActionRefreshKey] = useState(0)
+
+  const handleInlineAction = useCallback(async (title: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 7)
+    const dueDateStr = dueDate.toISOString().slice(0, 10)
+
+    await supabase
+      .from('client_actions')
+      .insert({
+        user_id: session.user.id,
+        client_id: calendarEvent.client_id,
+        source: 'session',
+        source_id: `session-${sessionNoteId}-${Date.now()}`,
+        title,
+        status: 'to_do',
+        due_date: dueDateStr,
+        session_note_id: sessionNoteId,
+      })
+
+    setActionRefreshKey(k => k + 1)
+  }, [calendarEvent.client_id, sessionNoteId, supabase])
 
   const issueTemplateContent = [
     { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Topic title' }] },
@@ -139,10 +164,7 @@ export function SessionWorkspace({
 
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
-      editor.chain().focus().insertContent([
-        { type: 'actionBlock', attrs: { actionId: '', prefillTitle: '' } },
-        { type: 'paragraph' },
-      ]).run()
+      editor.chain().focus().insertContent('[ ] ').run()
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
     }
@@ -211,6 +233,7 @@ export function SessionWorkspace({
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
               onEditorReady={(ed) => { connectionEditorRef.current = ed }}
+              onCreateAction={handleInlineAction}
             />
           ) : (
             <div className="min-h-[1.5em]" />
@@ -258,6 +281,7 @@ export function SessionWorkspace({
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
               onEditorReady={(ed) => { topicsEditorRef.current = ed }}
+              onCreateAction={handleInlineAction}
             />
           ) : (
             <div className="min-h-[1.5em]" />
@@ -271,9 +295,24 @@ export function SessionWorkspace({
           <ActionsSidebar
             clientId={calendarEvent.client_id}
             sessionNoteId={sessionNoteId}
+            refreshKey={actionRefreshKey}
           />
         </section>
       </div>
     </div>
   )
+}
+
+function stripActionBlocks(content: any): any {
+  if (!content || !content.content) return content
+  return {
+    ...content,
+    content: content.content
+      .map((node: any) => {
+        if (node.type === 'actionBlock') return null
+        if (node.content) return stripActionBlocks(node)
+        return node
+      })
+      .filter(Boolean),
+  }
 }
