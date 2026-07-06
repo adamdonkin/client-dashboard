@@ -8,11 +8,12 @@ import type { ActionItem } from '@/components/ActionRow'
 
 interface ActionReviewSectionProps {
   clientId: string
-  sessionNoteId: string
-  onActionToggled: (actionId: string) => void
+  sessionNoteId?: string
+  onActionToggled?: (actionId: string) => void
+  refreshKey?: number
 }
 
-export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }: ActionReviewSectionProps) {
+export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, refreshKey }: ActionReviewSectionProps) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
@@ -20,13 +21,17 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
   const [showCompleted, setShowCompleted] = useState(false)
 
   const fetchActions = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('client_actions')
       .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
       .eq('client_id', clientId)
       .eq('status', 'to_do')
-      .or(`session_note_id.is.null,session_note_id.neq.${sessionNoteId}`)
-      .order('due_date', { ascending: true, nullsFirst: false })
+
+    if (sessionNoteId) {
+      query = query.or(`session_note_id.is.null,session_note_id.neq.${sessionNoteId}`)
+    }
+
+    const { data } = await query.order('due_date', { ascending: true, nullsFirst: false })
 
     setActions(data || [])
     setLoading(false)
@@ -49,7 +54,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
 
   useEffect(() => {
     fetchActions()
-  }, [fetchActions])
+  }, [fetchActions, refreshKey])
 
   useEffect(() => {
     if (showCompleted) fetchCompleted()
@@ -59,7 +64,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled }
     if (updated.status === 'completed') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
-      onActionToggled(updated.id)
+      onActionToggled?.(updated.id)
     } else if (updated.status === 'to_do') {
       setCompletedActions(prev => prev.filter(a => a.id !== updated.id))
       setActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])

@@ -28,9 +28,8 @@ import {
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { ActionRow } from '@/components/ActionRow';
-import type { ActionItem } from '@/components/ActionRow';
 import { ActionCreateForm } from '@/components/session/ActionCreateForm';
+import { ActionReviewSection } from '@/components/session/ActionReviewSection';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -64,9 +63,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
-  const [clientActions, setClientActions] = useState<ActionItem[]>([]);
-  const [actionsLoading, setActionsLoading] = useState(true);
   const [showActionCreate, setShowActionCreate] = useState(false);
+  const [actionRefreshKey, setActionRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
@@ -227,37 +225,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
     if (client.id) {
         fetchSessionHistory();
-    }
-  }, [client.id]);
-
-  // Fetch actions for this client
-  useEffect(() => {
-    const fetchActions = async () => {
-      try {
-        setActionsLoading(true);
-        const { data, error } = await supabase
-          .from('client_actions')
-          .select('id, title, description, description_content, source, due_date, source_url, session_note_id, status')
-          .eq('client_id', client.id)
-          .eq('status', 'to_do')
-          .order('due_date', { ascending: true, nullsFirst: false });
-
-        if (error) {
-          console.error('Error fetching client actions:', error);
-          setClientActions([]);
-        } else {
-          setClientActions(data || []);
-        }
-      } catch (err) {
-        console.error('Error fetching client actions:', err);
-        setClientActions([]);
-      } finally {
-        setActionsLoading(false);
-      }
-    };
-
-    if (client.id) {
-      fetchActions();
     }
   }, [client.id]);
 
@@ -1226,12 +1193,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>
-                Actions
-                <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({actionsLoading ? '...' : clientActions.length})
-                </span>
-              </CardTitle>
+              <CardTitle>Actions</CardTitle>
               <button
                 onClick={() => setShowActionCreate(true)}
                 className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -1248,7 +1210,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   onSubmit={async (title, dueDate) => {
                     const { data: { session } } = await supabase.auth.getSession()
                     if (!session) return
-                    const { data } = await supabase
+                    await supabase
                       .from('client_actions')
                       .insert({
                         user_id: session.user.id,
@@ -1259,38 +1221,17 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                         status: 'to_do',
                         due_date: dueDate,
                       })
-                      .select('id, title, description, due_date, status, source')
-                      .single()
-                    if (data) {
-                      setClientActions(prev => [data, ...prev])
-                      setShowActionCreate(false)
-                    }
+                    setShowActionCreate(false)
+                    setActionRefreshKey(k => k + 1)
                   }}
                   onCancel={() => setShowActionCreate(false)}
                 />
               </div>
             )}
-            {actionsLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading actions...
-              </div>
-            ) : clientActions.length > 0 ? (
-              <div className="space-y-1.5">
-                {clientActions.map((action) => (
-                  <ActionRow
-                    key={action.id}
-                    action={action}
-                    onChanged={(updated) => setClientActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))}
-                    onRemoved={(id) => setClientActions(prev => prev.filter(a => a.id !== id))}
-                    showSource
-                  />
-                ))}
-              </div>
-            ) : !showActionCreate ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No active actions for this client.
-              </div>
-            ) : null}
+            <ActionReviewSection
+              clientId={client.id}
+              refreshKey={actionRefreshKey}
+            />
           </CardContent>
         </Card>
 
