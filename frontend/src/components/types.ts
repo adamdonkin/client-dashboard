@@ -1,4 +1,4 @@
-export type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive';
+export type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive' | 'staff';
 
 export interface Client {
   id: string

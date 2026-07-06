@@ -1,0 +1,61 @@
+# Project: Adam Donkin's Coaching Platform
+
+## Tech Stack (verified)
+- Next.js 15 with App Router (`frontend/src/app/`)
+- TypeScript
+- Supabase (Postgres + Auth + Edge Functions)
+- Tailwind CSS v4 with `@tailwindcss/postcss`
+- shadcn/ui (`frontend/src/components/ui/`)
+- Radix UI primitives (@radix-ui/colors, dialog, dropdown-menu, select, separator, avatar, slot)
+- Lucide React for icons
+- date-fns for date formatting
+- Geist font family
+- Deployed on Vercel
+
+## Coding Conventions
+- **Match existing patterns first.** Before implementing anything, check if the codebase already solves a similar problem and use that approach. Don't take shortcuts (e.g., hardcoding values) when a correct, dynamic pattern already exists. Only deviate with a concrete reason (performance, complexity), not convenience.
+- **Enum values come from the database; display metadata lives in code.** Dropdowns and option lists pull values from Supabase via `get_enum_values` RPC. Labels, colors, and icons for those values are mapped in code.
+- Read existing files before writing new ones.
+- Server components for data fetching (see `frontend/src/app/page.tsx` — uses `createServerComponentClient`).
+- API routes delegate to Supabase Edge Functions (see `frontend/src/app/api/sync-calendar/route.ts`).
+- Supabase client is in `frontend/src/lib/supabaseClient.ts` — uses anon key, client-side.
+- Complex queries use RPC functions (`supabase.rpc('function_name')`).
+- Client type interface lives in `frontend/src/components/types.ts`.
+- Migrations are timestamped SQL files: `YYYYMMDDHHMMSS_description.sql` in `supabase/migrations/`.
+- RLS is enabled on all tables. Data tables use `accessible_user_ids()` for SELECT and `can_write_user_data()` for writes (supports team access via `team_access` table). New tables must follow the same pattern.
+- Keep API routes thin — business logic in separate modules.
+- Error handling: always return meaningful error messages, log errors server-side.
+- Environment variables: use NEXT_PUBLIC_ prefix only for client-side values.
+
+## Existing Tables
+- `clients` — id (uuid), user_id, name, email, company_name, role, monthly_fee, is_active, status (enum: active/pending/waiting/inactive/staff)
+- `sessions` — id, date, notes, client_id (FK), calendar_event_id, status
+- `calendar_events` — Google Calendar integration
+- `user_tokens` — OAuth tokens for Google Calendar
+- `client_sync_status` — Tracks sync state
+- `session_notes` — Session workspace content (connection_notes, topics_content)
+- `client_actions` — Action items with rich-text descriptions (description_content jsonb)
+- `team_access` — Multi-user access (owner_id, member_id, role: viewer/editor)
+
+## Design Principles
+- Clean, minimal UI. No decorative elements.
+- Use shadcn/ui components as the base.
+- Consistent spacing and typography with existing pages.
+- Mobile-responsive — Adam checks this from his phone.
+- Dark mode support (ThemeProvider exists in `frontend/src/components/theme/`).
+
+## Project Context
+This is a coaching platform for an executive coach. The primary user is Adam (the coach), not his clients.
+
+We are extending it with:
+- Zoom transcript archive (current build)
+- AI-powered session analysis (future)
+- Action/goal tracking (future)
+- Client-facing portal (future)
+
+## Important
+- Never delete or overwrite existing functionality.
+- Ask before refactoring existing code.
+- All dates should be in Pacific Time (America/Los_Angeles).
+- Supabase service role key is for server-side only — never expose to client.
+- Auth uses Supabase Auth. All new tables need user_id column + RLS policies matching existing tables.

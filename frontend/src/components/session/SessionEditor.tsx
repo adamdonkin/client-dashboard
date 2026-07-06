@@ -3,9 +3,10 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { ListKit } from '@tiptap/extension-list'
+import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Zap, AlertTriangle } from 'lucide-react'
+import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle } from 'lucide-react'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
 
@@ -110,6 +111,16 @@ export function SessionEditor({
         listItem: false,
       }),
       ListKit,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: {
+          class: 'text-link hover:underline underline-offset-2 cursor-pointer',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
       Placeholder.configure({
         placeholder,
       }),
@@ -319,6 +330,19 @@ export function SessionEditor({
     setSelectionToolbar(null)
   }
 
+  const handleBubbleLink = () => {
+    const ed = editorRef.current
+    if (!ed) return
+    if (ed.isActive('link')) {
+      ed.chain().focus().unsetLink().run()
+      return
+    }
+    const url = window.prompt('URL')
+    if (url) {
+      ed.chain().focus().setLink({ href: url }).run()
+    }
+  }
+
   const handleBubbleIssue = () => {
     const ed = editorRef.current
     if (!ed) return
@@ -373,6 +397,13 @@ export function SessionEditor({
             className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('blockquote') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <TextQuote className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={handleBubbleLink}
+            className={`p-1.5 rounded hover:bg-accent transition-colors ${editor.isActive('link') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+            title={editor.isActive('link') ? 'Remove link' : 'Add link'}
+          >
+            <Link2 className="h-3.5 w-3.5" />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
           <button

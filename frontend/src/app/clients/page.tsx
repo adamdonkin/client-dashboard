@@ -19,7 +19,7 @@ import { Users, ArrowLeft, Plus } from 'lucide-react'
 import { ClientsTable } from './ClientsTable'
 import { RevenueFilter, type RevenueFilterType } from '@/components/RevenueFilter'
 
-type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive';
+type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive' | 'staff';
 
 interface ClientRow {
   id: string;
@@ -36,7 +36,15 @@ interface ClientRow {
   session_duration: string | null;
 }
 
-type StatusFilter = 'active' | 'pending' | 'waiting' | 'inactive' | 'all';
+type StatusFilter = 'active' | 'pending' | 'waiting' | 'inactive' | 'staff' | 'all';
+
+const statusLabels: Record<string, string> = {
+  active: 'Active',
+  pending: 'Pending',
+  waiting: 'Waitlist',
+  inactive: 'Inactive',
+  staff: 'Staff',
+};
 
 // Capacity: 9 blocks per week (each block = 90 min, 4 blocks/day)
 const TOTAL_BLOCKS_PER_WEEK = 9;
@@ -109,6 +117,7 @@ export default function ClientsPage() {
   const [cadenceOptions, setCadenceOptions] = useState<string[]>([])
   const [durationOptions, setDurationOptions] = useState<string[]>([])
   const [referralOptions, setReferralOptions] = useState<string[]>([])
+  const [statusOptions, setStatusOptions] = useState<string[]>([])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -175,6 +184,15 @@ export default function ClientsPage() {
     } else if (referralData) {
       setReferralOptions(referralData.map((row: { value: string }) => row.value));
     }
+
+    // Fetch client_status enum values
+    const { data: statusData, error: statusError } = await supabase
+      .rpc('get_enum_values', { enum_name: 'client_status' });
+    if (statusError) {
+      setStatusOptions(['active', 'pending', 'waiting', 'inactive', 'staff']);
+    } else if (statusData) {
+      setStatusOptions(statusData.map((row: { value: string }) => row.value));
+    }
   }
 
   const fetchClients = async () => {
@@ -227,7 +245,7 @@ export default function ClientsPage() {
         cadence: newClient.cadence || null,
         session_duration: newClient.session_duration || null,
         status: newClient.status,
-        is_active: newClient.status === 'active' || newClient.status === 'pending',
+        is_active: newClient.status === 'active' || newClient.status === 'pending' || newClient.status === 'staff',
         referral_source: newClient.referral_source || null,
       }
       
@@ -308,6 +326,7 @@ export default function ClientsPage() {
     pending: clients.filter(c => getEffectiveStatus(c) === 'pending'),
     waiting: clients.filter(c => getEffectiveStatus(c) === 'waiting'),
     inactive: clients.filter(c => getEffectiveStatus(c) === 'inactive'),
+    staff: clients.filter(c => getEffectiveStatus(c) === 'staff'),
     all: clients.filter(c => ['active', 'pending'].includes(getEffectiveStatus(c))),
   };
 
@@ -325,6 +344,7 @@ export default function ClientsPage() {
     pending: calculateTabStats(clientsByStatus.pending),
     waiting: calculateTabStats(clientsByStatus.waiting),
     inactive: { count: clientsByStatus.inactive.length, revenue: 0, blocks: 0 },
+    staff: { count: clientsByStatus.staff.length, revenue: 0, blocks: 0 },
     all: calculateTabStats(clientsByStatus.all),
   };
 
@@ -344,6 +364,7 @@ export default function ClientsPage() {
       case 'pending': return 'Pending Clients';
       case 'waiting': return 'Waitlist';
       case 'inactive': return 'Inactive Clients';
+      case 'staff': return 'Staff';
       case 'all': return 'Current Clients'; // Active + Pending
       default: return 'Active Clients';
     }
@@ -475,10 +496,9 @@ export default function ClientsPage() {
                       onChange={(e) => handleFormChange('status', e.target.value as ClientStatus)}
                       className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="active">Active</option>
-                      <option value="waiting">Waitlist</option>
-                      <option value="inactive">Inactive</option>
+                      {(statusOptions.length > 0 ? statusOptions : ['active', 'pending', 'waiting', 'inactive', 'staff']).map(opt => (
+                        <option key={opt} value={opt}>{statusLabels[opt] || opt}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -519,7 +539,7 @@ export default function ClientsPage() {
         </div>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
-          {statusFilter !== 'inactive' ? (
+          {statusFilter !== 'inactive' && statusFilter !== 'staff' ? (
             <div className="flex items-baseline gap-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-foreground">{formatCurrency(tabStats[statusFilter].revenue)}</span>
@@ -604,6 +624,16 @@ export default function ClientsPage() {
           }`}
         >
           Inactive ({tabStats.inactive.count})
+        </button>
+        <button
+          onClick={() => setStatusFilter('staff')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            statusFilter === 'staff'
+              ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Staff ({tabStats.staff.count})
         </button>
       </div>
 

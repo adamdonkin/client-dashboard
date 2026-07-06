@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive';
+type ClientStatus = 'active' | 'pending' | 'waiting' | 'inactive' | 'staff';
 
 interface ClientRow {
   id: string;
@@ -66,12 +66,14 @@ export function ClientsTable({ clients }: ClientsTableProps) {
       pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
       waiting: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
       inactive: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      staff: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
     };
     
     const labels = {
       pending: 'Pending',
       waiting: 'Waitlist',
       inactive: 'Inactive',
+      staff: 'Staff',
     };
     
     return (

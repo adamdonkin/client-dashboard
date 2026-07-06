@@ -44,6 +44,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-link: var(--link);
 }
 
 :root {
@@ -84,6 +85,8 @@
   --success: hsl(131, 41%, 46%);             /* grass11 */
   --warning: hsl(39, 95%, 50%);              /* amber11 */
   --danger: hsl(358, 65%, 49%);              /* red11 */
+  /* Accent / link color - Radix Cyan */
+  --link: hsl(192, 85%, 31%);               /* cyan11 */
 }
 
 .dark {
@@ -123,6 +126,8 @@
   --success: hsl(131, 43%, 57%);             /* grassDark11 */
   --warning: hsl(39, 100%, 57%);             /* amberDark11 */
   --danger: hsl(358, 100%, 69%);             /* redDark11 */
+  /* Accent / link color - Radix Cyan Dark */
+  --link: hsl(186, 100%, 42%);              /* cyanDark11 */
 }
 
 @layer base {

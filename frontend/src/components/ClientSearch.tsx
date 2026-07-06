@@ -48,7 +48,7 @@ export function ClientSearch() {
     const { data } = await supabase
       .from("clients")
       .select("id, name, company_name, email, status, is_active")
-      .or("status.eq.active,status.eq.pending,status.is.null")
+      .or("status.eq.active,status.eq.pending,status.eq.staff,status.is.null")
       .order("name")
     setClients(data ?? [])
     setLoading(false)
