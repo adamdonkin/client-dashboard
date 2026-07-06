@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Users, ArrowLeft, Plus } from 'lucide-react'
+import { Users, Plus } from 'lucide-react'
 import { ClientsTable } from './ClientsTable'
 import { RevenueFilter, type RevenueFilterType } from '@/components/RevenueFilter'
 
@@ -374,14 +374,7 @@ export default function ClientsPage() {
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <Link 
-            href="/" 
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Dashboard
-          </Link>
+        <div className="flex items-center justify-end mb-4">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1">

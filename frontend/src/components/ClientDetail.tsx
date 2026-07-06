@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ArrowLeft, 
   Calendar, 
   Mail, 
   MessageSquare, 
@@ -509,10 +508,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
           <div className="animate-pulse">
             <div className="flex items-center space-x-4 mb-6">
               <div className="w-16 h-16 bg-muted rounded-full"></div>
@@ -536,10 +531,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
@@ -549,8 +540,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                 <p className="text-muted-foreground mb-4">
                   {error ? 'Please try again or contact support.' : 'The requested client could not be found.'}
                 </p>
-                <Button onClick={onBack}>
-                  Go Back
+                <Button onClick={() => window.location.href = '/clients'}>
+                  View Clients
                 </Button>
               </div>
             </CardContent>
@@ -621,14 +612,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header with back button */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-        </div>
-
         {/* Client Header */}
         <Card className="border-l-4 border-l-primary">
           <CardHeader>

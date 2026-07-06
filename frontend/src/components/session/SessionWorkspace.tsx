@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { copyTiptapContent } from '@/utils/tiptap-clipboard'
@@ -29,14 +29,12 @@ interface SessionWorkspaceProps {
   calendarEvent: CalendarEvent
   client: ClientInfo | null
   sessionNoteId: string
-  onBack: () => void
 }
 
 export function SessionWorkspace({
   calendarEvent,
   client,
   sessionNoteId,
-  onBack,
 }: SessionWorkspaceProps) {
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
@@ -184,15 +182,9 @@ export function SessionWorkspace({
       {/* Slim header */}
       <div className="border-b border-border/50 sticky top-0 bg-background z-10">
         <div className="px-6 py-3 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-[15px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+          <div className="w-20" />
           <div className="text-center">
-            <p className="text-[15px] font-medium text-foreground">{clientName}</p>
+            <a href={`/clients/${calendarEvent.client_id}`} className="text-[15px] font-medium text-foreground hover:underline">{clientName}</a>
             {subtitle && (
               <p className="text-[13px] text-muted-foreground">{subtitle}</p>
             )}

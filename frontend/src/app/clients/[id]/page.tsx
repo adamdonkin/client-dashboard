@@ -73,10 +73,6 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     fetchClient()
   }, [params, router, supabase])
 
-  const handleBack = () => {
-    router.back()
-  }
-
   const handleClientUpdate = (updatedClient: Client) => {
     setClient(updatedClient)
   }
@@ -114,7 +110,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             onClick={() => router.push('/clients')}
             className="text-primary hover:underline"
           >
-            Back to Clients
+            View Clients
           </button>
         </div>
       </div>
@@ -124,7 +120,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
   return (
     <ClientDetail
       client={client}
-      onBack={handleBack}
+      onBack={() => router.push('/clients')}
       onClientUpdate={handleClientUpdate}
     />
   )

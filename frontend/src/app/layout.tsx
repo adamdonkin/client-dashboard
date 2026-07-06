@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { ClientSearch } from '@/components/ClientSearch'
+import { AppSidebar } from '@/components/AppSidebar'
 import { Toaster } from 'sonner'
 
 const geistSans = Geist({
@@ -39,7 +40,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ClientSearch />
-            {children}
+            <AppSidebar>
+              {children}
+            </AppSidebar>
             <Toaster position="bottom-center" />
           </AuthProvider>
         </ThemeProvider>

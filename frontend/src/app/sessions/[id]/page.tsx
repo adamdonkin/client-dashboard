@@ -269,7 +269,6 @@ export default function SessionPage({ params }: SessionPageProps) {
       calendarEvent={calendarEvent}
       client={client}
       sessionNoteId={sessionNoteId}
-      onBack={() => router.back()}
     />
   )
 }

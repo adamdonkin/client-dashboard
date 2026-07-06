@@ -138,10 +138,7 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
     <div>
       {/* Updated Header with clickable avatar - Full Width */}
       <div className="px-6 py-4">
-        <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Coaching Dashboard</h1>
-            </div>
+        <div className="flex items-center justify-end">
             <div className="flex items-center gap-6">
               <Link 
                 href="/clients" 
