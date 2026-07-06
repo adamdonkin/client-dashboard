@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Lock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { copyTiptapContent } from '@/utils/tiptap-clipboard'
@@ -29,12 +29,14 @@ interface SessionWorkspaceProps {
   calendarEvent: CalendarEvent
   client: ClientInfo | null
   sessionNoteId: string
+  notesLocked?: boolean
 }
 
 export function SessionWorkspace({
   calendarEvent,
   client,
   sessionNoteId,
+  notesLocked = false,
 }: SessionWorkspaceProps) {
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
@@ -195,6 +197,12 @@ export function SessionWorkspace({
             </span>
           </div>
         </div>
+        {notesLocked && (
+          <div className="px-6 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-center gap-2 text-[13px] text-amber-700 dark:text-amber-400">
+            <Lock className="h-3.5 w-3.5" />
+            <span>Someone else is editing notes — notes are read-only</span>
+          </div>
+        )}
       </div>
 
       {/* Document body */}
@@ -218,7 +226,8 @@ export function SessionWorkspace({
               content={connectionNotes}
               onUpdate={handleConnectionUpdate}
               placeholder="Tell me something good…"
-              autofocus
+              autofocus={!notesLocked}
+              readOnly={notesLocked}
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}
               onActionCreated={noopActionCallback}
@@ -267,6 +276,7 @@ export function SessionWorkspace({
               content={topicsContent}
               onUpdate={handleTopicsUpdate}
               placeholder="Start typing or use /issue to add a topic..."
+              readOnly={notesLocked}
               clientId={calendarEvent.client_id}
               sessionNoteId={sessionNoteId}
               onActionCreated={noopActionCallback}

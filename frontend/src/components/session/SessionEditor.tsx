@@ -20,6 +20,7 @@ interface SessionEditorProps {
   onSaveStatusChange?: (status: SaveStatus) => void
   placeholder?: string
   autofocus?: boolean
+  readOnly?: boolean
   clientId?: string
   sessionNoteId?: string
   onActionCreated?: (actionId: string) => void
@@ -35,6 +36,7 @@ export function SessionEditor({
   onSaveStatusChange,
   placeholder = 'Start typing...',
   autofocus = false,
+  readOnly = false,
   clientId,
   sessionNoteId,
   onActionCreated,
@@ -135,7 +137,8 @@ export function SessionEditor({
       })] : []),
     ],
     content: content || undefined,
-    autofocus,
+    editable: !readOnly,
+    autofocus: readOnly ? false : autofocus,
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[1.5em] text-foreground',
@@ -357,8 +360,10 @@ export function SessionEditor({
 
   return (
     <div className="session-editor relative" ref={containerRef}>
-      <EditorContent editor={editor} />
-      {selectionToolbar && editor && (
+      <div className={readOnly ? 'opacity-60' : ''}>
+        <EditorContent editor={editor} />
+      </div>
+      {!readOnly && selectionToolbar && editor && (
         <div
           className="absolute z-50 flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg px-1 py-0.5"
           style={{ top: selectionToolbar.top, left: selectionToolbar.left }}
@@ -424,7 +429,7 @@ export function SessionEditor({
           </button>
         </div>
       )}
-      {slashActive && filteredItems.length > 0 && slashPos && (
+      {!readOnly && slashActive && filteredItems.length > 0 && slashPos && (
         <div
           className="absolute z-50"
           style={{ top: slashPos.top, left: slashPos.left }}

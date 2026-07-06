@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SessionWorkspace } from '@/components/session/SessionWorkspace'
-import { Loader2, AlertTriangle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 const LOCK_STALE_MS = 30_000
 const HEARTBEAT_MS = 10_000
@@ -33,7 +33,7 @@ export default function SessionPage({ params }: SessionPageProps) {
   const supabase = createClientComponentClient()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [locked, setLocked] = useState(false)
+  const [notesLocked, setNotesLocked] = useState(false)
   const [calendarEvent, setCalendarEvent] = useState<CalendarEvent | null>(null)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [sessionNoteId, setSessionNoteId] = useState<string | null>(null)
@@ -180,12 +180,12 @@ export default function SessionPage({ params }: SessionPageProps) {
         if (clientData) setClient(clientData)
       }
 
-      // Handle locking
+      // Handle locking — scope to notes editors only, not the whole page
       if (noteRow.locked_by && noteRow.locked_by !== tabIdRef.current && noteRow.locked_at) {
         const lockAge = Date.now() - new Date(noteRow.locked_at).getTime()
         if (lockAge < LOCK_STALE_MS) {
+          setNotesLocked(true)
           setSessionNoteId(noteRow.id)
-          setLocked(true)
           setLoading(false)
           return
         }
@@ -229,35 +229,13 @@ export default function SessionPage({ params }: SessionPageProps) {
     )
   }
 
-  if (locked) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-md space-y-4">
-          <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
-          <p className="text-[15px] font-medium text-foreground">This session is open elsewhere</p>
-          <p className="text-[13px] text-muted-foreground">
-            To prevent data loss, only one window can edit a session at a time. Close the other window or tab first, then reload this page.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => router.back()} className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">
-              Go back
-            </button>
-            <button onClick={() => window.location.reload()} className="text-[13px] text-primary hover:text-primary/80 font-medium transition-colors">
-              Reload
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   if (error || !calendarEvent || !sessionNoteId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">{error || 'Something went wrong'}</p>
-          <button onClick={() => router.back()} className="text-primary hover:underline">
-            Go back
+          <button onClick={() => router.push('/')} className="text-primary hover:underline">
+            Go to Dashboard
           </button>
         </div>
       </div>
@@ -269,6 +247,7 @@ export default function SessionPage({ params }: SessionPageProps) {
       calendarEvent={calendarEvent}
       client={client}
       sessionNoteId={sessionNoteId}
+      notesLocked={notesLocked}
     />
   )
 }
