@@ -22,7 +22,8 @@ import {
   RefreshCw,
   Timer,
   Phone,
-  Plus
+  Plus,
+  Copy
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
@@ -80,6 +81,14 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editCadence, setEditCadence] = useState(client.cadence || '');
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
   
+  // Copy to clipboard state
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const copyToClipboard = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   // Edit contact state
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [editName, setEditName] = useState(client.client_name || '');
@@ -913,13 +922,13 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="text-xs text-muted-foreground">Slack URL</label>
+                      <label className="text-xs text-muted-foreground">Slack</label>
                       <input
-                        type="url"
+                        type="text"
                         value={editSlack}
                         onChange={(e) => setEditSlack(e.target.value)}
                         className="w-full px-2 py-1 text-sm border rounded bg-background"
-                        placeholder="https://slack.com/..."
+                        placeholder="Slack ID or handle"
                       />
                     </div>
                     <div className="col-span-2">
@@ -969,11 +978,11 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       <div className="col-span-2">
                         <label className="text-xs text-muted-foreground">EA Slack</label>
                         <input
-                          type="url"
+                          type="text"
                           value={editEaSlack}
                           onChange={(e) => setEditEaSlack(e.target.value)}
                           className="w-full px-2 py-1 text-sm border rounded bg-background"
-                          placeholder="https://slack.com/..."
+                          placeholder="Slack ID or handle"
                         />
                       </div>
                     </div>
@@ -983,12 +992,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 <>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                     {currentClient?.client_email && (
-                      <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => copyToClipboard(currentClient.client_email!, 'email')}
+                        className="flex items-center gap-1.5 hover:text-foreground transition-colors text-left group"
+                      >
                         <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <a href={`mailto:${currentClient.client_email}`} className="hover:underline truncate">
-                          {currentClient.client_email}
-                        </a>
-                      </div>
+                        <span className="truncate">{currentClient.client_email}</span>
+                        {copiedField === 'email'
+                          ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+                          : <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />}
+                      </button>
                     )}
                     {currentClient?.phone && (
                       <div className="flex items-center gap-1.5">
@@ -997,12 +1010,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       </div>
                     )}
                     {currentClient?.slack && (
-                      <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => copyToClipboard(currentClient.slack!, 'slack')}
+                        className="flex items-center gap-1.5 hover:text-foreground transition-colors text-left group"
+                      >
                         <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <a href={currentClient.slack} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          Slack
-                        </a>
-                      </div>
+                        <span>Slack</span>
+                        {copiedField === 'slack'
+                          ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+                          : <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />}
+                      </button>
                     )}
                     {currentClient?.defacto_meeting && (
                       <div className="flex items-center gap-1.5">
@@ -1022,27 +1039,37 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     )}
                   </div>
                   {(currentClient?.ea_name || currentClient?.ea_email || currentClient?.ea_slack) && (
-                    <div className="flex items-center gap-2 pt-1.5 border-t">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
-                      {currentClient?.ea_email && (
-                        <>
-                          <span className="text-muted-foreground">·</span>
-                          <a href={`mailto:${currentClient.ea_email}`} className="hover:underline flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            Email
-                          </a>
-                        </>
-                      )}
-                      {currentClient?.ea_slack && (
-                        <>
-                          <span className="text-muted-foreground">·</span>
-                          <a href={currentClient.ea_slack} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            Slack
-                          </a>
-                        </>
-                      )}
+                    <div className="pt-2 border-t space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
+                        {currentClient?.ea_email && (
+                          <button
+                            onClick={() => copyToClipboard(currentClient.ea_email!, 'ea_email')}
+                            className="flex items-center gap-1.5 hover:text-foreground transition-colors text-left group"
+                          >
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{currentClient.ea_email}</span>
+                            {copiedField === 'ea_email'
+                              ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+                              : <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />}
+                          </button>
+                        )}
+                        {currentClient?.ea_slack && (
+                          <button
+                            onClick={() => copyToClipboard(currentClient.ea_slack!, 'ea_slack')}
+                            className="flex items-center gap-1.5 hover:text-foreground transition-colors text-left group"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span>Slack</span>
+                            {copiedField === 'ea_slack'
+                              ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+                              : <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                   {!currentClient?.client_email && !currentClient?.phone && !currentClient?.slack && !currentClient?.defacto_meeting && !currentClient?.granola_notes_folder && !currentClient?.ea_name && !currentClient?.ea_email && !currentClient?.ea_slack && (
