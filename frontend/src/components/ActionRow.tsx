@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
-import { Check, X } from 'lucide-react'
+import { Check, Ban } from 'lucide-react'
 import { format, isPast, isToday, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ActionDatePicker } from '@/components/session/ActionDatePicker'
-import { ActionDetailDialog } from '@/components/session/ActionDetailDialog'
 import { ActionReviewDialog } from '@/components/session/ActionReviewDialog'
 
 export interface ActionItem {
@@ -92,6 +91,7 @@ interface ActionRowProps {
   action: ActionItem
   onChanged?: (updated: ActionItem) => void
   onRemoved?: (id: string) => void
+  onSelect?: (action: ActionItem) => void
   showSource?: boolean
   className?: string
 }
@@ -100,12 +100,12 @@ export function ActionRow({
   action: initialAction,
   onChanged,
   onRemoved,
+  onSelect,
   showSource = false,
   className,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const [action, setAction] = useState(initialAction)
-  const [detailOpen, setDetailOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Keep in sync if parent passes new data
@@ -119,7 +119,7 @@ export function ActionRow({
 
   const handleRowClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, [data-slot="popover-content"], [data-radix-popper-content-wrapper]')) return
-    setDetailOpen(true)
+    onSelect?.(action)
   }
 
   const toggleDone = async (e: React.MouseEvent) => {
@@ -161,11 +161,6 @@ export function ActionRow({
       setAction(data)
       onChanged?.(data)
     }
-  }
-
-  const handleDetailUpdated = (updated: ActionItem) => {
-    setAction(updated)
-    onChanged?.(updated)
   }
 
   return (
@@ -232,25 +227,12 @@ export function ActionRow({
                 className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-danger transition-colors cursor-pointer"
                 title="Not done"
               >
-                <X className="h-3.5 w-3.5" />
+                <Ban className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
         </div>
       </div>
-
-      {detailOpen && (
-        <ActionDetailDialog
-          action={action}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-          onUpdated={handleDetailUpdated}
-          onDeleted={(id) => {
-            setDetailOpen(false)
-            onRemoved?.(id)
-          }}
-        />
-      )}
 
       {reviewOpen && (
         <ActionReviewDialog

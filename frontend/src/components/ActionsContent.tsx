@@ -13,10 +13,12 @@ import { formatRelativeDate } from '@/utils/date-utils'
 import { parseISO, isThisWeek } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
+import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
 
 function ClientGroup({ group }: { group: ClientActionGroup }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)
   const [actions, setActions] = useState(group.actions)
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
   const router = useRouter()
 
   return (
@@ -69,8 +71,12 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
                 <ActionRow
                   key={action.id}
                   action={action}
-                  onChanged={(updated) => setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))}
+                  onChanged={(updated) => {
+                    setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+                    if (selectedAction?.id === updated.id) setSelectedAction(updated)
+                  }}
                   onRemoved={(id) => setActions(prev => prev.filter(a => a.id !== id))}
+                  onSelect={setSelectedAction}
                   showSource
                 />
               ))}
@@ -78,12 +84,28 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
           )}
         </CardContent>
       )}
+      {selectedAction && (
+        <ActionDetailPanel
+          key={selectedAction.id}
+          action={selectedAction}
+          onClose={() => setSelectedAction(null)}
+          onUpdated={(updated) => {
+            setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+            setSelectedAction(updated)
+          }}
+          onDeleted={(id) => {
+            setSelectedAction(null)
+            setActions(prev => prev.filter(a => a.id !== id))
+          }}
+        />
+      )}
     </Card>
   )
 }
 
 function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
   const router = useRouter()
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const dueThisWeek = useMemo(() => {
     const all: (ClientAction & { client_name: string; client_id: string | null })[] = []
@@ -127,6 +149,7 @@ function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
                   <div className="flex-1 min-w-0">
                     <ActionRow
                       action={action}
+                      onSelect={setSelectedAction}
                       showSource
                     />
                   </div>
@@ -144,6 +167,14 @@ function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
           </div>
         </CardContent>
       </Card>
+      {selectedAction && (
+        <ActionDetailPanel
+          key={selectedAction.id}
+          action={selectedAction}
+          onClose={() => setSelectedAction(null)}
+          onUpdated={(updated) => setSelectedAction(updated)}
+        />
+      )}
     </>
   )
 }

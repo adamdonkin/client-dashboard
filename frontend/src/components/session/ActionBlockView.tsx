@@ -6,7 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { GripVertical } from 'lucide-react'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
-import { ActionDetailDialog } from './ActionDetailDialog'
+import { ActionDetailPanel } from './ActionDetailPanel'
 import { ActionCreateForm } from './ActionCreateForm'
 
 export function ActionBlockView({ node, updateAttributes, deleteNode, extension }: any) {
@@ -107,15 +107,17 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
             deleteNode()
             onActionDeleted?.(id)
           }}
+          onSelect={() => setDetailOpen(true)}
         />
       </div>
 
-      <ActionDetailDialog
-        action={action}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onUpdated={(updated) => setAction(updated as ActionItem)}
-      />
+      {detailOpen && (
+        <ActionDetailPanel
+          action={action}
+          onClose={() => setDetailOpen(false)}
+          onUpdated={(updated) => setAction(updated as ActionItem)}
+        />
+      )}
     </NodeViewWrapper>
   )
 }

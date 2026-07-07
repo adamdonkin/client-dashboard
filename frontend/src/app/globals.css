@@ -163,8 +163,8 @@
   margin-bottom: 0.25em;
 }
 
-.session-editor .ProseMirror > p:last-child:empty,
-.session-editor .ProseMirror > p:last-child:has(br:only-child) {
+.session-editor .ProseMirror > p:last-child:empty:not(.is-editor-empty),
+.session-editor .ProseMirror > p:last-child:has(br:only-child):not(.is-editor-empty) {
   display: none;
 }
 
@@ -271,5 +271,9 @@
 
 .action-description-editor .ProseMirror strong {
   font-weight: 600;
+}
+
+.action-panel-editor .ProseMirror {
+  font-size: 14px;
 }
 

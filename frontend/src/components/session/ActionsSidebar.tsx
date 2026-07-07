@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionCreateForm } from './ActionCreateForm'
+import { ActionDetailPanel } from './ActionDetailPanel'
 
 interface ActionsSidebarProps {
   clientId: string
@@ -19,6 +20,7 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey }: ActionsS
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const fetchSessionActions = useCallback(async () => {
     const { data } = await supabase
@@ -146,11 +148,31 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey }: ActionsS
               <ActionRow
                 key={action.id}
                 action={action}
-                onChanged={(updated) => setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))}
+                onChanged={(updated) => {
+                  setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+                  if (selectedAction?.id === updated.id) setSelectedAction(updated)
+                }}
                 onRemoved={(id) => setSessionActions(prev => prev.filter(a => a.id !== id))}
+                onSelect={setSelectedAction}
               />
             ))}
           </div>
+        )}
+
+        {selectedAction && (
+          <ActionDetailPanel
+            key={selectedAction.id}
+            action={selectedAction}
+            onClose={() => setSelectedAction(null)}
+            onUpdated={(updated) => {
+              setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+              setSelectedAction(updated)
+            }}
+            onDeleted={(id) => {
+              setSelectedAction(null)
+              setSessionActions(prev => prev.filter(a => a.id !== id))
+            }}
+          />
         )}
     </div>
   )

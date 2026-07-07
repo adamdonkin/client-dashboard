@@ -28,6 +28,7 @@ interface SessionEditorProps {
   onSelectionIssue?: (selectedText: string, editor: any) => void
   onEditorReady?: (editor: any) => void
   onCreateAction?: (title: string) => void
+  showActionButtons?: boolean
 }
 
 export function SessionEditor({
@@ -44,6 +45,7 @@ export function SessionEditor({
   onSelectionIssue,
   onEditorReady,
   onCreateAction,
+  showActionButtons = true,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const pendingSaveRef = useRef(false)
@@ -412,21 +414,25 @@ export function SessionEditor({
           >
             <Link2 className="h-3.5 w-3.5" />
           </button>
-          <div className="w-px h-4 bg-border mx-0.5" />
-          <button
-            onClick={handleBubbleAction}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
-          >
-            <Zap className="h-3.5 w-3.5" />
-            Action
-          </button>
-          <button
-            onClick={handleBubbleIssue}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Issue
-          </button>
+          {showActionButtons && (
+            <>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <button
+                onClick={handleBubbleAction}
+                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Action
+              </button>
+              <button
+                onClick={handleBubbleIssue}
+                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Issue
+              </button>
+            </>
+          )}
         </div>
       )}
       {!readOnly && slashActive && filteredItems.length > 0 && slashPos && (
