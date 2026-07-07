@@ -4,9 +4,11 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { ListKit } from '@tiptap/extension-list'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle } from 'lucide-react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
 
@@ -91,6 +93,58 @@ export function SessionEditor({
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<any>(null)
 
+  const supabase = createClientComponentClient()
+
+  const uploadAndInsertImage = useCallback(async (file: File) => {
+    const ed = editorRef.current
+    if (!ed) return
+
+    const blobUrl = URL.createObjectURL(file)
+    ed.chain().focus().insertContent([
+      { type: 'image', attrs: { src: blobUrl } },
+      { type: 'paragraph' },
+    ]).run()
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      URL.revokeObjectURL(blobUrl)
+      return
+    }
+
+    const ext = file.name.split('.').pop() || 'png'
+    const path = `${session.user.id}/${Date.now()}.${ext}`
+
+    const { error } = await supabase.storage
+      .from('action-attachments')
+      .upload(path, file, { contentType: file.type })
+
+    if (error) {
+      console.error('Image upload failed:', error)
+      URL.revokeObjectURL(blobUrl)
+      return
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('action-attachments')
+      .getPublicUrl(path)
+
+    const preload = new window.Image()
+    preload.src = urlData.publicUrl
+    preload.onload = () => {
+      ed.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image' && node.attrs.src === blobUrl) {
+          const tr = ed.view.state.tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            src: urlData.publicUrl,
+          })
+          ed.view.dispatch(tr)
+          return false
+        }
+      })
+      URL.revokeObjectURL(blobUrl)
+    }
+  }, [supabase])
+
   const filteredItems = COMMANDS.filter((item) =>
     item.label.toLowerCase().startsWith(slashQuery.toLowerCase())
   )
@@ -128,6 +182,10 @@ export function SessionEditor({
           target: '_blank',
           rel: 'noopener noreferrer',
         },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -184,6 +242,33 @@ export function SessionEditor({
           }
         }
 
+        return false
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items
+        if (!items) return false
+
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith('image/')) {
+            event.preventDefault()
+            const file = item.getAsFile()
+            if (file) uploadAndInsertImage(file)
+            return true
+          }
+        }
+        return false
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files
+        if (!files?.length) return false
+
+        for (const file of Array.from(files)) {
+          if (file.type.startsWith('image/')) {
+            event.preventDefault()
+            uploadAndInsertImage(file)
+            return true
+          }
+        }
         return false
       },
     },
@@ -247,7 +332,7 @@ export function SessionEditor({
       return
     }
     const { from, to } = ed.state.selection
-    if (from === to) {
+    if (from === to || ed.state.selection.node?.type.name === 'image') {
       setSelectionToolbar(null)
       return
     }

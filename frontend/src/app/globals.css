@@ -163,10 +163,6 @@
   margin-bottom: 0.25em;
 }
 
-.session-editor .ProseMirror > p:last-child:empty:not(.is-editor-empty),
-.session-editor .ProseMirror > p:last-child:has(br:only-child):not(.is-editor-empty) {
-  display: none;
-}
 
 .session-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -275,5 +271,20 @@
 
 .action-panel-editor .ProseMirror {
   font-size: 14px;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.ProseMirror img.ProseMirror-selectednode,
+.ProseMirror .ProseMirror-selectednode img {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
