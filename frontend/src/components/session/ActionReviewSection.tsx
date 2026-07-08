@@ -73,6 +73,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
     } else if (updated.status === 'to_do') {
       setCompletedActions(prev => prev.filter(a => a.id !== updated.id))
       setActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
+      onActionToggled?.(updated.id)
     } else {
       setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
     }
@@ -101,6 +102,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
           onRemoved={handleRemoved}
           onSelect={setSelectedAction}
           showSource
+          reviewSessionNoteId={sessionNoteId}
         />
       ))}
 

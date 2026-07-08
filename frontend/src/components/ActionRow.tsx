@@ -94,6 +94,7 @@ interface ActionRowProps {
   onSelect?: (action: ActionItem) => void
   showSource?: boolean
   className?: string
+  reviewSessionNoteId?: string
 }
 
 export function ActionRow({
@@ -103,6 +104,7 @@ export function ActionRow({
   onSelect,
   showSource = false,
   className,
+  reviewSessionNoteId,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const [action, setAction] = useState(initialAction)
@@ -240,6 +242,7 @@ export function ActionRow({
           open={reviewOpen}
           onOpenChange={setReviewOpen}
           onActionUpdated={handleReviewUpdated}
+          sessionNoteId={reviewSessionNoteId}
         />
       )}
     </>

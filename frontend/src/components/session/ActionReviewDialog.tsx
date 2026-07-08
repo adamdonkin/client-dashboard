@@ -26,6 +26,7 @@ interface ActionReviewDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onActionUpdated: () => void
+  sessionNoteId?: string
 }
 
 const REVIEW_TEMPLATE = `• What blocked you?\n• What will you do differently?`
@@ -35,6 +36,7 @@ export function ActionReviewDialog({
   open,
   onOpenChange,
   onActionUpdated,
+  sessionNoteId,
 }: ActionReviewDialogProps) {
   const supabase = createClientComponentClient()
   const [stillWant, setStillWant] = useState<boolean | null>(null)
@@ -96,6 +98,7 @@ export function ActionReviewDialog({
       .update({
         due_date: newDueDate,
         review_history: history,
+        ...(sessionNoteId ? { session_note_id: sessionNoteId } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', action.id)
