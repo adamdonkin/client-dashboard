@@ -9,6 +9,7 @@ import { copyTiptapContent } from '@/utils/tiptap-clipboard'
 import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
+import { ActionCreatePanel } from './ActionCreatePanel'
 
 interface CalendarEvent {
   id: string
@@ -88,8 +89,13 @@ export function SessionWorkspace({
     if (error) throw error
   }, [sessionNoteId, supabase])
 
-  const noopActionCallback = useCallback((_actionId: string) => {}, [])
+  const noopActionCallback = useCallback((_actionId: string) => {
+    setActionRefreshKey(k => k + 1)
+  }, [])
   const [actionRefreshKey, setActionRefreshKey] = useState(0)
+  const [showCreatePanel, setShowCreatePanel] = useState(false)
+  const slashActionEditorRef = useRef<any>(null)
+  const slashActionPosRef = useRef<number | null>(null)
 
   const handleInlineAction = useCallback(async (title: string) => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -164,11 +170,25 @@ export function SessionWorkspace({
 
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
-      editor.chain().focus().insertContent('[ ] ').run()
+      slashActionEditorRef.current = editor
+      slashActionPosRef.current = editor.state.selection.from
+      setShowCreatePanel(true)
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
     }
   }
+
+  const handleActionCreated = useCallback((action: { id: string; title: string }) => {
+    const ed = slashActionEditorRef.current
+    const pos = slashActionPosRef.current
+    if (ed && typeof pos === 'number') {
+      ed.chain().focus().insertContentAt(pos, `[ ] ${action.title}`).run()
+    }
+    setShowCreatePanel(false)
+    setActionRefreshKey(k => k + 1)
+    slashActionEditorRef.current = null
+    slashActionPosRef.current = null
+  }, [])
 
   const sessionTime = format(parseISO(calendarEvent.start_time), 'h:mm a')
   const sessionDate = formatRelativeDate(calendarEvent.start_time)
@@ -301,6 +321,19 @@ export function SessionWorkspace({
           />
         </section>
       </div>
+
+      {showCreatePanel && (
+        <ActionCreatePanel
+          clientId={calendarEvent.client_id}
+          sessionNoteId={sessionNoteId}
+          onClose={() => {
+            setShowCreatePanel(false)
+            slashActionEditorRef.current = null
+            slashActionPosRef.current = null
+          }}
+          onCreated={handleActionCreated}
+        />
+      )}
     </div>
   )
 }
