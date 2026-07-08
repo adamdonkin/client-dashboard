@@ -10,6 +10,8 @@ import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
 import { ActionCreatePanel } from './ActionCreatePanel'
+import { ActionDetailPanel } from './ActionDetailPanel'
+import type { ActionItem } from '@/components/ActionRow'
 
 interface CalendarEvent {
   id: string
@@ -96,6 +98,7 @@ export function SessionWorkspace({
   const [showCreatePanel, setShowCreatePanel] = useState(false)
   const slashActionEditorRef = useRef<any>(null)
   const slashActionPosRef = useRef<number | null>(null)
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const handleInlineAction = useCallback(async (title: string) => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -272,6 +275,13 @@ export function SessionWorkspace({
             clientId={calendarEvent.client_id}
             sessionNoteId={sessionNoteId}
             onActionToggled={noopActionCallback}
+            onActionSelect={setSelectedAction}
+            onActionChanged={(updated) => {
+              if (selectedAction?.id === updated.id) setSelectedAction(updated)
+            }}
+            onActionRemoved={(id) => {
+              if (selectedAction?.id === id) setSelectedAction(null)
+            }}
           />
         </section>
 
@@ -318,9 +328,29 @@ export function SessionWorkspace({
             clientId={calendarEvent.client_id}
             sessionNoteId={sessionNoteId}
             refreshKey={actionRefreshKey}
+            onActionSelect={setSelectedAction}
+            onActionChanged={(updated) => {
+              if (selectedAction?.id === updated.id) setSelectedAction(updated)
+            }}
+            onActionRemoved={(id) => {
+              if (selectedAction?.id === id) setSelectedAction(null)
+            }}
           />
         </section>
       </div>
+
+      {selectedAction && (
+        <ActionDetailPanel
+          key={selectedAction.id}
+          action={selectedAction}
+          onClose={() => setSelectedAction(null)}
+          onUpdated={(updated) => setSelectedAction(updated)}
+          onDeleted={(id) => {
+            setSelectedAction(null)
+            setActionRefreshKey(k => k + 1)
+          }}
+        />
+      )}
 
       {showCreatePanel && (
         <ActionCreatePanel

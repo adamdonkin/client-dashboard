@@ -5,22 +5,23 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
-import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
 
 interface ActionReviewSectionProps {
   clientId: string
   sessionNoteId?: string
   onActionToggled?: (actionId: string) => void
   refreshKey?: number
+  onActionSelect?: (action: ActionItem | null) => void
+  onActionChanged?: (updated: ActionItem) => void
+  onActionRemoved?: (id: string) => void
 }
 
-export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, refreshKey }: ActionReviewSectionProps) {
+export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, refreshKey, onActionSelect, onActionChanged, onActionRemoved }: ActionReviewSectionProps) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showCompleted, setShowCompleted] = useState(false)
-  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const fetchActions = useCallback(async () => {
     let query = supabase
@@ -63,9 +64,6 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
   }, [showCompleted, fetchCompleted])
 
   const handleChanged = (updated: ActionItem) => {
-    if (selectedAction?.id === updated.id) {
-      setSelectedAction(updated)
-    }
     if (updated.status === 'completed' || updated.status === 'cancelled') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
@@ -77,11 +75,13 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
     } else {
       setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
     }
+    onActionChanged?.(updated)
   }
 
   const handleRemoved = (id: string) => {
     setActions(prev => prev.filter(a => a.id !== id))
     setCompletedActions(prev => prev.filter(a => a.id !== id))
+    onActionRemoved?.(id)
   }
 
   if (loading) {
@@ -100,7 +100,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
           action={action}
           onChanged={handleChanged}
           onRemoved={handleRemoved}
-          onSelect={setSelectedAction}
+          onSelect={onActionSelect}
           showSource
           reviewSessionNoteId={sessionNoteId}
         />
@@ -124,7 +124,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
               action={action}
               onChanged={handleChanged}
               onRemoved={handleRemoved}
-              onSelect={setSelectedAction}
+              onSelect={onActionSelect}
               showSource
             />
           ))}
@@ -135,18 +135,6 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
         <p className="text-[12px] text-muted-foreground pl-4">No actions completed this week</p>
       )}
 
-      {selectedAction && (
-        <ActionDetailPanel
-          key={selectedAction.id}
-          action={selectedAction}
-          onClose={() => setSelectedAction(null)}
-          onUpdated={handleChanged}
-          onDeleted={(id) => {
-            setSelectedAction(null)
-            handleRemoved(id)
-          }}
-        />
-      )}
     </div>
   )
 }

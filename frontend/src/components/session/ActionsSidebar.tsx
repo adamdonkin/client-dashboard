@@ -7,20 +7,21 @@ import { format, parseISO } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionCreateForm } from './ActionCreateForm'
-import { ActionDetailPanel } from './ActionDetailPanel'
 
 interface ActionsSidebarProps {
   clientId: string
   sessionNoteId: string
   refreshKey?: number
+  onActionSelect?: (action: ActionItem | null) => void
+  onActionChanged?: (updated: ActionItem) => void
+  onActionRemoved?: (id: string) => void
 }
 
-export function ActionsSidebar({ clientId, sessionNoteId, refreshKey }: ActionsSidebarProps) {
+export function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }: ActionsSidebarProps) {
   const supabase = createClientComponentClient()
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const fetchSessionActions = useCallback(async () => {
     const { data } = await supabase
@@ -150,29 +151,16 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey }: ActionsS
                 action={action}
                 onChanged={(updated) => {
                   setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-                  if (selectedAction?.id === updated.id) setSelectedAction(updated)
+                  onActionChanged?.(updated)
                 }}
-                onRemoved={(id) => setSessionActions(prev => prev.filter(a => a.id !== id))}
-                onSelect={setSelectedAction}
+                onRemoved={(id) => {
+                  setSessionActions(prev => prev.filter(a => a.id !== id))
+                  onActionRemoved?.(id)
+                }}
+                onSelect={onActionSelect}
               />
             ))}
           </div>
-        )}
-
-        {selectedAction && (
-          <ActionDetailPanel
-            key={selectedAction.id}
-            action={selectedAction}
-            onClose={() => setSelectedAction(null)}
-            onUpdated={(updated) => {
-              setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-              setSelectedAction(updated)
-            }}
-            onDeleted={(id) => {
-              setSelectedAction(null)
-              setSessionActions(prev => prev.filter(a => a.id !== id))
-            }}
-          />
         )}
     </div>
   )
