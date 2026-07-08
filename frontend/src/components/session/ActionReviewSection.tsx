@@ -47,7 +47,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
       .from('client_actions')
       .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
       .eq('client_id', clientId)
-      .eq('status', 'completed')
+      .in('status', ['completed', 'cancelled'])
       .gte('updated_at', since.toISOString())
       .order('updated_at', { ascending: false })
 
@@ -66,7 +66,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
     if (selectedAction?.id === updated.id) {
       setSelectedAction(updated)
     }
-    if (updated.status === 'completed') {
+    if (updated.status === 'completed' || updated.status === 'cancelled') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
       onActionToggled?.(updated.id)
@@ -110,8 +110,8 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
       >
         {showCompleted ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {showCompleted
-          ? 'Hide completed'
-          : `Show completed this week`}
+          ? 'Hide completed & cancelled'
+          : `Show completed & cancelled`}
       </button>
 
       {showCompleted && completedActions.length > 0 && (
