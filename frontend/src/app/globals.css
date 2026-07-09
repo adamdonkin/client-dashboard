@@ -160,7 +160,7 @@
 }
 
 .session-editor .ProseMirror p {
-  margin-bottom: 0.25em;
+  margin-bottom: 0.75em;
 }
 
 
@@ -219,6 +219,17 @@
   margin-bottom: 0.5rem;
 }
 
+.session-editor .ProseMirror h1 {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.session-editor .ProseMirror h1 + p,
+.session-editor .ProseMirror h2 + p,
+.session-editor .ProseMirror h3 + p {
+  margin-top: 0.5rem;
+}
+
 .session-editor .ProseMirror h2 {
   font-size: 1.25rem;
   letter-spacing: -0.02em;
@@ -233,6 +244,44 @@
 .session-editor .ProseMirror [data-node-view-wrapper] {
   font-family: var(--font-geist-sans), sans-serif;
   font-size: 1rem;
+}
+
+.session-editor .ProseMirror table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  margin: 1rem 0;
+}
+
+.session-editor .ProseMirror th {
+  text-align: left;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  padding: 0.25rem 1rem 0.5rem 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.session-editor .ProseMirror td {
+  padding: 0.4rem 1rem 0.4rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+.session-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border) / 0.5);
+  margin: 1.5rem 0;
+}
+
+.session-editor .ProseMirror .pre-read-section-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 /* Action description mini-editor */

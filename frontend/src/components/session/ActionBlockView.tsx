@@ -9,7 +9,7 @@ import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from './ActionDetailPanel'
 import { ActionCreateForm } from './ActionCreateForm'
 
-export function ActionBlockView({ node, updateAttributes, deleteNode, extension }: any) {
+export function ActionBlockView({ node, updateAttributes, deleteNode, getPos, editor, extension }: any) {
   const supabase = createClientComponentClient()
   const { actionId, prefillTitle } = node.attrs
   const { clientId, sessionNoteId, onActionCreated, onActionDeleted } = extension.options
@@ -52,9 +52,17 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, extension 
       .single()
 
     if (data) {
-      setAction(data)
-      updateAttributes({ actionId: data.id, prefillTitle: '' })
       onActionCreated?.(data.id)
+      const pos = getPos()
+      if (typeof pos === 'number' && editor) {
+        editor.chain()
+          .focus()
+          .deleteRange({ from: pos, to: pos + node.nodeSize })
+          .insertContentAt(pos, `[ ] ${title}`)
+          .run()
+      } else {
+        deleteNode()
+      }
     }
   }
 
