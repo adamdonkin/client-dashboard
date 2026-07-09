@@ -100,6 +100,24 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
+function splitLongParagraph(text: string, maxSentences: number): string[] {
+  // Split on sentence boundaries: period/question/exclamation followed by space and capital letter
+  const sentences = text.match(/[^.!?]*[.!?]+(?:\s+|$)/g)
+  if (!sentences || sentences.length <= maxSentences) return [text]
+
+  const chunks: string[] = []
+  let current: string[] = []
+  for (const sentence of sentences) {
+    current.push(sentence.trim())
+    if (current.length >= maxSentences) {
+      chunks.push(current.join(' '))
+      current = []
+    }
+  }
+  if (current.length > 0) chunks.push(current.join(' '))
+  return chunks
+}
+
 function markdownToHtml(md: string): string {
   // Strip the first heading (title) since it's displayed in the panel header
   let cleaned = md.replace(/^#{1,3} .+\n*/m, '')
@@ -145,7 +163,9 @@ function markdownToHtml(md: string): string {
       if (line.trim() === '') {
         result.push('')
       } else if (!line.startsWith('<h') && !line.startsWith('<hr') && !line.startsWith('<table') && !line.startsWith('<thead') && !line.startsWith('<tbody') && !line.startsWith('<tr') && !line.startsWith('</') && !line.startsWith('<div')) {
-        result.push(`<p>${line}</p>`)
+        for (const chunk of splitLongParagraph(line, 3)) {
+          result.push(`<p>${chunk}</p>`)
+        }
       } else {
         result.push(line)
       }
