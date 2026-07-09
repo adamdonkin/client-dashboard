@@ -160,6 +160,10 @@
 }
 
 .session-editor .ProseMirror p {
+  margin-bottom: 0.25em;
+}
+
+.pre-read-content .ProseMirror p {
   margin-bottom: 0.75em;
 }
 
@@ -219,14 +223,14 @@
   margin-bottom: 0.5rem;
 }
 
-.session-editor .ProseMirror h1 {
+.pre-read-content .ProseMirror h1 {
   font-size: 1.25rem;
   letter-spacing: -0.02em;
 }
 
-.session-editor .ProseMirror h1 + p,
-.session-editor .ProseMirror h2 + p,
-.session-editor .ProseMirror h3 + p {
+.pre-read-content .ProseMirror h1 + p,
+.pre-read-content .ProseMirror h2 + p,
+.pre-read-content .ProseMirror h3 + p {
   margin-top: 0.5rem;
 }
 
