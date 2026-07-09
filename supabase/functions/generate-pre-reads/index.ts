@@ -135,9 +135,6 @@ Prose paragraphs with bold headers. Put Adam back in the room. Include:
 **Patterns & arc**
 2-4 coaching patterns, one paragraph each. Name each pattern plainly. Connect current themes to the long-running developmental arc.
 
-**Actions accountability**
-Show the open actions from the data above. Only show To Do or Not Done — omit completed items. Note any patterns in completion.
-
 **Session intention**
 - What would make this session a 5/5?
 - Specific threads to pick up with lead-in questions

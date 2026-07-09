@@ -271,6 +271,7 @@ export function PrepContent() {
         <PreReadPanel
           clientName={selectedSession.client_name}
           companyName={selectedSession.company_name}
+          clientId={selectedSession.client_id}
           sessionDate={format(parseISO(date), 'MMMM d, yyyy')}
           content={selectedSession.pre_read_content}
           status={selectedSession.pre_read_status === 'none' ? 'pending' : selectedSession.pre_read_status}

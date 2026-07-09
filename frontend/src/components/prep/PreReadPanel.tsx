@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ActionRow, ActionItem } from '@/components/ActionRow'
 
 interface PreReadPanelProps {
   clientName: string
   companyName: string | null
+  clientId: string | null
   sessionDate: string
   content: string | null
   status: string
@@ -16,12 +19,15 @@ interface PreReadPanelProps {
 export function PreReadPanel({
   clientName,
   companyName,
+  clientId,
   sessionDate,
   content,
   status,
   onClose,
 }: PreReadPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const supabase = createClientComponentClient()
+  const [actions, setActions] = useState<ActionItem[]>([])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,6 +36,21 @@ export function PreReadPanel({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
+
+  const fetchActions = useCallback(async () => {
+    if (!clientId) return
+    const { data } = await supabase
+      .from('client_actions')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
+      .eq('client_id', clientId)
+      .in('status', ['to_do', 'not_done'])
+      .order('due_date', { ascending: true, nullsFirst: false })
+    if (data) setActions(data)
+  }, [clientId, supabase])
+
+  useEffect(() => {
+    fetchActions()
+  }, [fetchActions])
 
   return (
     <div
@@ -78,6 +99,23 @@ export function PreReadPanel({
           {status === 'ready' && content && (
             <div className="px-6 py-5 pre-read-content max-w-2xl mx-auto">
               <MarkdownContent content={content} />
+            </div>
+          )}
+
+          {actions.length > 0 && (
+            <div className="px-6 pb-8 max-w-2xl mx-auto">
+              <div className="pre-read-section-header mt-6 mb-3 text-[13px] font-medium text-muted-foreground uppercase tracking-[0.1em]">
+                Open Actions
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {actions.map(action => (
+                  <ActionRow
+                    key={action.id}
+                    action={action}
+                    onChanged={(updated) => setActions(prev => prev.map(a => a.id === updated.id ? updated : a))}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
