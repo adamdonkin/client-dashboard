@@ -19,6 +19,7 @@ export interface ClientAction {
   company_name: string
   role: string | null
   synced_at: string
+  created_at: string | null
 }
 
 export interface ClientActionGroup {
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     const { data: actions, error } = await supabase
       .from('client_actions')
       .select(`
-        id, title, description, description_content, source, status, due_date, created_date,
+        id, title, description, description_content, source, status, due_date, created_date, created_at,
         note_title, source_url, session_note_id, synced_at, client_id,
         clients!client_actions_client_id_fkey (
           name, company_name, role
@@ -125,7 +126,8 @@ export async function GET(request: NextRequest) {
         client_name: client?.name || 'Unmatched',
         company_name: client?.company_name || '',
         role: client?.role || null,
-        synced_at: action.synced_at
+        synced_at: action.synced_at,
+        created_at: action.created_at,
       })
     }
 

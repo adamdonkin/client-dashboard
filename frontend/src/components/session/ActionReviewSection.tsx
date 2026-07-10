@@ -26,7 +26,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
   const fetchActions = useCallback(async () => {
     let query = supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
       .eq('client_id', clientId)
       .eq('status', 'to_do')
 
@@ -46,7 +46,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
 
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
       .eq('client_id', clientId)
       .in('status', ['completed', 'cancelled'])
       .gte('updated_at', since.toISOString())

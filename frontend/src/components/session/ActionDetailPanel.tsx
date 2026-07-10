@@ -199,24 +199,28 @@ export function ActionDetailPanel({
           </div>
 
           {/* Content */}
-          <div className="flex-1 flex flex-col overflow-hidden px-5 pt-4 pb-6">
+          <div className="flex-1 flex flex-col overflow-hidden pb-6">
             {/* Title */}
-            <textarea
-              value={title}
-              onChange={(e) => {
-                handleTitleChange(e as any)
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
-              ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
-              rows={1}
-              className="w-full text-[17px] font-medium bg-transparent outline-none placeholder:text-muted-foreground mb-4 resize-none overflow-hidden"
-              placeholder="Action title..."
-            />
+            <div className="px-5 pt-4 pb-4">
+              <textarea
+                value={title}
+                onChange={(e) => {
+                  handleTitleChange(e as any)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = e.target.scrollHeight + 'px'
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+                ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
+                rows={1}
+                className="w-full text-[17px] font-medium bg-transparent outline-none placeholder:text-muted-foreground resize-none overflow-hidden"
+                placeholder="Action title..."
+              />
+            </div>
+
+            <div className="border-t border-border/40" />
 
             {/* Due date */}
-            <div className="flex items-center gap-3 text-[13px]">
+            <div className="h-[48px] flex items-center gap-3 text-[13px] px-5">
               <span className="text-muted-foreground">Due</span>
               <ActionDatePicker
                 value={dueDate ? (dueDate.length > 10 ? dueDate.slice(0, 10) : dueDate) : ''}
@@ -224,16 +228,24 @@ export function ActionDetailPanel({
               />
             </div>
 
-            {/* Source */}
-            {action.source && (
-              <div className="mt-2 mb-6">
+            <div className="border-t border-border/40" />
+
+            {/* Created date & source */}
+            <div className="h-[48px] flex items-center justify-between px-5">
+              {action.created_at && (
+                <span className="text-[11px] text-muted-foreground/60">
+                  Created {format(parseISO(action.created_at), 'MMM d, yyyy')}
+                </span>
+              )}
+              {action.source && (
                 <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
-              </div>
-            )}
-            {!action.source && <div className="mb-6" />}
+              )}
+            </div>
+
+            <div className="border-t border-border/40" />
 
             {/* Description */}
-            <div className="flex-1 min-h-0 overflow-y-auto action-panel-editor">
+            <div className="flex-1 min-h-0 overflow-y-auto action-panel-editor px-5 pt-[24px]">
               <SessionEditor
                 key={action.id}
                 content={initialContent || undefined}

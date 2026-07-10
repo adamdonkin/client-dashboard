@@ -21,6 +21,7 @@ export interface ActionItem {
   source_url?: string | null
   session_note_id?: string | null
   review_history?: any[]
+  created_at?: string | null
 }
 
 export function formatDueDate(dateStr: string | null): string {
@@ -155,7 +156,7 @@ export function ActionRow({
   const handleReviewUpdated = async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
       .eq('id', action.id)
       .single()
 

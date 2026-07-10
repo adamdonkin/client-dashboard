@@ -41,6 +41,7 @@
 - Clean, minimal UI. No decorative elements.
 - Use shadcn/ui components as the base.
 - Consistent spacing and typography with existing pages.
+- Use 8px vertical rhythm for spacing (8, 16, 24, 32, 48px etc).
 - Mobile-responsive — Adam checks this from his phone.
 - Dark mode support (ThemeProvider exists in `frontend/src/components/theme/`).
 

@@ -38,13 +38,18 @@ export function PreReadPanel({
   }, [onClose])
 
   const fetchActions = useCallback(async () => {
-    if (!clientId) return
-    const { data } = await supabase
+    if (!clientId) {
+      console.log('[PreReadPanel] No clientId, skipping action fetch')
+      return
+    }
+    console.log('[PreReadPanel] Fetching actions for clientId:', clientId)
+    const { data, error } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
       .eq('client_id', clientId)
       .in('status', ['to_do', 'not_done'])
       .order('due_date', { ascending: true, nullsFirst: false })
+    console.log('[PreReadPanel] Actions result:', { count: data?.length, error })
     if (data) setActions(data)
   }, [clientId, supabase])
 

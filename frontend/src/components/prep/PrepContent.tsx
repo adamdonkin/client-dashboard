@@ -212,11 +212,11 @@ export function PrepContent() {
       ) : (
         <div className="space-y-1">
           {sessions.map(session => (
-            <button
+            <div
               key={session.id}
               onClick={() => setSelectedSession(session)}
               className={cn(
-                'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors text-left',
+                'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors text-left cursor-pointer',
                 selectedSession?.id === session.id
                   ? 'border-primary/30 bg-accent'
                   : 'border-border/50 hover:bg-muted/50',
@@ -262,7 +262,7 @@ export function PrepContent() {
                   </span>
                 )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
