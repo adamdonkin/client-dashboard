@@ -250,7 +250,7 @@ export function ActionsContent() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Sync failed')
 
-      setSyncMessage(`Synced ${data.stats?.defacto || 0} from Defacto, ${data.stats?.granola || 0} from Granola`)
+      setSyncMessage(`Synced ${data.stats?.upserted || 0} actions`)
       await fetchActions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')

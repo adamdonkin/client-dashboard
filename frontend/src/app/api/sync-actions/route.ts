@@ -328,97 +328,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // --- Granola sync ---
-    let granolaCount = 0
-    const allNotes = await fetchGranolaNotes()
-
-    // Fetch all note details (list endpoint doesn't include attendees)
-    const details: GranolaNoteListItem[] = []
-    for (let i = 0; i < allNotes.length; i += 3) {
-      const batch = allNotes.slice(i, i + 3)
-      const results = await Promise.all(batch.map(n => fetchGranolaNoteDetail(n.id)))
-      for (const r of results) { if (r) details.push(r) }
-      if (i + 3 < allNotes.length) await new Promise(r => setTimeout(r, 700))
-    }
-
-    // Build a name-to-client map for (Name) attribution matching
-    const nameToClient = new Map<string, DbClient>()
-    for (const c of clients) {
-      const first = c.client_name.split(/\s+/)[0].toLowerCase()
-      nameToClient.set(first, c)
-      nameToClient.set(c.client_name.toLowerCase(), c)
-    }
-
-    // Step 1: Find the most recent note per client by attendee email
-    const latestNotePerClient = new Map<string, GranolaNoteListItem>()
-    for (const note of details) {
-      if (!note.attendees) continue
-      for (const att of note.attendees) {
-        if (!att.email) continue
-        const client = emailToClient.get(att.email.toLowerCase())
-        if (!client) continue
-        const noteDate = new Date(note.calendar_event?.scheduled_start_time || note.created_at)
-        const existing = latestNotePerClient.get(client.id)
-        const existingDate = existing
-          ? new Date(existing.calendar_event?.scheduled_start_time || existing.created_at)
-          : null
-
-        if (!existingDate || noteDate > existingDate) {
-          latestNotePerClient.set(client.id, note)
-        }
-      }
-    }
-
-    // Step 2: Extract actions from ONLY the most recent note per client
-    for (const [clientId, note] of latestNotePerClient) {
-      if (!note.summary_markdown) continue
-      const extracted = extractActionsFromMarkdown(note.summary_markdown)
-      if (extracted.length === 0) continue
-
-      const sessionDate = new Date(note.calendar_event?.scheduled_start_time || note.created_at)
-      const client = clients.find(c => c.id === clientId)
-
-      for (let idx = 0; idx < extracted.length; idx++) {
-        const { title: actionTitle, description, assignee } = extracted[idx]
-
-        // If action has (Name), match by name; otherwise assign to the client from attendee match
-        let targetClientId = clientId
-        if (assignee) {
-          const key = assignee.toLowerCase()
-          const matched = nameToClient.get(key) || nameToClient.get(key.split(/\s+/)[0])
-          if (matched) targetClientId = matched.id
-          else continue
-        }
-
-        const sourceId = `${note.id}-${idx}`
-        rows.push({
-          user_id, client_id: targetClientId, source: 'granola', source_id: sourceId,
-          title: actionTitle, description,
-          status: 'to_do', due_date: inferDueDate(actionTitle, sessionDate),
-          created_date: sessionDate.toISOString(),
-          note_title: note.title, workspace_name: null,
-          source_url: note.web_url || null, synced_at: now
-        })
-        granolaCount++
-      }
-    }
-
-    // --- Clean up stale Granola actions then upsert ---
-    const granolaSourceIds = new Set(rows.filter(r => r.source === 'granola').map(r => r.source_id))
-    const { data: existingGranola } = await supabase
-      .from('client_actions')
-      .select('id, source_id')
-      .eq('user_id', user_id)
-      .eq('source', 'granola')
-
-    if (existingGranola) {
-      const staleIds = existingGranola
-        .filter(e => !granolaSourceIds.has(e.source_id))
-        .map(e => e.id)
-      if (staleIds.length > 0) {
-        await supabase.from('client_actions').delete().in('id', staleIds)
-      }
-    }
+    // Granola actions are now surfaced in pre-reads only (not synced to client_actions)
 
     let upserted = 0
     if (rows.length > 0) {
@@ -439,7 +349,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Synced ${upserted} actions`,
-      stats: { defacto: defactoCount, granola: granolaCount, upserted }
+      stats: { defacto: defactoCount, upserted }
     })
   } catch (error) {
     console.error('Sync actions error:', error)
