@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,9 @@ import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { ActionCreateForm } from '@/components/session/ActionCreateForm';
 import { ActionReviewSection } from '@/components/session/ActionReviewSection';
+import type { ActionReviewSectionHandle } from '@/components/session/ActionReviewSection';
+import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
+import type { ActionItem } from '@/components/ActionRow';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -65,6 +68,17 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [showActionCreate, setShowActionCreate] = useState(false);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null);
+  const reviewSectionRef = useRef<ActionReviewSectionHandle>(null)
+
+  const handleActionChanged = (updated: ActionItem) => {
+    setSelectedAction(prev => prev?.id === updated.id ? updated : prev)
+  }
+
+  const handleActionRemoved = (id: string) => {
+    setSelectedAction(prev => prev?.id === id ? null : prev)
+  }
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(client.notes || '');
@@ -1229,8 +1243,12 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
               </div>
             )}
             <ActionReviewSection
+              ref={reviewSectionRef}
               clientId={client.id}
               refreshKey={actionRefreshKey}
+              onActionSelect={setSelectedAction}
+              onActionChanged={handleActionChanged}
+              onActionRemoved={handleActionRemoved}
             />
           </CardContent>
         </Card>
@@ -1289,6 +1307,22 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           </CardContent>
         </Card>
       </div>
+
+      {selectedAction && (
+        <ActionDetailPanel
+          key={selectedAction.id}
+          action={selectedAction}
+          onClose={() => setSelectedAction(null)}
+          onUpdated={(updated) => {
+            setSelectedAction(updated)
+            reviewSectionRef.current?.applyChanged(updated)
+          }}
+          onDeleted={(id) => {
+            setSelectedAction(null)
+            reviewSectionRef.current?.applyRemoved(id)
+          }}
+        />
+      )}
     </div>
   );
 }

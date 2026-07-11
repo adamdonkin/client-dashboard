@@ -180,19 +180,22 @@ export function ActionRow({
           onClick={toggleDone}
           className={cn(
             'shrink-0 h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer',
-            isResolved
+            action.status === 'completed'
               ? 'bg-primary border-primary text-primary-foreground'
-              : 'border-muted-foreground/40 hover:border-primary',
+              : action.status === 'cancelled'
+                ? 'bg-muted border-muted-foreground/30 text-muted-foreground'
+                : 'border-muted-foreground/40 hover:border-primary',
           )}
         >
-          {isResolved && <Check className="h-2.5 w-2.5" />}
+          {action.status === 'completed' && <Check className="h-2.5 w-2.5" />}
+          {action.status === 'cancelled' && <Ban className="h-2.5 w-2.5" />}
         </button>
 
         <div className="flex-1 min-w-0">
           <span
             className={cn(
               'action-row-title text-[14px] !leading-[16px]',
-              isResolved ? 'line-through text-muted-foreground' : 'text-foreground',
+              action.status === 'completed' ? 'line-through text-muted-foreground' : action.status === 'cancelled' ? 'text-muted-foreground' : 'text-foreground',
             )}
           >
             {action.title}

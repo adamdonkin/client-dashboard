@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Plus, Copy, Check } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -17,7 +17,12 @@ interface ActionsSidebarProps {
   onActionRemoved?: (id: string) => void
 }
 
-export function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }: ActionsSidebarProps) {
+export interface ActionsSidebarHandle {
+  applyChanged: (updated: ActionItem) => void
+  applyRemoved: (id: string) => void
+}
+
+export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarProps>(function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
   const supabase = createClientComponentClient()
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +71,21 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSe
       setShowCreateForm(false)
     }
   }
+
+  const handleChanged = (updated: ActionItem) => {
+    setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+    onActionChanged?.(updated)
+  }
+
+  const handleRemoved = (id: string) => {
+    setSessionActions(prev => prev.filter(a => a.id !== id))
+    onActionRemoved?.(id)
+  }
+
+  useImperativeHandle(ref, () => ({
+    applyChanged: handleChanged,
+    applyRemoved: handleRemoved,
+  }))
 
   const [copied, setCopied] = useState(false)
 
@@ -149,14 +169,8 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSe
               <ActionRow
                 key={action.id}
                 action={action}
-                onChanged={(updated) => {
-                  setSessionActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-                  onActionChanged?.(updated)
-                }}
-                onRemoved={(id) => {
-                  setSessionActions(prev => prev.filter(a => a.id !== id))
-                  onActionRemoved?.(id)
-                }}
+                onChanged={handleChanged}
+                onRemoved={handleRemoved}
                 onSelect={onActionSelect}
               />
             ))}
@@ -164,7 +178,7 @@ export function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSe
         )}
     </div>
   )
-}
+})
 
 function extractDescriptionLines(content: any, fallbackText?: string | null): string[] {
   if (content) {

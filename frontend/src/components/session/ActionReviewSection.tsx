@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { ActionRow } from '@/components/ActionRow'
@@ -9,14 +9,18 @@ import type { ActionItem } from '@/components/ActionRow'
 interface ActionReviewSectionProps {
   clientId: string
   sessionNoteId?: string
-  onActionToggled?: (actionId: string) => void
   refreshKey?: number
   onActionSelect?: (action: ActionItem | null) => void
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
 }
 
-export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, refreshKey, onActionSelect, onActionChanged, onActionRemoved }: ActionReviewSectionProps) {
+export interface ActionReviewSectionHandle {
+  applyChanged: (updated: ActionItem) => void
+  applyRemoved: (id: string) => void
+}
+
+export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
@@ -57,6 +61,7 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
 
   useEffect(() => {
     fetchActions()
+    if (showCompleted) fetchCompleted()
   }, [fetchActions, refreshKey])
 
   useEffect(() => {
@@ -67,11 +72,9 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
     if (updated.status === 'completed' || updated.status === 'cancelled') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
-      onActionToggled?.(updated.id)
     } else if (updated.status === 'to_do') {
       setCompletedActions(prev => prev.filter(a => a.id !== updated.id))
       setActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
-      onActionToggled?.(updated.id)
     } else {
       setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
     }
@@ -83,6 +86,11 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
     setCompletedActions(prev => prev.filter(a => a.id !== id))
     onActionRemoved?.(id)
   }
+
+  useImperativeHandle(ref, () => ({
+    applyChanged: handleChanged,
+    applyRemoved: handleRemoved,
+  }))
 
   if (loading) {
     return <p className="text-[15px] text-muted-foreground">Loading actions...</p>
@@ -137,4 +145,4 @@ export function ActionReviewSection({ clientId, sessionNoteId, onActionToggled, 
 
     </div>
   )
-}
+})

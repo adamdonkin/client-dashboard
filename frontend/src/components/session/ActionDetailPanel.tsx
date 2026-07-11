@@ -101,38 +101,29 @@ export function ActionDetailPanel({
 
   const toggleDone = async () => {
     const newStatus = isCompleted ? 'to_do' : 'completed'
-    const updated = { ...actionRef.current, status: newStatus }
-    onUpdated?.(updated)
     await supabase
       .from('client_actions')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', action.id)
+    const updated = { ...actionRef.current, status: newStatus }
+    onUpdated?.(updated)
   }
 
   const handleCancel = async () => {
-    const updated = { ...actionRef.current, status: 'cancelled' }
-    onUpdated?.(updated)
     await supabase
       .from('client_actions')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', action.id)
+    const updated = { ...actionRef.current, status: 'cancelled' }
+    onUpdated?.(updated)
+    onClose()
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     onClose()
     onDeleted?.(action.id)
-
-    const timeoutId = setTimeout(async () => {
-      await supabase.from('client_actions').delete().eq('id', action.id)
-    }, 5000)
-
-    toast('Action deleted', {
-      action: {
-        label: 'Undo',
-        onClick: () => clearTimeout(timeoutId),
-      },
-      duration: 5000,
-    })
+    await supabase.from('client_actions').delete().eq('id', action.id)
+    toast('Action deleted')
   }
 
   useEffect(() => {

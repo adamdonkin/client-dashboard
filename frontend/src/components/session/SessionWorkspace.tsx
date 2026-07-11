@@ -8,7 +8,9 @@ import { formatRelativeDate } from '@/utils/date-utils'
 import { copyTiptapContent } from '@/utils/tiptap-clipboard'
 import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
+import type { ActionReviewSectionHandle } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
+import type { ActionsSidebarHandle } from './ActionsSidebar'
 import { ActionCreatePanel } from './ActionCreatePanel'
 import { ActionDetailPanel } from './ActionDetailPanel'
 import type { ActionItem } from '@/components/ActionRow'
@@ -99,6 +101,16 @@ export function SessionWorkspace({
   const slashActionEditorRef = useRef<any>(null)
   const slashActionPosRef = useRef<number | null>(null)
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
+  const reviewSectionRef = useRef<ActionReviewSectionHandle>(null)
+  const actionsSidebarRef = useRef<ActionsSidebarHandle>(null)
+
+  const handleActionChanged = useCallback((updated: ActionItem) => {
+    setSelectedAction(prev => prev?.id === updated.id ? updated : prev)
+  }, [])
+
+  const handleActionRemoved = useCallback((id: string) => {
+    setSelectedAction(prev => prev?.id === id ? null : prev)
+  }, [])
 
   const handleInlineAction = useCallback(async (title: string) => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -272,16 +284,13 @@ export function SessionWorkspace({
             Action Review
           </h2>
           <ActionReviewSection
+            ref={reviewSectionRef}
             clientId={calendarEvent.client_id}
             sessionNoteId={sessionNoteId}
-            onActionToggled={noopActionCallback}
+            refreshKey={actionRefreshKey}
             onActionSelect={setSelectedAction}
-            onActionChanged={(updated) => {
-              if (selectedAction?.id === updated.id) setSelectedAction(updated)
-            }}
-            onActionRemoved={(id) => {
-              if (selectedAction?.id === id) setSelectedAction(null)
-            }}
+            onActionChanged={handleActionChanged}
+            onActionRemoved={handleActionRemoved}
           />
         </section>
 
@@ -325,16 +334,13 @@ export function SessionWorkspace({
         {/* Session Actions */}
         <section>
           <ActionsSidebar
+            ref={actionsSidebarRef}
             clientId={calendarEvent.client_id}
             sessionNoteId={sessionNoteId}
             refreshKey={actionRefreshKey}
             onActionSelect={setSelectedAction}
-            onActionChanged={(updated) => {
-              if (selectedAction?.id === updated.id) setSelectedAction(updated)
-            }}
-            onActionRemoved={(id) => {
-              if (selectedAction?.id === id) setSelectedAction(null)
-            }}
+            onActionChanged={handleActionChanged}
+            onActionRemoved={handleActionRemoved}
           />
         </section>
       </div>
@@ -344,10 +350,15 @@ export function SessionWorkspace({
           key={selectedAction.id}
           action={selectedAction}
           onClose={() => setSelectedAction(null)}
-          onUpdated={(updated) => setSelectedAction(updated)}
+          onUpdated={(updated) => {
+            setSelectedAction(updated)
+            reviewSectionRef.current?.applyChanged(updated)
+            actionsSidebarRef.current?.applyChanged(updated)
+          }}
           onDeleted={(id) => {
             setSelectedAction(null)
-            setActionRefreshKey(k => k + 1)
+            reviewSectionRef.current?.applyRemoved(id)
+            actionsSidebarRef.current?.applyRemoved(id)
           }}
         />
       )}
