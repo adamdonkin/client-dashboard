@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, RefreshCw, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, RefreshCw, Search, Copy, Check } from 'lucide-react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { ClientActionGroup, ClientAction } from '@/app/api/actions/route'
 import { formatRelativeDate } from '@/utils/date-utils'
@@ -14,11 +14,13 @@ import { parseISO, isThisWeek } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
+import { copyActionsToClipboard } from '@/utils/copy-actions'
 
 function ClientGroup({ group }: { group: ClientActionGroup }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)
   const [actions, setActions] = useState(group.actions)
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
+  const [copied, setCopied] = useState(false)
   const router = useRouter()
 
   return (
@@ -49,6 +51,20 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
             )}
           </div>
           <div className="flex items-center gap-3">
+            {actions.length > 0 && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  await copyActionsToClipboard(actions)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Copy actions to clipboard"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            )}
             {group.next_session_date && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" />

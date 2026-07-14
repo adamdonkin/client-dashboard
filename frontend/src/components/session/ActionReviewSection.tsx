@@ -18,6 +18,7 @@ interface ActionReviewSectionProps {
 export interface ActionReviewSectionHandle {
   applyChanged: (updated: ActionItem) => void
   applyRemoved: (id: string) => void
+  getActions: () => ActionItem[]
 }
 
 export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
@@ -90,6 +91,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
   useImperativeHandle(ref, () => ({
     applyChanged: handleChanged,
     applyRemoved: handleRemoved,
+    getActions: () => actions,
   }))
 
   if (loading) {

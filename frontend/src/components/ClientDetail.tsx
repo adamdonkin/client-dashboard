@@ -33,6 +33,7 @@ import { ActionReviewSection } from '@/components/session/ActionReviewSection';
 import type { ActionReviewSectionHandle } from '@/components/session/ActionReviewSection';
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
 import type { ActionItem } from '@/components/ActionRow';
+import { copyActionsToClipboard } from '@/utils/copy-actions';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -68,6 +69,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [showActionCreate, setShowActionCreate] = useState(false);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
+  const [copiedActions, setCopiedActions] = useState(false);
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null);
   const reviewSectionRef = useRef<ActionReviewSectionHandle>(null)
 
@@ -1208,13 +1210,29 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Actions</CardTitle>
-              <button
-                onClick={() => setShowActionCreate(true)}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                title="Add action"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={async () => {
+                    const actions = reviewSectionRef.current?.getActions()
+                    if (actions && actions.length > 0) {
+                      await copyActionsToClipboard(actions)
+                      setCopiedActions(true)
+                      setTimeout(() => setCopiedActions(false), 2000)
+                    }
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Copy actions to clipboard"
+                >
+                  {copiedActions ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={() => setShowActionCreate(true)}
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Add action"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
