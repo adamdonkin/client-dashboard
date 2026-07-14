@@ -1,11 +1,57 @@
 'use client'
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { canJoin } from '@tiptap/pm/transform'
 import StarterKit from '@tiptap/starter-kit'
 import { ListKit } from '@tiptap/extension-list'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
+
+const listAutoJoinKey = new PluginKey('listAutoJoin')
+const listTypes = new Set(['bulletList', 'orderedList'])
+
+const ListAutoJoin = Extension.create({
+  name: 'listAutoJoin',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: listAutoJoinKey,
+        appendTransaction(_transactions, _oldState, newState) {
+          const { tr } = newState
+          let modified = false
+
+          let foundJoin = true
+          while (foundJoin) {
+            foundJoin = false
+            const doc = tr.doc
+            let pos = 0
+            for (let i = 0; i < doc.childCount; i++) {
+              const child = doc.child(i)
+              if (i > 0) {
+                const prev = doc.child(i - 1)
+                if (listTypes.has(child.type.name) && prev.type.name === child.type.name) {
+                  const joinPos = pos
+                  if (canJoin(tr.doc, joinPos)) {
+                    tr.join(joinPos)
+                    modified = true
+                    foundJoin = true
+                    break
+                  }
+                }
+              }
+              pos += child.nodeSize
+            }
+          }
+
+          return modified ? tr : null
+        },
+      }),
+    ]
+  },
+})
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle } from 'lucide-react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
@@ -173,6 +219,7 @@ export function SessionEditor({
         listItem: false,
       }),
       ListKit,
+      ListAutoJoin,
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -204,6 +251,19 @@ export function SessionEditor({
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[1.5em] text-foreground',
       },
       handleKeyDown: (view, event) => {
+        if (event.key === 'Tab') {
+          event.preventDefault()
+          const ed = editorRef.current
+          if (ed && ed.isActive('listItem')) {
+            if (event.shiftKey) {
+              ed.chain().focus().liftListItem('listItem').run()
+            } else {
+              ed.chain().focus().sinkListItem('listItem').run()
+            }
+          }
+          return true
+        }
+
         if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'a') {
           const ed = editorRef.current
           if (ed && ed.extensionManager.extensions.find((e: any) => e.name === 'actionBlock')) {
@@ -359,15 +419,8 @@ export function SessionEditor({
       flushSave()
     })
 
-    const editorDom = ed.view.dom
-    const trapTab = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') e.preventDefault()
-    }
-    editorDom.addEventListener('keydown', trapTab)
-
     return () => {
       ed.off('selectionUpdate', updateSelectionToolbar)
-      editorDom.removeEventListener('keydown', trapTab)
     }
   }, [editor, updateSelectionToolbar])
 
