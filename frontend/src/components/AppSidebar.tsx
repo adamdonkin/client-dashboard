@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { PanelLeft, LayoutDashboard, Users, Zap, Globe, BookOpen, X } from 'lucide-react'
+import { PanelLeft, LayoutDashboard, Users, Zap, Globe, BookOpen, Send, X } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/actions', label: 'Actions', icon: Zap },
   { href: '/prep', label: 'Prep', icon: BookOpen },
+  { href: '/pre-writes', label: 'Pre-writes', icon: Send },
   { href: '/timezones', label: 'Timezones', icon: Globe },
 ]
 
