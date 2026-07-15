@@ -70,12 +70,13 @@ function buildPreReadPrompt(context: {
   companyName: string | null
   role: string | null
   clientNotes: string | null
+  personalDetails: Record<string, string> | null
   sessionDate: string
   actions: any[]
   granolaSummary: string | null
   sessionNotes: any[]
 }): string {
-  const { clientName, companyName, role, clientNotes, sessionDate, actions, granolaSummary, sessionNotes } = context
+  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, actions, granolaSummary, sessionNotes } = context
 
   const actionsBlock = actions.length > 0
     ? actions.map(a => `- ${a.title} | Due: ${a.due_date || 'No date'} | Status: ${a.status === 'to_do' ? 'To Do' : 'Not Done'}`).join('\n')
@@ -90,6 +91,13 @@ function buildPreReadPrompt(context: {
       }).join('\n\n')
     : 'No previous session notes available.'
 
+  const personalBlock = personalDetails && Object.keys(personalDetails).length > 0
+    ? Object.entries(personalDetails)
+        .filter(([, v]) => v && v.trim())
+        .map(([k, v]) => `- ${k}: ${v}`)
+        .join('\n')
+    : ''
+
   return `You are Adam Donkin's coaching session prep assistant. Generate a pre-read document for his upcoming session.
 
 ## Client information
@@ -98,6 +106,9 @@ function buildPreReadPrompt(context: {
 - Role: ${role || 'Unknown'}
 - Session date: ${sessionDate}
 ${clientNotes ? `- Coach notes: ${clientNotes}` : ''}
+
+## Known personal details
+${personalBlock || 'No personal details on file yet.'}
 
 ## Open actions (from coaching dashboard)
 ${actionsBlock}
@@ -122,7 +133,7 @@ FORMATTING: Use frequent paragraph breaks for readability — aim for 3-4 senten
 - Session cadence (estimate from dates)
 
 **Connection reminders**
-Bullet points of personal details Adam can reference naturally — partner/family, hobbies, health, anything mentioned in passing.
+Bullet points of personal details Adam can reference naturally. Always include partner/spouse name, children's names and ages, and any life events mentioned. Also include hobbies, health updates, and anything personal mentioned in passing. Use the "Known personal details" section above as the baseline and add anything new found in the session notes or Granola summaries.
 
 **Where you left off (last session)**
 Prose paragraphs with bold headers. Put Adam back in the room. Include:
@@ -176,7 +187,7 @@ serve(async (req) => {
     // Fetch the specific event
     const { data: event, error: eventError } = await supabase
       .from('calendar_events')
-      .select('id, title, start_time, client_id, clients(id, name, company_name, role, email, notes)')
+      .select('id, title, start_time, client_id, clients(id, name, company_name, role, email, notes, personal_details)')
       .eq('id', calendar_event_id)
       .single()
 
@@ -201,11 +212,15 @@ serve(async (req) => {
       since.setDate(since.getDate() - 90)
       const notesList = await fetchGranolaNotes(granolaKey, since)
 
-      // Only fetch details for notes that might match this client (by title heuristic first)
-      const clientFirstName = client.name.split(' ')[0].toLowerCase()
-      const potentialMatches = notesList.filter(n =>
-        n.title?.toLowerCase().includes(clientFirstName)
-      ).slice(0, 10)
+      // Match by title: check full name, first name, and calendar event title keywords
+      const nameParts = client.name.toLowerCase().split(/\s+/)
+      const calendarTitle = (event.title || '').toLowerCase()
+      const calendarWords = calendarTitle.split(/[\s<>/\-]+/).filter((w: string) => w.length >= 3 && w !== 'adam' && w !== 'coaching')
+      const searchTerms = [...new Set([...nameParts, ...calendarWords])]
+      const potentialMatches = notesList.filter(n => {
+        const t = n.title?.toLowerCase() || ''
+        return searchTerms.some(term => t.includes(term))
+      }).slice(0, 10)
 
       for (const n of potentialMatches) {
         const detail = await fetchGranolaNoteDetail(granolaKey, n.id)
@@ -243,20 +258,33 @@ serve(async (req) => {
       .in('status', ['to_do'])
       .order('due_date', { ascending: true, nullsFirst: false })
 
-    // Find most recent Granola note for this client by attendee email
+    // Find most recent Granola note for this client
     let granolaSummary: string | null = null
-    if (client.email && granolaNotes.length > 0) {
-      const clientEmail = client.email.toLowerCase()
-      const matching = granolaNotes
-        .filter(n => n.attendees?.some(a => a.email?.toLowerCase() === clientEmail))
-        .sort((a, b) => {
+    if (granolaNotes.length > 0) {
+      const sortByDate = (notes: GranolaNoteListItem[]) =>
+        notes.sort((a, b) => {
           const da = new Date(a.calendar_event?.scheduled_start_time || a.created_at)
           const db = new Date(b.calendar_event?.scheduled_start_time || b.created_at)
           return db.getTime() - da.getTime()
         })
 
-      if (matching.length > 0 && matching[0].summary_markdown) {
-        granolaSummary = matching[0].summary_markdown
+      // Try attendee email match first
+      if (client.email) {
+        const clientEmail = client.email.toLowerCase()
+        const byEmail = sortByDate(
+          granolaNotes.filter(n => n.attendees?.some(a => a.email?.toLowerCase() === clientEmail))
+        )
+        if (byEmail.length > 0 && byEmail[0].summary_markdown) {
+          granolaSummary = byEmail[0].summary_markdown
+        }
+      }
+
+      // Fall back to title-matched notes if email match found nothing
+      if (!granolaSummary) {
+        const withSummary = sortByDate(granolaNotes.filter(n => n.summary_markdown))
+        if (withSummary.length > 0) {
+          granolaSummary = withSummary[0].summary_markdown!
+        }
       }
     }
 
@@ -274,6 +302,7 @@ serve(async (req) => {
       companyName: client.company_name,
       role: client.role,
       clientNotes: client.notes,
+      personalDetails: client.personal_details,
       sessionDate: targetDate,
       actions: actions || [],
       granolaSummary,
@@ -315,6 +344,67 @@ serve(async (req) => {
       })
       .eq('user_id', user_id)
       .eq('calendar_event_id', event.id)
+
+    // Extract and update personal details from the generated content
+    try {
+      const existingDetails = client.personal_details || {}
+      const extractPrompt = `Extract personal details about ${client.name} from the following coaching session data. Return ONLY a JSON object with these keys (omit any key where you have no information):
+
+- "partner": Partner/spouse name and any relevant notes
+- "children": Children's names, ages, and any notes
+- "family": Other family details (parents, siblings, etc.)
+- "hobbies": Interests, hobbies, sports
+- "health": Health-related notes
+- "pets": Pets
+- "milestones": Upcoming life milestones (wedding, move, etc.)
+- "other": Anything else personal worth remembering
+
+Here are the existing personal details on file (keep these unless contradicted by newer information):
+${JSON.stringify(existingDetails)}
+
+Source data:
+${granolaSummary || ''}
+${(prevNotes || []).map((sn: any) => extractPlainText(sn.connection_notes)).filter(Boolean).join('\n')}
+${client.notes || ''}
+
+Return ONLY valid JSON, no explanation.`
+
+      const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: anthropicModel,
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: extractPrompt }],
+        }),
+      })
+
+      if (extractRes.ok) {
+        const extractData = await extractRes.json()
+        const rawText = extractData.content?.[0]?.text || ''
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const newDetails = JSON.parse(jsonMatch[0])
+          const merged = { ...existingDetails }
+          for (const [key, value] of Object.entries(newDetails)) {
+            if (value && typeof value === 'string' && value.trim()) {
+              merged[key] = value
+            }
+          }
+          await supabase
+            .from('clients')
+            .update({ personal_details: merged })
+            .eq('id', client.id)
+          console.log(`Updated personal details for ${client.name}`)
+        }
+      }
+    } catch (extractErr) {
+      console.error(`Failed to extract personal details for ${client.name}:`, extractErr)
+    }
 
     console.log(`Generated pre-read for ${client.name}`)
 

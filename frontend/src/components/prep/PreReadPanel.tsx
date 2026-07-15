@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionRow, ActionItem } from '@/components/ActionRow'
 
@@ -14,6 +14,7 @@ interface PreReadPanelProps {
   content: string | null
   status: string
   onClose: () => void
+  onRegenerate?: () => void
 }
 
 export function PreReadPanel({
@@ -24,6 +25,7 @@ export function PreReadPanel({
   content,
   status,
   onClose,
+  onRegenerate,
 }: PreReadPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const supabase = createClientComponentClient()
@@ -73,12 +75,23 @@ export function PreReadPanel({
               {companyName ? `${companyName} · ` : ''}Session prep for {sessionDate}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onRegenerate && status !== 'generating' && (
+              <button
+                onClick={onRegenerate}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Regenerate pre-read"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">

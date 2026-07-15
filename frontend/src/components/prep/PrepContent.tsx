@@ -240,9 +240,19 @@ export function PrepContent() {
 
               <div className="shrink-0 flex items-center gap-2">
                 {session.pre_read_status === 'ready' && (
-                  <span className="text-[11px] font-medium text-success px-2 py-0.5 rounded-full bg-success/10">
-                    Ready
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleGenerateOne(session.id) }}
+                      disabled={generating}
+                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                      title="Regenerate"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </button>
+                    <span className="text-[11px] font-medium text-success px-2 py-0.5 rounded-full bg-success/10">
+                      Ready
+                    </span>
+                  </div>
                 )}
                 {session.pre_read_status === 'generating' && (
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -277,6 +287,7 @@ export function PrepContent() {
           content={selectedSession.pre_read_content}
           status={selectedSession.pre_read_status === 'none' ? 'pending' : selectedSession.pre_read_status}
           onClose={() => setSelectedSession(null)}
+          onRegenerate={() => handleGenerateOne(selectedSession.id)}
         />
       )}
     </div>
