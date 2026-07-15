@@ -5,15 +5,15 @@ import type { NextRequest } from 'next/server'
 const PUBLIC_ROUTES = ['/auth/login', '/auth/callback', '/api/cron']
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  const { data: { session } } = await supabase.auth.getSession()
-
   const { pathname } = req.nextUrl
 
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    return res
+    return NextResponse.next()
   }
+
+  const res = NextResponse.next()
+  const supabase = createMiddlewareClient({ req, res })
+  const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
     const loginUrl = new URL('/auth/login', req.url)

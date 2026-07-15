@@ -250,7 +250,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration')
+        .select('ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details')
         .eq('id', client.id)
         .single();
       
@@ -1204,6 +1204,26 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             </CardContent>
           </Card>
         </div>
+
+        {/* Personal */}
+        {currentClient?.personal_details && Object.keys(currentClient.personal_details).some(k => currentClient.personal_details?.[k]?.trim()) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Personal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Object.entries(currentClient.personal_details)
+                .filter(([, v]) => v && v.trim())
+                .map(([key, value]) => (
+                  <div key={key} className="flex gap-3">
+                    <span className="text-[13px] text-muted-foreground capitalize shrink-0 w-[80px]">{key.replace(/_/g, ' ')}</span>
+                    <span className="text-[13px] text-foreground">{value}</span>
+                  </div>
+                ))}
+              <p className="text-[11px] text-muted-foreground/60 pt-2">Auto-extracted from session notes</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <Card>

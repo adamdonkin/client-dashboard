@@ -269,6 +269,7 @@ export function PrepContent() {
 
       {selectedSession && (
         <PreReadPanel
+          key={selectedSession.id}
           clientName={selectedSession.client_name}
           companyName={selectedSession.company_name}
           clientId={selectedSession.client_id}
