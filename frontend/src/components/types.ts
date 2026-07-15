@@ -27,4 +27,5 @@ export interface Client {
   session_duration?: string;
   referral_source?: string;
   personal_details?: Record<string, string>;
+  user_id?: string;
 } 

@@ -28,6 +28,7 @@ import {
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { ActionCreateForm } from '@/components/session/ActionCreateForm';
 import { ActionReviewSection } from '@/components/session/ActionReviewSection';
 import type { ActionReviewSectionHandle } from '@/components/session/ActionReviewSection';
@@ -62,10 +63,25 @@ interface ClientDetailProps {
   onClientUpdate?: (updatedClient: Client) => void;
 }
 
+const PERSONAL_DETAIL_LABELS: Record<string, string> = {
+  partner: 'Partner',
+  children: 'Children',
+  family: 'Family',
+  hobbies: 'Hobbies',
+  health: 'Health',
+  pets: 'Pets',
+  milestones: 'Milestones',
+  other: 'Other',
+}
+
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
   const router = useRouter();
+  const { user } = useAuth();
   const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
+  const [isOwner, setIsOwner] = useState(false);
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const [editPersonal, setEditPersonal] = useState<Record<string, string>>({});
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [showActionCreate, setShowActionCreate] = useState(false);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
@@ -250,7 +266,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details')
         .eq('id', client.id)
         .single();
       
@@ -293,13 +309,16 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           last_session_event_id: lastSessionData?.id || null,
         };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
+        if (user && data.user_id === user.id) {
+          setIsOwner(true)
+        }
       }
     };
     
     if (client.id) {
       fetchClientDetails();
     }
-  }, [client.id]);
+  }, [client.id, user]);
 
   // Sync notes state when client changes
   useEffect(() => {
@@ -1205,22 +1224,82 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           </Card>
         </div>
 
-        {/* Personal */}
-        {currentClient?.personal_details && Object.keys(currentClient.personal_details).some(k => currentClient.personal_details?.[k]?.trim()) && (
+        {/* Personal — owner only */}
+        {isOwner && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium">Personal</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Personal</CardTitle>
+                <button
+                  onClick={() => {
+                    if (isEditingPersonal) {
+                      const cleaned: Record<string, string> = {}
+                      for (const [k, v] of Object.entries(editPersonal)) {
+                        if (v && v.trim()) cleaned[k] = v.trim()
+                      }
+                      supabase
+                        .from('clients')
+                        .update({ personal_details: cleaned })
+                        .eq('id', client.id)
+                        .then(() => {
+                          setCurrentClient(prev => prev ? { ...prev, personal_details: cleaned } : prev)
+                        })
+                      setIsEditingPersonal(false)
+                    } else {
+                      setEditPersonal({ ...Object.fromEntries(Object.keys(PERSONAL_DETAIL_LABELS).map(k => [k, ''])), ...(currentClient?.personal_details || {}) })
+                      setIsEditingPersonal(true)
+                    }
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title={isEditingPersonal ? 'Save' : 'Edit'}
+                >
+                  {isEditingPersonal ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {Object.entries(currentClient.personal_details)
-                .filter(([, v]) => v && v.trim())
-                .map(([key, value]) => (
-                  <div key={key} className="flex gap-3">
-                    <span className="text-[13px] text-muted-foreground capitalize shrink-0 w-[80px]">{key.replace(/_/g, ' ')}</span>
-                    <span className="text-[13px] text-foreground">{value}</span>
-                  </div>
-                ))}
-              <p className="text-[11px] text-muted-foreground/60 pt-2">Auto-extracted from session notes</p>
+              {isEditingPersonal ? (
+                <>
+                  {[
+                    ...Object.keys(PERSONAL_DETAIL_LABELS),
+                    ...Object.keys(editPersonal).filter(k => !(k in PERSONAL_DETAIL_LABELS)),
+                  ].map(key => {
+                    const label = PERSONAL_DETAIL_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    return (
+                      <div key={key} className="flex gap-3 items-start">
+                        <span className="text-[13px] text-muted-foreground shrink-0 w-[80px] pt-1.5">{label}</span>
+                        <input
+                          type="text"
+                          value={editPersonal[key] || ''}
+                          onChange={(e) => setEditPersonal(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="flex-1 text-[13px] px-2 py-1 rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          placeholder={`Add ${label.toLowerCase()}...`}
+                        />
+                      </div>
+                    )
+                  })}
+                </>
+              ) : (
+                <>
+                  {currentClient?.personal_details && Object.entries(currentClient.personal_details)
+                    .filter(([, v]) => v && v.trim())
+                    .length > 0 ? (
+                    Object.entries(currentClient.personal_details)
+                      .filter(([, v]) => v && v.trim())
+                      .map(([key, value]) => (
+                        <div key={key} className="flex gap-3">
+                          <span className="text-[13px] text-muted-foreground shrink-0 w-[80px]">{PERSONAL_DETAIL_LABELS[key] || key.replace(/_/g, ' ')}</span>
+                          <span className="text-[13px] text-foreground">{value}</span>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-[13px] text-muted-foreground">No personal details yet. Click edit to add, or generate a pre-read to auto-extract.</p>
+                  )}
+                  {currentClient?.personal_details && Object.values(currentClient.personal_details).some(v => v?.trim()) && (
+                    <p className="text-[11px] text-muted-foreground/60 pt-2">Auto-extracted from session notes</p>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         )}
