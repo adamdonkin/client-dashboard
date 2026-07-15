@@ -349,6 +349,7 @@ export function SessionWorkspace({
         <ActionDetailPanel
           key={selectedAction.id}
           action={selectedAction}
+          clientName={clientName}
           onClose={() => setSelectedAction(null)}
           onUpdated={(updated) => {
             setSelectedAction(updated)

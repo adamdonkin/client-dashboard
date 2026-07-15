@@ -1429,6 +1429,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
         <ActionDetailPanel
           key={selectedAction.id}
           action={selectedAction}
+          clientName={currentClient?.client_name || client.client_name}
           onClose={() => setSelectedAction(null)}
           onUpdated={(updated) => {
             setSelectedAction(updated)

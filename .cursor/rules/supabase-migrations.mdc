@@ -1,0 +1,10 @@
+---
+description: Run Supabase migrations with network access
+alwaysApply: true
+---
+
+# Supabase Migrations
+
+When running Supabase CLI commands that connect to the database (`supabase db push`, `supabase migration up`, `supabase db reset`, etc.), **always request `full_network` permission**. The Cursor sandbox blocks outbound connections by default, which causes "hostname resolving error" or "connection refused" when reaching Supabase's servers.
+
+Example: `run_terminal_cmd` with `required_permissions: ["full_network"]` when executing `npx supabase db push`.

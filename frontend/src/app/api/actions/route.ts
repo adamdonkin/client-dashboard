@@ -15,6 +15,7 @@ export interface ClientAction {
   source_url: string | null
   session_note_id: string | null
   client_id: string | null
+  assigned_to: string | null
   client_name: string
   company_name: string
   role: string | null
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
       .from('client_actions')
       .select(`
         id, title, description, description_content, source, status, due_date, created_date, created_at,
-        note_title, source_url, session_note_id, synced_at, client_id,
+        note_title, source_url, session_note_id, synced_at, client_id, assigned_to,
         clients!client_actions_client_id_fkey (
           name, company_name, role
         )
@@ -93,24 +94,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Add actions to their client groups
+    // Separate self-assigned vs client actions
+    const myActions: ClientAction[] = []
     for (const action of (actions || [])) {
-      const key = action.client_id || 'unmatched'
-
-      if (!groupMap.has(key)) {
-        const client = action.clients as unknown as { name: string; company_name: string; role: string | null } | null
-        groupMap.set(key, {
-          client_id: action.client_id,
-          client_name: client?.name || 'Unmatched',
-          company_name: client?.company_name || '',
-          role: client?.role || undefined,
-          next_session_date: null,
-          actions: []
-        })
-      }
-
       const client = action.clients as unknown as { name: string; company_name: string; role: string | null } | null
-      groupMap.get(key)!.actions.push({
+      const mapped: ClientAction = {
         id: action.id,
         title: action.title,
         description: action.description,
@@ -123,12 +111,31 @@ export async function GET(request: NextRequest) {
         source_url: action.source_url,
         session_note_id: action.session_note_id,
         client_id: action.client_id,
+        assigned_to: action.assigned_to,
         client_name: client?.name || 'Unmatched',
         company_name: client?.company_name || '',
         role: client?.role || null,
         synced_at: action.synced_at,
         created_at: action.created_at,
-      })
+      }
+
+      if (action.assigned_to) {
+        myActions.push(mapped)
+        continue
+      }
+
+      const key = action.client_id || 'unmatched'
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          client_id: action.client_id,
+          client_name: client?.name || 'Unmatched',
+          company_name: client?.company_name || '',
+          role: client?.role || undefined,
+          next_session_date: null,
+          actions: []
+        })
+      }
+      groupMap.get(key)!.actions.push(mapped)
     }
 
     // Sort: next session soonest first, no session to bottom
@@ -154,6 +161,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       groups,
+      my_actions: myActions,
       total_actions: totalActions,
       last_synced: syncRow?.synced_at || null
     })

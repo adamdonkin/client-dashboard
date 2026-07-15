@@ -16,10 +16,8 @@ import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 
-function ClientGroup({ group }: { group: ClientActionGroup }) {
+function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSelectAction: (action: ActionItem, clientName: string) => void }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)
-  const [actions, setActions] = useState(group.actions)
-  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
   const [copied, setCopied] = useState(false)
   const router = useRouter()
 
@@ -51,11 +49,11 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {actions.length > 0 && (
+            {group.actions.length > 0 && (
               <button
                 onClick={async (e) => {
                   e.stopPropagation()
-                  await copyActionsToClipboard(actions)
+                  await copyActionsToClipboard(group.actions)
                   setCopied(true)
                   setTimeout(() => setCopied(false), 2000)
                 }}
@@ -72,27 +70,22 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
               </span>
             )}
             <Badge variant="secondary" className="text-xs">
-              {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+              {group.actions.length} {group.actions.length === 1 ? 'action' : 'actions'}
             </Badge>
           </div>
         </div>
       </CardHeader>
       {expanded && (
         <CardContent className="pt-2 pb-2">
-          {actions.length === 0 ? (
+          {group.actions.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2 px-4">No active actions</p>
           ) : (
             <div className="space-y-1.5 px-2">
-              {actions.map((action) => (
+              {group.actions.map((action) => (
                 <ActionRow
                   key={action.id}
                   action={action}
-                  onChanged={(updated) => {
-                    setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-                    if (selectedAction?.id === updated.id) setSelectedAction(updated)
-                  }}
-                  onRemoved={(id) => setActions(prev => prev.filter(a => a.id !== id))}
-                  onSelect={setSelectedAction}
+                  onSelect={(a) => onSelectAction(a, group.client_name)}
                   showSource
                 />
               ))}
@@ -100,28 +93,12 @@ function ClientGroup({ group }: { group: ClientActionGroup }) {
           )}
         </CardContent>
       )}
-      {selectedAction && (
-        <ActionDetailPanel
-          key={selectedAction.id}
-          action={selectedAction}
-          onClose={() => setSelectedAction(null)}
-          onUpdated={(updated) => {
-            setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
-            setSelectedAction(updated)
-          }}
-          onDeleted={(id) => {
-            setSelectedAction(null)
-            setActions(prev => prev.filter(a => a.id !== id))
-          }}
-        />
-      )}
     </Card>
   )
 }
 
-function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
+function DueThisWeekView({ groups, onSelectAction }: { groups: ClientActionGroup[]; onSelectAction: (action: ActionItem, clientName: string) => void }) {
   const router = useRouter()
-  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
 
   const dueThisWeek = useMemo(() => {
     const all: (ClientAction & { client_name: string; client_id: string | null })[] = []
@@ -165,7 +142,7 @@ function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
                   <div className="flex-1 min-w-0">
                     <ActionRow
                       action={action}
-                      onSelect={setSelectedAction}
+                      onSelect={(a) => onSelectAction(a, action.client_name)}
                       showSource
                     />
                   </div>
@@ -183,14 +160,6 @@ function DueThisWeekView({ groups }: { groups: ClientActionGroup[] }) {
           </div>
         </CardContent>
       </Card>
-      {selectedAction && (
-        <ActionDetailPanel
-          key={selectedAction.id}
-          action={selectedAction}
-          onClose={() => setSelectedAction(null)}
-          onUpdated={(updated) => setSelectedAction(updated)}
-        />
-      )}
     </>
   )
 }
@@ -206,10 +175,57 @@ function formatTimeAgo(dateStr: string): string {
   return `${days}d ago`
 }
 
+function MyActionsGroup({ actions, onSelectAction }: { actions: ClientAction[]; onSelectAction: (action: ActionItem, clientName: string) => void }) {
+  const [expanded, setExpanded] = useState(true)
+
+  return (
+    <Card className="border-amber-500/20">
+      <CardHeader
+        className="cursor-pointer select-none pb-0"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {expanded
+              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            }
+            <CardTitle className="text-base">My Actions</CardTitle>
+          </div>
+          <Badge variant="secondary" className="text-xs">
+            {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+          </Badge>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="pt-3 pb-2">
+          <div className="space-y-1">
+            {actions.map(a => (
+              <div key={a.id} className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <ActionRow
+                    action={a}
+                    onSelect={(action) => onSelectAction(action, (a as any).client_name || 'Client')}
+                    showSource
+                  />
+                </div>
+                {(a as any).client_name && (a as any).client_name !== 'Unmatched' && (
+                  <span className="text-xs text-muted-foreground shrink-0">{(a as any).client_name}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
 type ViewTab = 'by_client' | 'due_this_week'
 
 export function ActionsContent() {
   const [groups, setGroups] = useState<ClientActionGroup[]>([])
+  const [myActions, setMyActions] = useState<ClientAction[]>([])
   const [totalActions, setTotalActions] = useState(0)
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -218,6 +234,13 @@ export function ActionsContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
+  const [selectedClientName, setSelectedClientName] = useState<string | null>(null)
+
+  const handleSelectAction = useCallback((action: ActionItem, clientName: string) => {
+    setSelectedAction(action)
+    setSelectedClientName(clientName)
+  }, [])
 
   const fetchActions = useCallback(async () => {
     setLoading(true)
@@ -227,6 +250,7 @@ export function ActionsContent() {
       if (!response.ok) throw new Error('Failed to fetch actions')
       const data = await response.json()
       setGroups(data.groups || [])
+      setMyActions(data.my_actions || [])
       setTotalActions(data.total_actions || 0)
       setLastSynced(data.last_synced || null)
     } catch (err) {
@@ -354,7 +378,7 @@ export function ActionsContent() {
           <span className="ml-3 text-muted-foreground">Loading actions...</span>
         </div>
       ) : viewTab === 'due_this_week' ? (
-        <DueThisWeekView groups={groups} />
+        <DueThisWeekView groups={groups} onSelectAction={handleSelectAction} />
       ) : filteredGroups.length === 0 ? (
         <Card>
           <CardContent className="py-12">
@@ -370,13 +394,34 @@ export function ActionsContent() {
         <>
           <p className="text-sm text-muted-foreground">
             {totalActions} {totalActions === 1 ? 'action' : 'actions'} across {groups.length} {groups.length === 1 ? 'client' : 'clients'}
+            {myActions.length > 0 && ` · ${myActions.length} for me`}
           </p>
           <div className="space-y-3">
+            {myActions.length > 0 && (
+              <MyActionsGroup actions={myActions} onSelectAction={handleSelectAction} />
+            )}
             {filteredGroups.map((group) => (
-              <ClientGroup key={group.client_id || group.company_name} group={group} />
+              <ClientGroup key={group.client_id || group.company_name} group={group} onSelectAction={handleSelectAction} />
             ))}
           </div>
         </>
+      )}
+
+      {selectedAction && (
+        <ActionDetailPanel
+          key={selectedAction.id}
+          action={selectedAction}
+          clientName={selectedClientName}
+          onClose={() => setSelectedAction(null)}
+          onUpdated={(updated) => {
+            setSelectedAction(updated)
+            fetchActions()
+          }}
+          onDeleted={(id) => {
+            setSelectedAction(null)
+            fetchActions()
+          }}
+        />
       )}
     </div>
   )

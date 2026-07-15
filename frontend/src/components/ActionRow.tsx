@@ -22,6 +22,8 @@ export interface ActionItem {
   session_note_id?: string | null
   review_history?: any[]
   created_at?: string | null
+  assigned_to?: string | null
+  client_id?: string | null
 }
 
 export function formatDueDate(dateStr: string | null): string {
@@ -156,7 +158,7 @@ export function ActionRow({
   const handleReviewUpdated = async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
       .eq('id', action.id)
       .single()
 
@@ -191,7 +193,7 @@ export function ActionRow({
           {action.status === 'cancelled' && <Ban className="h-2.5 w-2.5" />}
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <span
             className={cn(
               'action-row-title text-[14px] !leading-[16px]',
@@ -200,6 +202,11 @@ export function ActionRow({
           >
             {action.title}
           </span>
+          {action.assigned_to && (
+            <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/30 text-amber-600 dark:text-amber-400 font-medium shrink-0">
+              Me
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

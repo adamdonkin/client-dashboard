@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
-import { X, Trash2, Check, MoreHorizontal, XCircle } from 'lucide-react'
+import { X, Trash2, Check, MoreHorizontal, XCircle, User } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ActionDatePicker } from './ActionDatePicker'
 import { SessionEditor } from './SessionEditor'
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 
 interface ActionDetailPanelProps {
   action: ActionItem
+  clientName?: string | null
   onClose: () => void
   onUpdated?: (updated: ActionItem) => void
   onDeleted?: (id: string) => void
@@ -21,6 +22,7 @@ interface ActionDetailPanelProps {
 
 export function ActionDetailPanel({
   action,
+  clientName,
   onClose,
   onUpdated,
   onDeleted,
@@ -217,6 +219,31 @@ export function ActionDetailPanel({
                 value={dueDate ? (dueDate.length > 10 ? dueDate.slice(0, 10) : dueDate) : ''}
                 onChange={handleDateChange}
               />
+            </div>
+
+            <div className="border-t border-border/40" />
+
+            {/* Assignee */}
+            <div className="h-[48px] flex items-center gap-3 text-[13px] px-5">
+              <span className="text-muted-foreground">For</span>
+              <button
+                onClick={async () => {
+                  const newVal = action.assigned_to ? null : action.assigned_to === null ? 'self' : null
+                  const { data: { session } } = await supabase.auth.getSession()
+                  if (!session) return
+                  const assignedTo = action.assigned_to ? null : session.user.id
+                  await supabase
+                    .from('client_actions')
+                    .update({ assigned_to: assignedTo, updated_at: new Date().toISOString() })
+                    .eq('id', action.id)
+                  const updated = { ...actionRef.current, assigned_to: assignedTo }
+                  onUpdated?.(updated)
+                }}
+                className="flex items-center gap-1.5 text-[13px] px-2 py-0.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
+              >
+                <User className="h-3 w-3 text-muted-foreground" />
+                <span>{action.assigned_to ? 'Me (Adam)' : (clientName || 'Client')}</span>
+              </button>
             </div>
 
             <div className="border-t border-border/40" />
