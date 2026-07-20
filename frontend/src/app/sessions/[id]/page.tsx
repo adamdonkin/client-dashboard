@@ -118,11 +118,18 @@ export default function SessionPage({ params }: SessionPageProps) {
 
         // Look up or create the session_notes row for this calendar event
         // Don't filter by user_id — RLS handles access, and team members need to see the owner's notes
-        const { data: existingNote } = await supabase
+        const { data: existingNotes } = await supabase
           .from('session_notes')
-          .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+          .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at, user_id, connection_notes')
           .eq('calendar_event_id', event.id)
-          .single()
+          .order('created_at', { ascending: true })
+
+        // Prefer the note owned by the event owner, or the one with content
+        const existingNote = existingNotes && existingNotes.length > 0
+          ? existingNotes.find(n => n.user_id === event.user_id)
+            || existingNotes.find(n => n.connection_notes)
+            || existingNotes[0]
+          : null
 
         if (existingNote) {
           noteRow = existingNote
