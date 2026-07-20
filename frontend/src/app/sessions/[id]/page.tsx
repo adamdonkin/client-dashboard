@@ -16,6 +16,7 @@ interface SessionPageProps {
 interface CalendarEvent {
   id: string
   client_id: string
+  user_id?: string
   start_time: string
   end_time: string
   title: string
@@ -103,7 +104,7 @@ export default function SessionPage({ params }: SessionPageProps) {
       if (!noteRow) {
         const { data: eventData, error: eventErr } = await supabase
           .from('calendar_events')
-          .select('id, client_id, start_time, end_time, title')
+          .select('id, client_id, user_id, start_time, end_time, title')
           .eq('id', id)
           .single()
 
@@ -116,10 +117,10 @@ export default function SessionPage({ params }: SessionPageProps) {
         event = eventData
 
         // Look up or create the session_notes row for this calendar event
+        // Don't filter by user_id — RLS handles access, and team members need to see the owner's notes
         const { data: existingNote } = await supabase
           .from('session_notes')
           .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
-          .eq('user_id', session.user.id)
           .eq('calendar_event_id', event.id)
           .single()
 
@@ -129,7 +130,7 @@ export default function SessionPage({ params }: SessionPageProps) {
           const { data: created, error: createErr } = await supabase
             .from('session_notes')
             .insert({
-              user_id: session.user.id,
+              user_id: event.user_id || session.user.id,
               client_id: event.client_id,
               calendar_event_id: event.id,
               session_date: event.start_time,
