@@ -57,12 +57,14 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
         .from('calendar_events')
         .select('id, title, start_time, client_id, clients(id, name)')
         .gt('start_time', now)
+        .or('status.is.null,status.neq.cancelled')
         .order('start_time', { ascending: true })
         .limit(5),
       supabase
         .from('calendar_events')
         .select('id, title, start_time, client_id, clients(id, name)')
         .lt('start_time', now)
+        .or('status.is.null,status.neq.cancelled')
         .order('start_time', { ascending: false })
         .limit(5),
     ])

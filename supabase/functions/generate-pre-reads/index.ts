@@ -72,11 +72,12 @@ function buildPreReadPrompt(context: {
   clientNotes: string | null
   personalDetails: Record<string, string> | null
   sessionDate: string
+  engagementLength: string | null
   actions: any[]
   granolaSummary: string | null
   sessionNotes: any[]
 }): string {
-  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, actions, granolaSummary, sessionNotes } = context
+  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, actions, granolaSummary, sessionNotes } = context
 
   const actionsBlock = actions.length > 0
     ? actions.map(a => `- ${a.title} | Due: ${a.due_date || 'No date'} | Status: ${a.status === 'to_do' ? 'To Do' : 'Not Done'}`).join('\n')
@@ -105,6 +106,7 @@ function buildPreReadPrompt(context: {
 - Company: ${companyName || 'Unknown'}
 - Role: ${role || 'Unknown'}
 - Session date: ${sessionDate}
+${engagementLength ? `- Working together: ${engagementLength}` : ''}
 ${clientNotes ? `- Coach notes: ${clientNotes}` : ''}
 
 ## Known personal details
@@ -129,7 +131,7 @@ FORMATTING: Use frequent paragraph breaks for readability — aim for 3-4 senten
 
 **Quick context**
 - Role, company, what the company does (1-2 lines)
-- How long you've been working together (estimate from session history)
+- How long they've been working together (use the "Working together" field from client information above)
 - Session cadence (estimate from dates)
 
 **Connection reminders**
@@ -288,6 +290,35 @@ serve(async (req) => {
       }
     }
 
+    // Calculate engagement length from first calendar event
+    let engagementLength: string | null = null
+    const { data: firstSession } = await supabase
+      .from('calendar_events')
+      .select('start_time')
+      .eq('client_id', event.client_id)
+      .eq('user_id', user_id)
+      .order('start_time', { ascending: true })
+      .limit(1)
+      .single()
+
+    if (firstSession?.start_time) {
+      const firstDate = new Date(firstSession.start_time)
+      const now = new Date()
+      const totalMonths = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+      if (totalMonths < 1) {
+        engagementLength = 'less than a month'
+      } else if (totalMonths < 12) {
+        engagementLength = `${totalMonths} month${totalMonths === 1 ? '' : 's'}`
+      } else {
+        const years = Math.floor(totalMonths / 12)
+        const months = totalMonths % 12
+        engagementLength = months > 0
+          ? `${years} year${years === 1 ? '' : 's'}, ${months} month${months === 1 ? '' : 's'}`
+          : `${years} year${years === 1 ? '' : 's'}`
+      }
+      engagementLength += ` (since ${firstDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`
+    }
+
     // Fetch previous session notes (last 3 sessions)
     const { data: prevNotes } = await supabase
       .from('session_notes')
@@ -304,6 +335,7 @@ serve(async (req) => {
       clientNotes: client.notes,
       personalDetails: client.personal_details,
       sessionDate: targetDate,
+      engagementLength,
       actions: actions || [],
       granolaSummary,
       sessionNotes: prevNotes || [],
