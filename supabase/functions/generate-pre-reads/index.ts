@@ -290,19 +290,37 @@ serve(async (req) => {
       }
     }
 
-    // Calculate engagement length from first calendar event
+    // Calculate engagement length from earliest session or calendar event
     let engagementLength: string | null = null
-    const { data: firstSession } = await supabase
-      .from('calendar_events')
-      .select('start_time')
-      .eq('client_id', event.client_id)
-      .eq('user_id', user_id)
-      .order('start_time', { ascending: true })
-      .limit(1)
-      .single()
 
-    if (firstSession?.start_time) {
-      const firstDate = new Date(firstSession.start_time)
+    const [{ data: firstSessionRecord }, { data: firstCalEvent }] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('date')
+        .eq('client_id', event.client_id)
+        .not('date', 'is', null)
+        .order('date', { ascending: true })
+        .limit(1)
+        .single(),
+      supabase
+        .from('calendar_events')
+        .select('start_time')
+        .eq('client_id', event.client_id)
+        .eq('user_id', user_id)
+        .order('start_time', { ascending: true })
+        .limit(1)
+        .single(),
+    ])
+
+    const candidates: Date[] = []
+    if (firstSessionRecord?.date) candidates.push(new Date(firstSessionRecord.date))
+    if (firstCalEvent?.start_time) candidates.push(new Date(firstCalEvent.start_time))
+    const earliestDate = candidates.length > 0
+      ? candidates.reduce((a, b) => a < b ? a : b)
+      : null
+
+    if (earliestDate) {
+      const firstDate = earliestDate
       const now = new Date()
       const totalMonths = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
       if (totalMonths < 1) {
