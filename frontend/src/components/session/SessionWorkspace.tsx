@@ -151,20 +151,15 @@ export function SessionWorkspace({
   ]
 
   const insertIssueTemplate = (editor: any, title?: string) => {
-    const pos = editor.state.selection.from
-    const content = title
-      ? [
-          { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: title }] },
-          ...issueTemplateContent.slice(1),
-        ]
-      : issueTemplateContent
-    editor.chain().focus().insertContent(content).run()
+    const { from: pos, to } = editor.state.selection
+    const doc = editor.state.doc
+
     if (!title) {
-      // Select "Topic title" text so user can type over it
+      editor.chain().focus().insertContent(issueTemplateContent).run()
       setTimeout(() => {
-        const doc = editor.state.doc
+        const newDoc = editor.state.doc
         let headingPos: number | null = null
-        doc.descendants((node: any, nodePos: number) => {
+        newDoc.descendants((node: any, nodePos: number) => {
           if (headingPos !== null) return false
           if (node.type.name === 'heading' && nodePos >= pos - 1) {
             headingPos = nodePos
@@ -172,15 +167,114 @@ export function SessionWorkspace({
           }
         })
         if (headingPos !== null) {
-          const headingNode = doc.nodeAt(headingPos)
+          const headingNode = newDoc.nodeAt(headingPos)
           if (headingNode) {
-            const from = headingPos + 1
-            const to = from + headingNode.content.size
-            editor.chain().focus().setTextSelection({ from, to }).run()
+            const hFrom = headingPos + 1
+            const hTo = hFrom + headingNode.content.size
+            editor.chain().focus().setTextSelection({ from: hFrom, to: hTo }).run()
           }
         }
       }, 10)
+      return
     }
+
+    // Determine context: is the selection inside a bulletList?
+    const $from = doc.resolve(pos)
+    let capturedItems: any[] = []
+    let deleteFrom = pos
+    let deleteEnd = to
+
+    let insideBulletList = false
+    for (let d = $from.depth; d >= 1; d--) {
+      if ($from.node(d).type.name === 'bulletList') {
+        insideBulletList = true
+        const bulletList = $from.node(d)
+        const bulletListPos = $from.start(d) - 1
+
+        // Find which listItem contains the selection
+        const listItemDepth = d + 1
+        let selectedItemIndex = -1
+        if ($from.depth >= listItemDepth && $from.node(listItemDepth)?.type.name === 'listItem') {
+          selectedItemIndex = $from.index(d)
+        }
+
+        // Capture all listItems after the selected one (sibling bullets)
+        if (selectedItemIndex >= 0) {
+          for (let i = selectedItemIndex + 1; i < bulletList.childCount; i++) {
+            capturedItems.push(bulletList.child(i).toJSON())
+          }
+
+          // Also capture nested sub-bullets under the selected item
+          const selectedItem = bulletList.child(selectedItemIndex)
+          selectedItem.forEach((child: any) => {
+            if (child.type.name === 'bulletList') {
+              child.forEach((subItem: any) => {
+                capturedItems.push(subItem.toJSON())
+              })
+            }
+          })
+        }
+
+        // Delete from the selected listItem through end of the bulletList
+        if (selectedItemIndex >= 0) {
+          let itemPos = bulletListPos + 1
+          for (let i = 0; i < selectedItemIndex; i++) {
+            itemPos += bulletList.child(i).nodeSize
+          }
+          deleteFrom = itemPos
+          deleteEnd = bulletListPos + bulletList.nodeSize
+
+          // If this was the only item (or first with no items before it),
+          // delete the entire bulletList node
+          if (selectedItemIndex === 0) {
+            deleteFrom = bulletListPos
+          }
+        }
+        break
+      }
+    }
+
+    if (!insideBulletList) {
+      // Selection is in a paragraph/heading — check for adjacent bulletList after
+      const $to = doc.resolve(to)
+      const topNode = $to.node(1)
+      const topNodePos = $to.start(1) - 1
+      let searchPos = topNode ? topNodePos + topNode.nodeSize : to
+
+      if (searchPos < doc.content.size) {
+        const nextNode = doc.nodeAt(searchPos)
+        if (nextNode && nextNode.type.name === 'bulletList') {
+          nextNode.forEach((listItem: any) => {
+            capturedItems.push(listItem.toJSON())
+          })
+          deleteEnd = searchPos + nextNode.nodeSize
+        }
+      }
+      deleteFrom = pos
+    }
+
+    const templateBulletItems = [
+      ...capturedItems,
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'How did you help create this problem?' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: "What's your proposed solution?" }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+    ]
+
+    const content = [
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: title }] },
+      { type: 'bulletList', content: templateBulletItems },
+    ]
+
+    editor.chain()
+      .focus()
+      .deleteRange({ from: deleteFrom, to: deleteEnd })
+      .insertContentAt(deleteFrom, content)
+      .run()
   }
 
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
