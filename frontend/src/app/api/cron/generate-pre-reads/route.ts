@@ -17,12 +17,18 @@ export async function GET(request: NextRequest) {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   try {
-    // --- Step 0: Resolve user ---
-    const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1 })
-    const userId = users?.[0]?.id
-    console.log('[cron] User lookup:', { userId, usersError: usersError?.message })
+    // --- Step 0: Resolve the coach (owner) user ---
+    // Query calendar_events for the actual owner instead of auth.admin.listUsers,
+    // which may return a team member (e.g. Trishia) first.
+    const { data: ownerRow } = await supabase
+      .from('clients')
+      .select('user_id')
+      .limit(1)
+      .single()
+    const userId = ownerRow?.user_id
+    console.log('[cron] Owner user:', userId)
     if (!userId) {
-      return NextResponse.json({ success: false, message: `No user found: ${usersError?.message || 'none'}` })
+      return NextResponse.json({ success: false, message: 'No owner user found in clients table' })
     }
 
     // --- Step 1: Sync Google Calendar ---
