@@ -191,15 +191,32 @@
   list-style-type: square;
 }
 
-.session-editor .ProseMirror ul li {
+.session-editor .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.75em;
+}
+
+.session-editor .ProseMirror ol ol {
+  list-style-type: lower-alpha;
+  margin-top: 0.15em;
+}
+
+.session-editor .ProseMirror ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.session-editor .ProseMirror ul li,
+.session-editor .ProseMirror ol li {
   margin-bottom: 0.5em;
 }
 
-.session-editor .ProseMirror ul ul li {
+.session-editor .ProseMirror ul ul li,
+.session-editor .ProseMirror ol ol li {
   margin-bottom: 0.25em;
 }
 
-.session-editor .ProseMirror li:has(> ul) {
+.session-editor .ProseMirror li:has(> ul),
+.session-editor .ProseMirror li:has(> ol) {
   margin-bottom: 0.75em;
 }
 
@@ -312,6 +329,15 @@
 
 .action-description-editor .ProseMirror ul ul {
   list-style-type: circle;
+}
+
+.action-description-editor .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.action-description-editor .ProseMirror ol ol {
+  list-style-type: lower-alpha;
 }
 
 .action-description-editor .ProseMirror ul li {
