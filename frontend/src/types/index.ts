@@ -19,6 +19,7 @@ export interface Client {
   next_session_date?: string;
   priority_level?: string;
   referral_source?: string;
+  referred_by?: string;
 }
 
 export interface ClientDetailData {

@@ -84,6 +84,7 @@ interface NewClientForm {
   session_duration: string;
   status: ClientStatus;
   referral_source: string;
+  referred_by: string;
 }
 
 const initialFormState: NewClientForm = {
@@ -96,7 +97,8 @@ const initialFormState: NewClientForm = {
   cadence: 'Biweekly',
   session_duration: '90 min',
   status: 'pending',
-  referral_source: 'Mochary Method',
+  referral_source: 'Matt Mochary',
+  referred_by: '',
 };
 
 export default function ClientsPage() {
@@ -247,6 +249,7 @@ export default function ClientsPage() {
         status: newClient.status,
         is_active: newClient.status === 'active' || newClient.status === 'pending' || newClient.status === 'staff',
         referral_source: newClient.referral_source || null,
+        referred_by: (newClient.referral_source === 'Adam Donkin' && newClient.referred_by.trim()) ? newClient.referred_by.trim() : null,
       }
       
       const { data, error } = await supabase
@@ -304,18 +307,18 @@ export default function ClientsPage() {
       return false;
     }
     
-    // Revenue filter (Mochary Method)
-    if (revenueFilter === 'mochary-method' && client.referral_source !== 'Mochary Method') {
+    // Revenue filter (Mochary = everyone except Jessie Barry)
+    if (revenueFilter === 'mochary-method' && client.name === 'Jessie Barry') {
       return false;
     }
     
     return true;
   })
   
-  // Helper to filter by revenue source
+  // Helper to filter by revenue source (excludes Jessie Barry)
   const applyRevenueFilter = (clientList: ClientRow[]) => {
     if (revenueFilter === 'mochary-method') {
-      return clientList.filter(c => c.referral_source === 'Mochary Method');
+      return clientList.filter(c => c.name !== 'Jessie Barry');
     }
     return clientList;
   };
@@ -507,6 +510,18 @@ export default function ClientsPage() {
                       ))}
                     </select>
                   </div>
+                  {newClient.referral_source === 'Adam Donkin' && (
+                    <div>
+                      <label className="text-sm font-medium">Referred By</label>
+                      <input
+                        type="text"
+                        value={newClient.referred_by}
+                        onChange={(e) => handleFormChange('referred_by', e.target.value)}
+                        className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                        placeholder="Name of referrer"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>

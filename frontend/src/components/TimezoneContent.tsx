@@ -64,7 +64,7 @@ export function TimezoneContent({ clients }: TimezoneContentProps) {
 
   const filteredClients = useMemo(() => {
     if (filter === 'mochary-method') {
-      return clients.filter(c => c.referral_source === 'Mochary Method');
+      return clients.filter(c => c.client_name !== 'Jessie Barry');
     }
     return clients;
   }, [clients, filter]);

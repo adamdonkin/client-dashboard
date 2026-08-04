@@ -110,6 +110,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editMonthlyFee, setEditMonthlyFee] = useState(client.monthly_fee?.toString() || '');
   const [editCadence, setEditCadence] = useState(client.cadence || '');
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
+  const [editReferralSource, setEditReferralSource] = useState(client.referral_source || '');
+  const [editReferredBy, setEditReferredBy] = useState((client as Record<string, unknown>).referred_by as string || '');
   
   // Copy to clipboard state
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -135,6 +137,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   // Enum options from database
   const [cadenceOptions, setCadenceOptions] = useState<string[]>([]);
   const [durationOptions, setDurationOptions] = useState<string[]>([]);
+  const [referralOptions, setReferralOptions] = useState<string[]>([]);
 
   // Fetch enum values from database
   useEffect(() => {
@@ -173,6 +176,22 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         }
       } else if (durationData) {
         setDurationOptions(durationData.map((row: { value: string }) => row.value));
+      }
+
+      // Fetch referral_source enum values
+      const { data: referralData, error: referralError } = await supabase
+        .rpc('get_enum_values', { enum_name: 'referral_source' });
+      if (referralError) {
+        const { data: fallbackReferral } = await supabase
+          .from('clients')
+          .select('referral_source')
+          .not('referral_source', 'is', null);
+        if (fallbackReferral) {
+          const uniqueReferrals = [...new Set(fallbackReferral.map(r => r.referral_source).filter(Boolean))];
+          setReferralOptions(uniqueReferrals as string[]);
+        }
+      } else if (referralData) {
+        setReferralOptions(referralData.map((row: { value: string }) => row.value));
       }
     };
     
@@ -266,7 +285,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by')
         .eq('id', client.id)
         .single();
       
@@ -360,6 +379,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setEditMonthlyFee(currentClient?.monthly_fee?.toString() || '');
     setEditCadence(currentClient?.cadence || '');
     setEditDuration(currentClient?.session_duration || '');
+    setEditReferralSource(currentClient?.referral_source || '');
+    setEditReferredBy((currentClient as Record<string, unknown>)?.referred_by as string || '');
   }, [currentClient]);
 
   // Save details
@@ -372,6 +393,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : null,
         cadence: editCadence || null,
         session_duration: editDuration || null,
+        referral_source: editReferralSource || null,
+        referred_by: (editReferralSource === 'Adam Donkin' && editReferredBy.trim()) ? editReferredBy.trim() : null,
       };
 
       const { error: updateError } = await supabase
@@ -389,6 +412,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : undefined,
           cadence: editCadence || undefined,
           session_duration: editDuration || undefined,
+          referral_source: editReferralSource || undefined,
+          referred_by: (editReferralSource === 'Adam Donkin' && editReferredBy.trim()) ? editReferredBy.trim() : undefined,
         } : prev);
       }
     } catch (err) {
@@ -1171,6 +1196,31 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Referral Source</label>
+                      <select
+                        value={editReferralSource}
+                        onChange={(e) => setEditReferralSource(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded bg-background"
+                      >
+                        <option value="">Select...</option>
+                        {referralOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {editReferralSource === 'Adam Donkin' && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Referred By</label>
+                        <input
+                          type="text"
+                          value={editReferredBy}
+                          onChange={(e) => setEditReferredBy(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          placeholder="Name of referrer"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1197,6 +1247,15 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     <div>
                       <span className="text-muted-foreground">Duration:</span>{' '}
                       <span className="font-medium">{currentClient.session_duration}</span>
+                    </div>
+                  )}
+                  {currentClient?.referral_source && (
+                    <div>
+                      <span className="text-muted-foreground">Referral:</span>{' '}
+                      <span className="font-medium">
+                        {currentClient.referral_source}
+                        {currentClient.referred_by && ` (${currentClient.referred_by})`}
+                      </span>
                     </div>
                   )}
                 </div>

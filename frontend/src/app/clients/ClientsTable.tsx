@@ -29,7 +29,7 @@ interface ClientRow {
   session_duration?: string | null;
 }
 
-type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee' | 'cadence' | 'session_duration';
+type SortField = 'company_name' | 'name' | 'role' | 'location' | 'monthly_fee' | 'cadence' | 'session_duration' | 'referral_source';
 type SortDirection = 'asc' | 'desc';
 
 interface ClientsTableProps {
@@ -135,6 +135,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           <SortableHeader field="monthly_fee">Rate</SortableHeader>
           <SortableHeader field="cadence">Cadence</SortableHeader>
           <SortableHeader field="session_duration">Duration</SortableHeader>
+          <SortableHeader field="referral_source">Referral</SortableHeader>
           <SortableHeader field="location">Location</SortableHeader>
         </TableRow>
       </TableHeader>
@@ -165,6 +166,9 @@ export function ClientsTable({ clients }: ClientsTableProps) {
             </TableCell>
             <TableCell className={sortField === 'session_duration' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {formatDuration(client.session_duration)}
+            </TableCell>
+            <TableCell className={sortField === 'referral_source' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {client.referral_source || '—'}
             </TableCell>
             <TableCell className={sortField === 'location' ? 'font-medium text-foreground' : 'text-muted-foreground'}>
               {client.location ? (

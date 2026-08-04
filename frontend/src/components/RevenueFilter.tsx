@@ -18,7 +18,7 @@ export function RevenueFilter({ value, onChange }: RevenueFilterProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Clients</SelectItem>
-          <SelectItem value="mochary-method">Mochary Method</SelectItem>
+          <SelectItem value="mochary-method">Mochary</SelectItem>
         </SelectContent>
       </Select>
     </div>
