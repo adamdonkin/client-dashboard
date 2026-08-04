@@ -168,9 +168,6 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
               <div className="flex items-center gap-2">
                 <ManualSyncButton user={user} />
                 <ThemeToggle />
-                <Button variant="ghost" size="sm" onClick={signOut}>
-                  Sign out
-                </Button>
               </div>
             </div>
           </div>

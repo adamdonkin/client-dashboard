@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (!clientId) {
+    console.log('[portal] No client found for email:', user.email)
     return NextResponse.json({ client: null })
   }
+
+  console.log('[portal] Client found:', clientId, clientName)
 
   // Fetch actions and sessions using service role (bypasses RLS timing issues)
   const { data: actionsData } = await serviceSupabase
@@ -69,6 +72,7 @@ export async function POST(request: NextRequest) {
     .eq('status', 'to_do')
     .order('created_at', { ascending: false })
 
+  // Fetch sessions: try calendar events first, fall back to session_notes directly
   const { data: eventsData } = await serviceSupabase
     .from('calendar_events')
     .select('id, start_time, title')
@@ -78,6 +82,7 @@ export async function POST(request: NextRequest) {
     .order('start_time', { ascending: false })
 
   let sessions: any[] = []
+
   if (eventsData && eventsData.length > 0) {
     const eventIds = eventsData.map(e => e.id)
     const { data: notesData } = await serviceSupabase
@@ -105,6 +110,27 @@ export async function POST(request: NextRequest) {
           connection_notes: note.connection_notes,
         }
       })
+  }
+
+  // Fallback: fetch session_notes directly by client_id (for sessions without calendar events)
+  if (sessions.length === 0) {
+    const { data: directNotes } = await serviceSupabase
+      .from('session_notes')
+      .select('id, client_id, session_date, content, connection_notes, created_at')
+      .eq('client_id', clientId)
+      .not('content', 'is', null)
+      .order('session_date', { ascending: false, nullsFirst: false })
+
+    if (directNotes && directNotes.length > 0) {
+      sessions = directNotes.map(note => ({
+        id: note.id,
+        calendar_event_id: null,
+        start_time: note.session_date || note.created_at,
+        title: null,
+        content: typeof note.content === 'string' ? JSON.parse(note.content) : note.content,
+        connection_notes: note.connection_notes,
+      }))
+    }
   }
 
   return NextResponse.json({
