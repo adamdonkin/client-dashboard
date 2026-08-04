@@ -81,18 +81,35 @@ export async function POST(request: NextRequest) {
     .lte('start_time', new Date().toISOString())
     .order('start_time', { ascending: false })
 
+  function mergeTiptapDocs(connection: any, topics: any): any | null {
+    const parse = (v: any) => typeof v === 'string' ? JSON.parse(v) : v
+    const a = connection ? parse(connection) : null
+    const b = topics ? parse(topics) : null
+    if (!a && !b) return null
+    if (!a) return b
+    if (!b) return a
+    return {
+      type: 'doc',
+      content: [
+        ...(a.content || []),
+        { type: 'horizontalRule' },
+        ...(b.content || []),
+      ],
+    }
+  }
+
   let sessions: any[] = []
 
   if (eventsData && eventsData.length > 0) {
     const eventIds = eventsData.map(e => e.id)
     const { data: notesData } = await serviceSupabase
       .from('session_notes')
-      .select('id, calendar_event_id, content, connection_notes')
+      .select('id, calendar_event_id, connection_notes, topics_content')
       .in('calendar_event_id', eventIds)
 
     const notesMap = new Map<string, any>()
     for (const note of (notesData || [])) {
-      if (note.calendar_event_id && note.content) {
+      if (note.calendar_event_id && (note.connection_notes || note.topics_content)) {
         notesMap.set(note.calendar_event_id, note)
       }
     }
@@ -106,7 +123,7 @@ export async function POST(request: NextRequest) {
           calendar_event_id: e.id,
           start_time: e.start_time,
           title: e.title,
-          content: typeof note.content === 'string' ? JSON.parse(note.content) : note.content,
+          content: mergeTiptapDocs(note.connection_notes, note.topics_content),
           connection_notes: note.connection_notes,
         }
       })
@@ -116,7 +133,7 @@ export async function POST(request: NextRequest) {
   if (sessions.length === 0) {
     const { data: directNotes, error: notesError } = await serviceSupabase
       .from('session_notes')
-      .select('id, client_id, session_date, content, connection_notes, created_at')
+      .select('id, client_id, session_date, connection_notes, topics_content, created_at')
       .eq('client_id', clientId)
       .order('session_date', { ascending: false, nullsFirst: false })
 
@@ -124,17 +141,16 @@ export async function POST(request: NextRequest) {
 
     if (directNotes && directNotes.length > 0) {
       sessions = directNotes
-        .filter(note => note.content)
+        .filter(note => note.connection_notes || note.topics_content)
         .map(note => ({
           id: note.id,
           calendar_event_id: null,
           start_time: note.session_date || note.created_at,
           title: null,
-          content: typeof note.content === 'string' ? JSON.parse(note.content) : note.content,
+          content: mergeTiptapDocs(note.connection_notes, note.topics_content),
           connection_notes: note.connection_notes,
         }))
 
-      // If no notes have content, still show the sessions (without expandable notes)
       if (sessions.length === 0) {
         sessions = directNotes.map(note => ({
           id: note.id,
