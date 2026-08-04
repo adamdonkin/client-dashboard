@@ -115,6 +115,16 @@ export function ActionCreatePanel({
             />
           </div>
         </div>
+
+        <div className="px-5 py-3 border-t border-border/50">
+          <button
+            onClick={handleSubmit}
+            disabled={!title.trim() || submitting}
+            className="w-full py-2 px-4 text-[13px] font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {submitting ? 'Creating...' : 'Create action'}
+          </button>
+        </div>
       </div>
     </div>
   )
