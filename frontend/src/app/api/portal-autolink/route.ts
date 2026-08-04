@@ -114,22 +114,37 @@ export async function POST(request: NextRequest) {
 
   // Fallback: fetch session_notes directly by client_id (for sessions without calendar events)
   if (sessions.length === 0) {
-    const { data: directNotes } = await serviceSupabase
+    const { data: directNotes, error: notesError } = await serviceSupabase
       .from('session_notes')
       .select('id, client_id, session_date, content, connection_notes, created_at')
       .eq('client_id', clientId)
-      .not('content', 'is', null)
       .order('session_date', { ascending: false, nullsFirst: false })
 
+    console.log('[portal] Direct notes query for client', clientId, '- found:', directNotes?.length || 0, 'error:', notesError?.message || 'none')
+
     if (directNotes && directNotes.length > 0) {
-      sessions = directNotes.map(note => ({
-        id: note.id,
-        calendar_event_id: null,
-        start_time: note.session_date || note.created_at,
-        title: null,
-        content: typeof note.content === 'string' ? JSON.parse(note.content) : note.content,
-        connection_notes: note.connection_notes,
-      }))
+      sessions = directNotes
+        .filter(note => note.content)
+        .map(note => ({
+          id: note.id,
+          calendar_event_id: null,
+          start_time: note.session_date || note.created_at,
+          title: null,
+          content: typeof note.content === 'string' ? JSON.parse(note.content) : note.content,
+          connection_notes: note.connection_notes,
+        }))
+
+      // If no notes have content, still show the sessions (without expandable notes)
+      if (sessions.length === 0) {
+        sessions = directNotes.map(note => ({
+          id: note.id,
+          calendar_event_id: null,
+          start_time: note.session_date || note.created_at,
+          title: null,
+          content: null,
+          connection_notes: note.connection_notes,
+        }))
+      }
     }
   }
 

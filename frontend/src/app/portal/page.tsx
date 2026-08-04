@@ -299,7 +299,7 @@ export default function PortalPage() {
                         </div>
                       </CardHeader>
                     </button>
-                    {isExpanded && (
+                    {isExpanded && session.content && (
                       <CardContent className="px-4 pb-4 pt-0">
                         <div
                           className="prose prose-sm max-w-none text-foreground session-editor"
