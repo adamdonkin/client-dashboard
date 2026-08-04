@@ -112,6 +112,12 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
   const [editReferralSource, setEditReferralSource] = useState(client.referral_source || '');
   const [editReferredBy, setEditReferredBy] = useState((client as Record<string, unknown>).referred_by as string || '');
+
+  // Portal access state
+  const [portalEmail, setPortalEmail] = useState('');
+  const [portalLinked, setPortalLinked] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
   
   // Copy to clipboard state
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -285,7 +291,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id')
         .eq('id', client.id)
         .single();
       
@@ -331,6 +337,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         if (user && data.user_id === user.id) {
           setIsOwner(true)
         }
+        setPortalLinked(!!data.auth_user_id)
       }
     };
     
@@ -1358,6 +1365,84 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     <p className="text-[11px] text-muted-foreground/60 pt-2">Auto-extracted from session notes</p>
                   )}
                 </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Portal Access — owner only */}
+        {isOwner && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Portal Access</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {portalLinked ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-green-600 dark:text-green-400">Portal access enabled</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground"
+                    onClick={async () => {
+                      setPortalLoading(true)
+                      const res = await fetch('/api/link-client-portal', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ clientId: client.id }),
+                      })
+                      if (res.ok) {
+                        setPortalLinked(false)
+                        setPortalError(null)
+                      }
+                      setPortalLoading(false)
+                    }}
+                    disabled={portalLoading}
+                  >
+                    Revoke
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Link their Google account so they can view their session notes.</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={portalEmail}
+                      onChange={(e) => { setPortalEmail(e.target.value); setPortalError(null); }}
+                      placeholder={client.client_email || "Client's Google email"}
+                      className="flex-1 px-2 py-1 text-sm border rounded bg-background"
+                    />
+                    <Button
+                      size="sm"
+                      disabled={portalLoading}
+                      onClick={async () => {
+                        const email = portalEmail.trim() || client.client_email
+                        if (!email) { setPortalError('Enter an email'); return }
+                        setPortalLoading(true)
+                        setPortalError(null)
+                        const res = await fetch('/api/link-client-portal', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ clientId: client.id, email }),
+                        })
+                        const data = await res.json()
+                        if (res.ok) {
+                          setPortalLinked(true)
+                          setPortalEmail('')
+                        } else {
+                          setPortalError(data.error)
+                        }
+                        setPortalLoading(false)
+                      }}
+                    >
+                      {portalLoading ? 'Linking...' : 'Link'}
+                    </Button>
+                  </div>
+                  {portalError && (
+                    <p className="text-xs text-red-500">{portalError}</p>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

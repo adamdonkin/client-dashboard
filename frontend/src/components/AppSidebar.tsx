@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { PanelLeft, LayoutDashboard, Users, Zap, Globe, BookOpen, Send, X } from 'lucide-react'
+import { PanelLeft, LayoutDashboard, Users, Zap, Globe, BookOpen, Send, X, LogOut } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -32,11 +32,11 @@ const NAV_ITEMS = [
 ]
 
 function isOverlayRoute(pathname: string) {
-  return pathname.startsWith('/sessions/') || pathname.startsWith('/auth/')
+  return pathname.startsWith('/sessions/') || pathname.startsWith('/auth/') || pathname.startsWith('/portal')
 }
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClientComponentClient()
@@ -110,7 +110,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [overlayOpen])
 
-  if (!user) return <>{children}</>
+  if (!user || pathname.startsWith('/portal')) return <>{children}</>
 
   const navigate = (href: string) => {
     router.push(href)
@@ -258,6 +258,23 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
             ))}
           </div>
         )}
+
+        {/* User */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-border px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[13px] text-foreground truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
+            </div>
+            <button
+              onClick={signOut}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Page content — shifts right when sidebar is persistent */}

@@ -40,6 +40,7 @@ export default function LoginPage() {
             }
           }}
           providers={['google']}
+          queryParams={{ prompt: 'select_account' }}
           redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
         />
       </div>
