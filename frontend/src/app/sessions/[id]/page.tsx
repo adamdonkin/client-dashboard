@@ -188,6 +188,22 @@ export default function SessionPage({ params }: SessionPageProps) {
         if (clientData) setClient(clientData)
       }
 
+      // Check if the current user is a client (not coach/team) — they get read-only
+      const [{ data: clientMatch }, { data: teamCheck }, { data: ownerCheck }] = await Promise.all([
+        supabase.from('clients').select('id').eq('auth_user_id', session.user.id).limit(1).single(),
+        supabase.from('team_access').select('id').or(`owner_id.eq.${session.user.id},member_id.eq.${session.user.id}`).limit(1),
+        supabase.from('clients').select('id').eq('user_id', session.user.id).limit(1),
+      ])
+      const isCoachOrTeam = (teamCheck && teamCheck.length > 0) || (ownerCheck && ownerCheck.length > 0)
+      const isClientViewer = !!clientMatch && !isCoachOrTeam
+
+      if (isClientViewer) {
+        setNotesLocked(true)
+        setSessionNoteId(noteRow.id)
+        setLoading(false)
+        return
+      }
+
       // Handle locking — scope to notes editors only, not the whole page
       if (noteRow.locked_by && noteRow.locked_by !== tabIdRef.current && noteRow.locked_at) {
         const lockAge = Date.now() - new Date(noteRow.locked_at).getTime()

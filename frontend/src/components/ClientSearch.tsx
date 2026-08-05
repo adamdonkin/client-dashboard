@@ -28,8 +28,7 @@ export function ClientSearch() {
   const [clients, setClients] = useState<ClientResult[]>([])
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  const { user, isClientUser } = useAuth()
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -64,7 +63,7 @@ export function ClientSearch() {
     router.push(`/clients/${clientId}`)
   }
 
-  if (!user || pathname.startsWith('/portal')) return null
+  if (!user || isClientUser) return null
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>

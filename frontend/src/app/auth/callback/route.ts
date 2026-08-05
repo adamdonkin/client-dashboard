@@ -14,7 +14,13 @@ export async function GET(request: NextRequest) {
     // Check if this user is a coach/team member or a client
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const [{ data: teamCheck }, { data: ownerCheck }] = await Promise.all([
+      const [{ data: clientMatch }, { data: teamCheck }, { data: ownerCheck }] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .limit(1)
+          .single(),
         supabase
           .from('team_access')
           .select('id')
@@ -29,8 +35,8 @@ export async function GET(request: NextRequest) {
 
       const isCoachOrTeam = (teamCheck && teamCheck.length > 0) || (ownerCheck && ownerCheck.length > 0)
 
-      if (!isCoachOrTeam) {
-        return NextResponse.redirect(new URL('/portal', requestUrl.origin))
+      if (!isCoachOrTeam && clientMatch) {
+        return NextResponse.redirect(new URL(`/clients/${clientMatch.id}`, requestUrl.origin))
       }
     }
   }

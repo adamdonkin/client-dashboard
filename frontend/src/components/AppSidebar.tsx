@@ -32,11 +32,11 @@ const NAV_ITEMS = [
 ]
 
 function isOverlayRoute(pathname: string) {
-  return pathname.startsWith('/sessions/') || pathname.startsWith('/auth/') || pathname.startsWith('/portal')
+  return pathname.startsWith('/sessions/') || pathname.startsWith('/auth/')
 }
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, isClientUser, portalClientId } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClientComponentClient()
@@ -110,7 +110,16 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [overlayOpen])
 
-  if (!user || pathname.startsWith('/portal')) return <>{children}</>
+  useEffect(() => {
+    if (isClientUser && portalClientId) {
+      const allowedPath = `/clients/${portalClientId}`
+      if (!pathname.startsWith(allowedPath) && !pathname.startsWith('/sessions/') && !pathname.startsWith('/auth/')) {
+        router.replace(allowedPath)
+      }
+    }
+  }, [isClientUser, portalClientId, pathname, router])
+
+  if (!user || isClientUser) return <>{children}</>
 
   const navigate = (href: string) => {
     router.push(href)

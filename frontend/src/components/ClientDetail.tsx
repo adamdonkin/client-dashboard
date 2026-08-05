@@ -23,7 +23,8 @@ import {
   Timer,
   Phone,
   Plus,
-  Copy
+  Copy,
+  LogOut
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
@@ -76,7 +77,7 @@ const PERSONAL_DETAIL_LABELS: Record<string, string> = {
 
 const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isClientUser, signOut } = useAuth();
   const supabase = createClientComponentClient();
   const [currentClient, setCurrentClient] = useState<Client | null>(client);
   const [isOwner, setIsOwner] = useState(false);
@@ -660,7 +661,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                {isEditingHeader ? (
+                {isClientUser ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h1 className="text-2xl font-bold">{clientName}</h1>
+                      <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground">
+                        <LogOut className="h-4 w-4 mr-1" />
+                        Sign out
+                      </Button>
+                    </div>
+                    {(currentClient?.company_name || currentClient?.role) && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        {currentClient?.company_name && <span className="font-medium">{currentClient.company_name}</span>}
+                        {currentClient?.company_name && currentClient?.role && <span>•</span>}
+                        {currentClient?.role && <span>{currentClient.role}</span>}
+                      </div>
+                    )}
+                  </>
+                ) : isEditingHeader ? (
                   <div className="space-y-3">
                     <input
                       autoFocus
@@ -759,64 +777,66 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               </div>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                Last: {currentClient.last_session_date ? (
-                  (currentClient as any).last_session_event_id ? (
-                    <a
-                      href={`/sessions/${(currentClient as any).last_session_event_id}`}
-                      className="font-medium text-primary hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        router.push(`/sessions/${(currentClient as any).last_session_event_id}`)
-                      }}
-                    >
-                      {formatDateWithTime(currentClient.last_session_date)}
-                    </a>
+          {!isClientUser && (
+            <CardContent className="pt-0">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Last: {currentClient.last_session_date ? (
+                    (currentClient as any).last_session_event_id ? (
+                      <a
+                        href={`/sessions/${(currentClient as any).last_session_event_id}`}
+                        className="font-medium text-primary hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          router.push(`/sessions/${(currentClient as any).last_session_event_id}`)
+                        }}
+                      >
+                        {formatDateWithTime(currentClient.last_session_date)}
+                      </a>
+                    ) : (
+                      <span className="font-medium text-foreground">{formatDateWithTime(currentClient.last_session_date)}</span>
+                    )
                   ) : (
-                    <span className="font-medium text-foreground">{formatDateWithTime(currentClient.last_session_date)}</span>
-                  )
-                ) : (
-                  <span className="font-medium text-foreground">None</span>
-                )}
-              </span>
-              <span className="text-border">·</span>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
-                Next: {currentClient.next_session_date ? (
-                  (currentClient as any).next_session_event_id ? (
-                    <a
-                      href={`/sessions/${(currentClient as any).next_session_event_id}`}
-                      className="font-medium text-primary hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        router.push(`/sessions/${(currentClient as any).next_session_event_id}`)
-                      }}
-                    >
-                      {formatDateWithTime(currentClient.next_session_date)}
-                    </a>
+                    <span className="font-medium text-foreground">None</span>
+                  )}
+                </span>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  Next: {currentClient.next_session_date ? (
+                    (currentClient as any).next_session_event_id ? (
+                      <a
+                        href={`/sessions/${(currentClient as any).next_session_event_id}`}
+                        className="font-medium text-primary hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          router.push(`/sessions/${(currentClient as any).next_session_event_id}`)
+                        }}
+                      >
+                        {formatDateWithTime(currentClient.next_session_date)}
+                      </a>
+                    ) : (
+                      <span className="font-medium text-foreground">{formatDateWithTime(currentClient.next_session_date)}</span>
+                    )
                   ) : (
-                    <span className="font-medium text-foreground">{formatDateWithTime(currentClient.next_session_date)}</span>
-                  )
-                ) : (
-                  <span className="font-medium text-foreground">Not scheduled</span>
-                )}
-              </span>
-              <span className="text-border">·</span>
-              <button
-                onClick={() => router.push(`/sessions/new?clientId=${client.id}`)}
-                className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-              >
-                Start Session
-              </button>
-            </div>
-          </CardContent>
+                    <span className="font-medium text-foreground">Not scheduled</span>
+                  )}
+                </span>
+                <span className="text-border">·</span>
+                <button
+                  onClick={() => router.push(`/sessions/new?clientId=${client.id}`)}
+                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Start Session
+                </button>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Notes */}
-        <Card>
+        {!isClientUser && <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg">Notes</CardTitle>
             <div className="flex items-center gap-2">
@@ -877,9 +897,10 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
               </p>
             )}
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Two Column Layout - Compact */}
+        {!isClientUser && <>
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Contact & Communication */}
           <Card>
@@ -1289,6 +1310,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             </CardContent>
           </Card>
         </div>
+        </>}
 
         {/* Personal — owner only */}
         {isOwner && (
@@ -1468,13 +1490,15 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 >
                   {copiedActions ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                 </button>
-                <button
-                  onClick={() => setShowActionCreate(true)}
-                  className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Add action"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+                {!isClientUser && (
+                  <button
+                    onClick={() => setShowActionCreate(true)}
+                    className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Add action"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </CardHeader>
