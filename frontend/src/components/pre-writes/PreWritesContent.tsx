@@ -42,39 +42,58 @@ function getWeekRange(): { start: Date; end: Date; label: string } {
   }
 }
 
-function formatActionLines(actions: ActionItem[]): string {
+function formatActions(actions: ActionItem[]): { plain: string; html: string } {
   const open = actions.filter(a => a.status === 'to_do')
-  if (open.length === 0) return ''
+  if (open.length === 0) return { plain: '', html: '' }
 
-  const lines: string[] = []
+  const plainLines: string[] = []
+  const htmlParts: string[] = []
+
   for (const a of open) {
     const date = a.due_date
       ? ` by ${format(parseISO(a.due_date.length > 10 ? a.due_date.slice(0, 10) : a.due_date), 'MMM d')}`
       : ''
-    lines.push(`• ${a.title}${date}`)
+    plainLines.push(`• ${a.title}${date}`)
+    htmlParts.push(`<li>${a.title}${date}`)
+
     const desc = extractDescriptionLines(a.description_content, a.description)
     for (const d of desc) {
-      lines.push(`  ◦ ${d}`)
+      plainLines.push(`  ◦ ${d}`)
     }
+    if (desc.length > 0) {
+      htmlParts.push(`<ul>${desc.map(l => `<li>${l}</li>`).join('')}</ul>`)
+    }
+    htmlParts.push('</li>')
   }
-  return lines.join('\n')
+
+  return {
+    plain: plainLines.join('\n'),
+    html: `<ul>${htmlParts.join('')}</ul>`,
+  }
 }
 
 function buildMessage(
   firstName: string,
   dayLabel: string,
   channel: 'slack' | 'email',
-  actionText: string,
-): string {
-  const actionsBlock = actionText
-    ? `\n\nYour current actions:\n${actionText}`
-    : ''
+  actions: { plain: string; html: string },
+): { plain: string; html: string } {
+  const greeting = channel === 'slack'
+    ? `Hi ${firstName}. Looking forward to our session on ${dayLabel}. Please send the topic(s) you'd like to discuss. Thanks!`
+    : `Hi ${firstName},\n\nLooking forward to our session on ${dayLabel}. Please send the topic(s) you'd like to discuss. Thanks!`
 
-  if (channel === 'slack') {
-    return `Hi ${firstName}. Looking forward to our session on ${dayLabel}. Please send the topic(s) you'd like to discuss. Thanks!${actionsBlock}`
+  const signoff = channel === 'email' ? '\n\nBest,\nAdam' : ''
+
+  const plainActions = actions.plain ? `\n\nYour current actions:\n${actions.plain}` : ''
+  const htmlActions = actions.html ? `<br><br><b>Your current actions:</b>${actions.html}` : ''
+
+  const greetingHtml = greeting.replace(/\n/g, '<br>')
+  const signoffHtml = signoff.replace(/\n/g, '<br>')
+
+  return {
+    plain: `${greeting}${plainActions}${signoff}`,
+    html: `${greetingHtml}${htmlActions}${signoffHtml}`,
   }
-
-  return `Hi ${firstName},\n\nLooking forward to our session on ${dayLabel}. Please send the topic(s) you'd like to discuss. Thanks!${actionsBlock}\n\nBest,\nAdam`
 }
 
 export function PreWritesContent() {
@@ -214,10 +233,15 @@ export function PreWritesContent() {
   const handleCopy = async (session: ClientSession) => {
     const channel: 'slack' | 'email' = session.slack ? 'slack' : 'email'
     const actions = actionsMap.get(session.clientId) || []
-    const actionText = formatActionLines(actions)
-    const message = buildMessage(session.firstName, session.dayLabel, channel, actionText)
+    const formatted = formatActions(actions)
+    const message = buildMessage(session.firstName, session.dayLabel, channel, formatted)
 
-    await navigator.clipboard.writeText(message)
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([message.plain], { type: 'text/plain' }),
+        'text/html': new Blob([message.html], { type: 'text/html' }),
+      }),
+    ])
     setCopiedId(session.eventId)
     setTimeout(() => setCopiedId(null), 2000)
   }
