@@ -28,16 +28,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient()
 
   const checkClientStatus = async (u: User) => {
-    const [{ data: clientMatch }, { data: teamCheck }, { data: ownerCheck }] = await Promise.all([
-      supabase.from('clients').select('id').eq('auth_user_id', u.id).limit(1).single(),
-      supabase.from('team_access').select('id').or(`owner_id.eq.${u.id},member_id.eq.${u.id}`).limit(1),
-      supabase.from('clients').select('id').eq('user_id', u.id).limit(1),
-    ])
-    const isCoachOrTeam = (teamCheck && teamCheck.length > 0) || (ownerCheck && ownerCheck.length > 0)
-    if (clientMatch && !isCoachOrTeam) {
-      setIsClientUser(true)
-      setPortalClientId(clientMatch.id)
-    } else {
+    try {
+      const [clientRes, teamRes, ownerRes] = await Promise.all([
+        supabase.from('clients').select('id').eq('auth_user_id', u.id).limit(1).maybeSingle(),
+        supabase.from('team_access').select('id').or(`owner_id.eq.${u.id},member_id.eq.${u.id}`).limit(1),
+        supabase.from('clients').select('id').eq('user_id', u.id).limit(1),
+      ])
+      const clientMatch = clientRes.data
+      const isCoachOrTeam = (teamRes.data && teamRes.data.length > 0) || (ownerRes.data && ownerRes.data.length > 0)
+      if (clientMatch && !isCoachOrTeam) {
+        setIsClientUser(true)
+        setPortalClientId(clientMatch.id)
+      } else {
+        setIsClientUser(false)
+        setPortalClientId(null)
+      }
+    } catch {
       setIsClientUser(false)
       setPortalClientId(null)
     }
