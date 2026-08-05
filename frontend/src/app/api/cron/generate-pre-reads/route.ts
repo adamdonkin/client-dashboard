@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -104,10 +104,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, calendarSynced: true, message: 'All pre-reads already ready', generated: 0 })
     }
 
-    let generated = 0
-    for (const event of needsGeneration) {
-      console.log('[cron] Generating pre-read for:', event.title)
-      try {
+    const results = await Promise.allSettled(
+      needsGeneration.map(async (event) => {
+        console.log('[cron] Generating pre-read for:', event.title)
         const res = await fetch(
           `${supabaseUrl}/functions/v1/generate-pre-reads`,
           {
@@ -125,17 +124,17 @@ export async function GET(request: NextRequest) {
         )
 
         if (res.ok) {
-          generated++
           console.log('[cron] Success:', event.title)
+          return { title: event.title, success: true }
         } else {
           const errText = await res.text()
           console.error('[cron] Failed:', event.title, 'status:', res.status, 'body:', errText)
+          return { title: event.title, success: false }
         }
-      } catch (fetchErr) {
-        console.error('[cron] Fetch error for', event.title, ':', fetchErr)
-      }
-    }
+      })
+    )
 
+    const generated = results.filter(r => r.status === 'fulfilled' && r.value.success).length
     const result = { success: true, calendarSynced: true, generated, total: needsGeneration.length }
     console.log('[cron] Done:', result)
     return NextResponse.json(result)
