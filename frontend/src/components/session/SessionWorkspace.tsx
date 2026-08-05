@@ -35,7 +35,7 @@ interface SessionWorkspaceProps {
   client: ClientInfo | null
   sessionNoteId: string
   notesLocked?: boolean
-  lockMessage?: string
+  clientView?: boolean
 }
 
 export function SessionWorkspace({
@@ -43,7 +43,7 @@ export function SessionWorkspace({
   client,
   sessionNoteId,
   notesLocked = false,
-  lockMessage,
+  clientView = false,
 }: SessionWorkspaceProps) {
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
@@ -63,6 +63,13 @@ export function SessionWorkspace({
     }
   }
 
+
+  useEffect(() => {
+    if (clientView) {
+      document.body.setAttribute('data-session-readonly', 'true')
+      return () => { document.body.removeAttribute('data-session-readonly') }
+    }
+  }, [clientView])
 
   useEffect(() => {
     const load = async () => {
@@ -317,7 +324,11 @@ export function SessionWorkspace({
         <div className="px-6 py-3 flex items-center justify-between">
           <div className="w-20" />
           <div className="text-center">
-            <a href={`/clients/${calendarEvent.client_id}`} className="text-[15px] font-medium text-foreground hover:underline">{clientName}</a>
+            {clientView ? (
+              <span className="text-[15px] font-medium text-foreground">{clientName}</span>
+            ) : (
+              <a href={`/clients/${calendarEvent.client_id}`} className="text-[15px] font-medium text-foreground hover:underline">{clientName}</a>
+            )}
             {subtitle && (
               <p className="text-[13px] text-muted-foreground">{subtitle}</p>
             )}
@@ -331,7 +342,7 @@ export function SessionWorkspace({
         {notesLocked && (
           <div className="px-6 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-center gap-2 text-[13px] text-amber-700 dark:text-amber-400">
             <Lock className="h-3.5 w-3.5" />
-            <span>{lockMessage || 'Someone else is editing notes — notes are read-only'}</span>
+            <span>Someone else is editing notes — notes are read-only</span>
           </div>
         )}
       </div>

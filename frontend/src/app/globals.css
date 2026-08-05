@@ -367,3 +367,7 @@
   border-radius: 6px;
 }
 
+body[data-session-readonly] [title="Open navigation"] {
+  display: none !important;
+}
+
