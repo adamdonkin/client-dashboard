@@ -2,20 +2,23 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { format, parseISO } from 'date-fns'
-import { Copy, Check, ChevronRight, LogOut } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { CheckCircle, Copy, Check, LogOut } from 'lucide-react'
+import { formatLastSessionDate } from '@/components/utils/date-utils'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 import type { ActionItem } from '@/components/ActionRow'
 
 interface PortalSession {
   id: string
-  calendar_event_id: string
+  calendar_event_id: string | null
   start_time: string
-  title: string
+  title: string | null
   content: any
   connection_notes: string | null
+  duration?: number
 }
 
 interface PortalClient {
@@ -32,12 +35,10 @@ function renderTiptapContent(doc: any): string {
       case 'doc':
         return (node.content || []).map(renderNode).join('')
       case 'paragraph':
-        const pText = (node.content || []).map(renderInline).join('')
-        return `<p>${pText}</p>`
+        return `<p>${(node.content || []).map(renderInline).join('')}</p>`
       case 'heading': {
         const level = node.attrs?.level || 2
-        const hText = (node.content || []).map(renderInline).join('')
-        return `<h${level}>${hText}</h${level}>`
+        return `<h${level}>${(node.content || []).map(renderInline).join('')}</h${level}>`
       }
       case 'bulletList':
         return `<ul>${(node.content || []).map(renderNode).join('')}</ul>`
@@ -48,8 +49,7 @@ function renderTiptapContent(doc: any): string {
       case 'blockquote':
         return `<blockquote>${(node.content || []).map(renderNode).join('')}</blockquote>`
       case 'codeBlock':
-        const code = (node.content || []).map(renderInline).join('')
-        return `<pre><code>${code}</code></pre>`
+        return `<pre><code>${(node.content || []).map(renderInline).join('')}</code></pre>`
       case 'horizontalRule':
         return '<hr />'
       case 'image':
@@ -119,8 +119,6 @@ export default function PortalPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Fetch all portal data (auto-links by email if needed)
-    let portalData: any
     try {
       const res = await fetch('/api/portal-autolink', {
         method: 'POST',
@@ -131,33 +129,31 @@ export default function PortalPage() {
         setLoading(false)
         return
       }
-      portalData = await res.json()
+      const portalData = await res.json()
+
+      if (!portalData?.client) {
+        setLoading(false)
+        return
+      }
+
+      setClient(portalData.client)
+
+      setActions((portalData.actions || []).map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        description_content: a.description_content,
+        status: a.status,
+        due_date: a.due_date,
+        created_at: a.created_at,
+      })))
+
+      setSessions(portalData.sessions || [])
     } catch (err) {
       console.error('Portal fetch failed:', err)
+    } finally {
       setLoading(false)
-      return
     }
-
-    if (!portalData?.client) {
-      setLoading(false)
-      return
-    }
-
-    setClient(portalData.client)
-
-    setActions((portalData.actions || []).map((a: any) => ({
-      id: a.id,
-      title: a.title,
-      description: a.description,
-      description_content: a.description_content,
-      status: a.status,
-      due_date: a.due_date,
-      created_at: a.created_at,
-    })))
-
-    setSessions(portalData.sessions || [])
-
-    setLoading(false)
   }
 
   const handleCopyActions = async () => {
@@ -187,12 +183,19 @@ export default function PortalPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Loading...</p>
-        <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
-          <LogOut className="h-4 w-4 mr-1" />
-          Sign out
-        </Button>
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="animate-pulse">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="space-y-2">
+                <div className="h-6 bg-muted rounded w-32"></div>
+                <div className="h-4 bg-muted rounded w-24"></div>
+              </div>
+            </div>
+            <div className="h-32 bg-muted rounded mb-4"></div>
+            <div className="h-48 bg-muted rounded"></div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -209,111 +212,137 @@ export default function PortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">{client.name}</h1>
-            {client.company_name && (
-              <p className="text-sm text-muted-foreground">{client.company_name}</p>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
-            <LogOut className="h-4 w-4 mr-1" />
-            Sign out
-          </Button>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-        {/* Actions */}
-        {actions.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Open Actions</h2>
-              <button
-                onClick={handleCopyActions}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                title="Copy actions"
-              >
-                {copiedActions ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              </button>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Client Header — matches ClientDetail */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">{client.name}</h1>
+                {client.company_name && (
+                  <p className="text-muted-foreground font-medium">{client.company_name}</p>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
+                <LogOut className="h-4 w-4 mr-1" />
+                Sign out
+              </Button>
             </div>
-            <Card>
-              <CardContent className="pt-4">
-                <ul className="space-y-2">
-                  {actions.map(action => (
-                    <li key={action.id} className="flex items-start gap-3 py-1">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <span className="text-sm text-foreground">{action.title}</span>
-                        {action.due_date && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            by {format(parseISO(action.due_date.slice(0, 10)), 'MMM d')}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </section>
+          </CardHeader>
+        </Card>
+
+        {/* Actions — matches ClientDetail */}
+        {actions.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Actions</CardTitle>
+                <button
+                  onClick={handleCopyActions}
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Copy actions to clipboard"
+                >
+                  {copiedActions ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {actions.map((action) => (
+                  <div key={action.id} className="flex items-start gap-3 py-1">
+                    <div className="flex items-center justify-center w-5 h-5 mt-0.5 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-foreground">{action.title}</span>
+                      {action.due_date && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          by {formatLastSessionDate(action.due_date.slice(0, 10))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Sessions */}
-        <section>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Session Notes</h2>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No session notes available yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {sessions.map(session => {
-                const isExpanded = expandedSession === session.id
-                return (
-                  <Card key={session.id}>
-                    <button
-                      onClick={() => setExpandedSession(isExpanded ? null : session.id)}
-                      className="w-full text-left"
-                    >
-                      <CardHeader className="py-3 px-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {format(parseISO(session.start_time), 'EEEE, MMMM d, yyyy')}
+        {/* Session History — matches ClientDetail */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Session History
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({sessions.length} session{sessions.length !== 1 ? 's' : ''})
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No session history found.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sessions.map((session, index) => {
+                  const isExpanded = expandedSession === session.id
+                  return (
+                    <div key={session.id}>
+                      <div
+                        className="flex items-start gap-4 cursor-pointer hover:bg-muted/50 rounded-md -mx-2 px-2 py-1 transition-colors"
+                        onClick={() => setExpandedSession(isExpanded ? null : session.id)}
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {session.title || 'Coaching Session'}
+                              </p>
+                              {session.duration && (
+                                <Badge variant="outline" className="text-xs">
+                                  {session.duration} min
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isExpanded && session.content && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleCopyNotes(session); }}
+                                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Copy notes"
+                                >
+                                  {copiedNotes === session.id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              <p className="text-sm text-muted-foreground">
+                                {formatLastSessionDate(session.start_time)}
                               </p>
                             </div>
                           </div>
-                          {isExpanded && (
-                            <div
-                              onClick={(e) => { e.stopPropagation(); handleCopyNotes(session); }}
-                              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                              title="Copy notes"
-                            >
-                              {copiedNotes === session.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                            </div>
-                          )}
                         </div>
-                      </CardHeader>
-                    </button>
-                    {isExpanded && session.content && (
-                      <CardContent className="px-4 pb-4 pt-0">
-                        <div
-                          className="prose prose-sm max-w-none text-foreground session-editor"
-                          dangerouslySetInnerHTML={{ __html: renderTiptapContent(session.content) }}
-                        />
-                      </CardContent>
-                    )}
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      </main>
+                      </div>
+                      {isExpanded && session.content && (
+                        <div className="ml-12 mt-2 mb-2">
+                          <div
+                            className="prose prose-sm max-w-none text-foreground session-editor"
+                            dangerouslySetInnerHTML={{ __html: renderTiptapContent(session.content) }}
+                          />
+                        </div>
+                      )}
+                      {index < sessions.length - 1 && (
+                        <Separator className="my-4" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
