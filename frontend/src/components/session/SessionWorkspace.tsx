@@ -65,13 +65,6 @@ export function SessionWorkspace({
 
 
   useEffect(() => {
-    if (clientView) {
-      document.body.setAttribute('data-session-readonly', 'true')
-      return () => { document.body.removeAttribute('data-session-readonly') }
-    }
-  }, [clientView])
-
-  useEffect(() => {
     const load = async () => {
       const { data } = await supabase
         .from('session_notes')

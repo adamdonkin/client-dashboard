@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SessionWorkspace } from '@/components/session/SessionWorkspace'
@@ -36,6 +36,19 @@ export default function SessionPage({ params }: SessionPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [notesLocked, setNotesLocked] = useState(false)
   const [clientView, setClientView] = useState(false)
+  const [teamConfirmed, setTeamConfirmed] = useState(false)
+
+  useLayoutEffect(() => {
+    document.body.setAttribute('data-session-readonly', 'true')
+    return () => { document.body.removeAttribute('data-session-readonly') }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (teamConfirmed) {
+      document.body.removeAttribute('data-session-readonly')
+    }
+  }, [teamConfirmed])
+
   const [calendarEvent, setCalendarEvent] = useState<CalendarEvent | null>(null)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [sessionNoteId, setSessionNoteId] = useState<string | null>(null)
@@ -100,7 +113,9 @@ export default function SessionPage({ params }: SessionPageProps) {
         .limit(1)
 
       const isTeamUser = teamCheck && teamCheck.length > 0
-      if (!isTeamUser) {
+      if (isTeamUser) {
+        setTeamConfirmed(true)
+      } else {
         setClientView(true)
       }
 
@@ -255,9 +270,11 @@ export default function SessionPage({ params }: SessionPageProps) {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">{error || 'Something went wrong'}</p>
-          <button onClick={() => router.push('/')} className="text-primary hover:underline">
-            Go to Dashboard
-          </button>
+          {!clientView && (
+            <button onClick={() => router.push('/')} className="text-primary hover:underline">
+              Go to Dashboard
+            </button>
+          )}
         </div>
       </div>
     )
