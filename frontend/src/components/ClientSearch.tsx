@@ -28,7 +28,7 @@ export function ClientSearch() {
   const [clients, setClients] = useState<ClientResult[]>([])
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { user, isClientUser } = useAuth()
+  const { user } = useAuth()
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -63,7 +63,7 @@ export function ClientSearch() {
     router.push(`/clients/${clientId}`)
   }
 
-  if (!user || isClientUser) return null
+  if (!user) return null
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>

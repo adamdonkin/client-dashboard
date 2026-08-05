@@ -36,7 +36,7 @@ function isOverlayRoute(pathname: string) {
 }
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
-  const { user, signOut, isClientUser, portalClientId } = useAuth()
+  const { user, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClientComponentClient()
@@ -110,16 +110,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [overlayOpen])
 
-  useEffect(() => {
-    if (isClientUser && portalClientId) {
-      const allowedPath = `/clients/${portalClientId}`
-      if (!pathname.startsWith(allowedPath) && !pathname.startsWith('/sessions/') && !pathname.startsWith('/auth/')) {
-        router.replace(allowedPath)
-      }
-    }
-  }, [isClientUser, portalClientId, pathname, router])
-
-  if (!user || isClientUser) return <>{children}</>
+  if (!user) return <>{children}</>
 
   const navigate = (href: string) => {
     router.push(href)
