@@ -35,6 +35,7 @@ export default function SessionPage({ params }: SessionPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notesLocked, setNotesLocked] = useState(false)
+  const [lockMessage, setLockMessage] = useState<string | undefined>(undefined)
   const [calendarEvent, setCalendarEvent] = useState<CalendarEvent | null>(null)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [sessionNoteId, setSessionNoteId] = useState<string | null>(null)
@@ -201,10 +202,20 @@ export default function SessionPage({ params }: SessionPageProps) {
 
       noteIdRef.current = noteRow.id
 
-      await supabase
+      const { data: lockResult } = await supabase
         .from('session_notes')
         .update({ locked_by: tabIdRef.current, locked_at: new Date().toISOString() })
         .eq('id', noteRow.id)
+        .select('locked_by')
+
+      if (!lockResult || lockResult.length === 0) {
+        noteIdRef.current = null
+        setNotesLocked(true)
+        setLockMessage('This session is read-only')
+        setSessionNoteId(noteRow.id)
+        setLoading(false)
+        return
+      }
 
       heartbeatRef.current = setInterval(async () => {
         await supabase
@@ -256,6 +267,7 @@ export default function SessionPage({ params }: SessionPageProps) {
       client={client}
       sessionNoteId={sessionNoteId}
       notesLocked={notesLocked}
+      lockMessage={lockMessage}
     />
   )
 }

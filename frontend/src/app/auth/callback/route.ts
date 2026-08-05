@@ -35,8 +35,11 @@ export async function GET(request: NextRequest) {
 
       const isCoachOrTeam = (teamCheck && teamCheck.length > 0) || (ownerCheck && ownerCheck.length > 0)
 
+      const redirect = requestUrl.searchParams.get('redirect')
+
       if (!isCoachOrTeam && clientMatch) {
-        return NextResponse.redirect(new URL(`/clients/${clientMatch.id}`, requestUrl.origin))
+        const target = redirect || `/clients/${clientMatch.id}`
+        return NextResponse.redirect(new URL(target, requestUrl.origin))
       }
     }
   }

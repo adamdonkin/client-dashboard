@@ -35,6 +35,7 @@ interface SessionWorkspaceProps {
   client: ClientInfo | null
   sessionNoteId: string
   notesLocked?: boolean
+  lockMessage?: string
 }
 
 export function SessionWorkspace({
@@ -42,6 +43,7 @@ export function SessionWorkspace({
   client,
   sessionNoteId,
   notesLocked = false,
+  lockMessage,
 }: SessionWorkspaceProps) {
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
@@ -329,7 +331,7 @@ export function SessionWorkspace({
         {notesLocked && (
           <div className="px-6 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-center gap-2 text-[13px] text-amber-700 dark:text-amber-400">
             <Lock className="h-3.5 w-3.5" />
-            <span>Someone else is editing notes — notes are read-only</span>
+            <span>{lockMessage || 'Someone else is editing notes — notes are read-only'}</span>
           </div>
         )}
       </div>
