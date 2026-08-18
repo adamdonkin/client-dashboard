@@ -4,10 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, RefreshCw, Search, Copy, Check } from 'lucide-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, Search, Copy, Check } from 'lucide-react'
 import type { ClientActionGroup, ClientAction } from '@/app/api/actions/route'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { parseISO, isThisWeek } from 'date-fns'
@@ -164,17 +162,6 @@ function DueThisWeekView({ groups, onSelectAction }: { groups: ClientActionGroup
   )
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
-}
-
 function MyActionsGroup({ actions, onSelectAction }: { actions: ClientAction[]; onSelectAction: (action: ActionItem, clientName: string) => void }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -227,13 +214,10 @@ export function ActionsContent() {
   const [groups, setGroups] = useState<ClientActionGroup[]>([])
   const [myActions, setMyActions] = useState<ClientAction[]>([])
   const [totalActions, setTotalActions] = useState(0)
-  const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
   const [viewTab, setViewTab] = useState<ViewTab>('by_client')
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null)
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null)
 
@@ -252,7 +236,6 @@ export function ActionsContent() {
       setGroups(data.groups || [])
       setMyActions(data.my_actions || [])
       setTotalActions(data.total_actions || 0)
-      setLastSynced(data.last_synced || null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -273,32 +256,6 @@ export function ActionsContent() {
     )
   }, [groups, searchQuery])
 
-  async function handleSync() {
-    setSyncing(true)
-    setSyncMessage(null)
-    setError(null)
-    try {
-      const supabase = createClientComponentClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
-      const res = await fetch('/api/sync-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: session.user.id })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Sync failed')
-
-      setSyncMessage(`Synced ${data.stats?.upserted || 0} actions`)
-      await fetchActions()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
   const viewTabs: { value: ViewTab; label: string }[] = [
     { value: 'by_client', label: 'By Client' },
     { value: 'due_this_week', label: 'Due This Week' },
@@ -306,60 +263,34 @@ export function ActionsContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
-            {viewTabs.map(tab => (
-              <button
-                key={tab.value}
-                onClick={() => setViewTab(tab.value)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  viewTab === tab.value
-                    ? 'bg-background text-foreground shadow-sm font-medium'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          {viewTabs.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setViewTab(tab.value)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                viewTab === tab.value
+                  ? 'bg-background text-foreground shadow-sm font-medium'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {viewTab === 'by_client' && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Filter clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8 w-[200px] text-sm"
+            />
           </div>
-          {viewTab === 'by_client' && (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Filter clients..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 w-[200px] text-sm"
-              />
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {lastSynced && (
-            <span className="text-xs text-muted-foreground">
-              Synced {formatTimeAgo(lastSynced)}
-            </span>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            {syncing ? 'Syncing...' : 'Sync Actions'}
-          </Button>
-        </div>
+        )}
       </div>
-
-      {syncMessage && (
-        <p className="text-sm text-success">{syncMessage}</p>
-      )}
 
       {error && (
         <Card>
@@ -385,7 +316,7 @@ export function ActionsContent() {
             <p className="text-center text-muted-foreground">
               {searchQuery
                 ? 'No clients match your search'
-                : 'No actions yet. Hit "Sync Actions" to pull from Defacto and Granola.'
+                : 'No actions yet. Actions you capture in a session or add by hand will appear here.'
               }
             </p>
           </CardContent>
