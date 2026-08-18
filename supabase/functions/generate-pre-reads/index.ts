@@ -17,7 +17,7 @@ interface GranolaNoteListItem {
   attendees?: { name: string; email: string }[]
 }
 
-// --- Granola helpers (reused from sync-actions) ---
+// --- Granola helpers ---
 
 async function fetchGranolaNotes(apiKey: string, since: Date): Promise<GranolaNoteListItem[]> {
   const all: GranolaNoteListItem[] = []
@@ -175,6 +175,7 @@ serve(async (req) => {
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
     const anthropicModel = Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-4-6'
     const granolaKey = Deno.env.get('GRANOLA_API_KEY') ?? ''
+    const personalDetailsEnabled = Deno.env.get('ENABLE_PERSONAL_DETAILS_EXTRACTION') === 'true'
 
     if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured')
     console.log(`Using model: ${anthropicModel}`)
@@ -214,7 +215,9 @@ serve(async (req) => {
       since.setDate(since.getDate() - 90)
       const notesList = await fetchGranolaNotes(granolaKey, since)
 
-      // Match by title: check full name, first name, and calendar event title keywords
+      // Title match is only a cheap pre-filter to limit detail fetches: the list endpoint
+      // omits attendees, so emails are available per note only. Over-inclusion here is
+      // harmless because the attendee email check below is what decides the match.
       const nameParts = client.name.toLowerCase().split(/\s+/)
       const calendarTitle = (event.title || '').toLowerCase()
       const calendarWords = calendarTitle.split(/[\s<>/\-]+/).filter((w: string) => w.length >= 3 && w !== 'adam' && w !== 'coaching')
@@ -228,16 +231,7 @@ serve(async (req) => {
         const detail = await fetchGranolaNoteDetail(granolaKey, n.id)
         if (detail) granolaNotes.push(detail)
       }
-
-      // If no matches by title, fetch a broader set
-      if (granolaNotes.length === 0) {
-        for (let i = 0; i < Math.min(notesList.length, 30); i += 5) {
-          const batch = notesList.slice(i, i + 5)
-          const results = await Promise.all(batch.map(n => fetchGranolaNoteDetail(granolaKey, n.id)))
-          for (const r of results) { if (r) granolaNotes.push(r) }
-        }
-      }
-      console.log(`Fetched ${granolaNotes.length} Granola notes for matching`)
+      console.log(`Fetched ${granolaNotes.length} Granola candidate notes for ${client.name}`)
     }
 
     // Create or update pre_read row as 'generating'
@@ -260,34 +254,28 @@ serve(async (req) => {
       .in('status', ['to_do'])
       .order('due_date', { ascending: true, nullsFirst: false })
 
-    // Find most recent Granola note for this client
+    // Find the most recent Granola note for this client. An attendee email match is the
+    // only accepted link: a title or name match cannot tell two clients who share a first
+    // name apart, and attaching the wrong client's history is worse than attaching none.
     let granolaSummary: string | null = null
-    if (granolaNotes.length > 0) {
-      const sortByDate = (notes: GranolaNoteListItem[]) =>
-        notes.sort((a, b) => {
+    if (client.email) {
+      const clientEmail = client.email.toLowerCase()
+      const byEmail = granolaNotes
+        .filter(n => n.attendees?.some(a => a.email?.toLowerCase() === clientEmail))
+        .sort((a, b) => {
           const da = new Date(a.calendar_event?.scheduled_start_time || a.created_at)
           const db = new Date(b.calendar_event?.scheduled_start_time || b.created_at)
           return db.getTime() - da.getTime()
         })
 
-      // Try attendee email match first
-      if (client.email) {
-        const clientEmail = client.email.toLowerCase()
-        const byEmail = sortByDate(
-          granolaNotes.filter(n => n.attendees?.some(a => a.email?.toLowerCase() === clientEmail))
-        )
-        if (byEmail.length > 0 && byEmail[0].summary_markdown) {
-          granolaSummary = byEmail[0].summary_markdown
-        }
-      }
+      granolaSummary = byEmail.find(n => n.summary_markdown)?.summary_markdown ?? null
+    }
 
-      // Fall back to title-matched notes if email match found nothing
-      if (!granolaSummary) {
-        const withSummary = sortByDate(granolaNotes.filter(n => n.summary_markdown))
-        if (withSummary.length > 0) {
-          granolaSummary = withSummary[0].summary_markdown!
-        }
-      }
+    if (!granolaSummary) {
+      console.log(
+        `GRANOLA_NO_EMAIL_MATCH client=${client.name} email=${client.email || 'none'} ` +
+        `candidates=${granolaNotes.length} - pre-read will omit the session summary`,
+      )
     }
 
     // Calculate engagement length from earliest session or calendar event
@@ -395,8 +383,13 @@ serve(async (req) => {
       .eq('user_id', user_id)
       .eq('calendar_event_id', event.id)
 
-    // Extract and update personal details from the generated content
-    try {
+    // Extract and update personal details from the generated content.
+    // Off unless ENABLE_PERSONAL_DETAILS_EXTRACTION=true: this merges inferred details
+    // straight into clients.personal_details with no review step, and the prompt feeds the
+    // stored values back in as established fact, so anything wrong persists and compounds.
+    if (!personalDetailsEnabled) {
+      console.log(`Personal details extraction disabled, skipping for ${client.name}`)
+    } else try {
       const existingDetails = client.personal_details || {}
       const extractPrompt = `Extract personal details about ${client.name} from the following coaching session data. Return ONLY a JSON object with these keys (omit any key where you have no information):
 
