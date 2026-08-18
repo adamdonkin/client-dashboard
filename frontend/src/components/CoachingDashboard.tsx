@@ -28,6 +28,20 @@ interface CoachingDashboardProps {
     revenueStats: any;
     revenueStatsMochary?: any;
   };
+  lastSyncedAt?: string | null;
+}
+
+// Locale and time zone are pinned so the server and client render an identical string
+// (a relative "2 hours ago" would hydrate inconsistently) and so the time always reads
+// as Pacific regardless of where the dashboard is opened from.
+function formatSyncTime(iso: string) {
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/Los_Angeles'
+  })
 }
 
 // Add this interface for the sync response
@@ -43,7 +57,7 @@ interface SyncResponse {
 }
 
 // Add this sync function component
-function ManualSyncButton({ user }: { user: any }) {
+function ManualSyncButton({ user, lastSyncedAt }: { user: any; lastSyncedAt?: string | null }) {
   const router = useRouter()
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<{
@@ -99,23 +113,28 @@ function ManualSyncButton({ user }: { user: any }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <Button 
-        onClick={handleSync} 
-        disabled={isSyncing || !user?.id}
-        className="w-full"
-      >
-        {isSyncing ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Syncing...
-          </>
-        ) : (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Sync Calendar
-          </>
-        )}
-      </Button>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+          {lastSyncedAt ? `Synced ${formatSyncTime(lastSyncedAt)}` : 'Never synced'}
+        </span>
+        <Button 
+          onClick={handleSync} 
+          disabled={isSyncing || !user?.id}
+          className="shrink-0"
+        >
+          {isSyncing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Syncing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sync Calendar
+            </>
+          )}
+        </Button>
+      </div>
       
       {syncResult && (
         <div className={`text-sm p-2 rounded ${
@@ -131,7 +150,7 @@ function ManualSyncButton({ user }: { user: any }) {
   )
 }
 
-export default function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData }: CoachingDashboardProps) {
+export default function CoachingDashboard({ needsScheduling, thisWeek, future, totalClients, statsData, lastSyncedAt }: CoachingDashboardProps) {
   const { user, signOut } = useAuth()
 
   return (
@@ -166,7 +185,7 @@ export default function CoachingDashboard({ needsScheduling, thisWeek, future, t
                 Timezones
               </Link>
               <div className="flex items-center gap-2">
-                <ManualSyncButton user={user} />
+                <ManualSyncButton user={user} lastSyncedAt={lastSyncedAt} />
                 <ThemeToggle />
               </div>
             </div>

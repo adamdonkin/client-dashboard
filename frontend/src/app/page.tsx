@@ -39,7 +39,8 @@ export default async function Home() {
     revenueStats,
     revenueStatsMochary,
     avgEngagementLength,
-    totalSessionsThisYear
+    totalSessionsThisYear,
+    lastCalendarSync
   ] = await Promise.all([
     supabase.rpc('get_clients_needs_scheduling'),
     supabase.rpc('get_clients_this_week_fixed'),
@@ -54,7 +55,14 @@ export default async function Home() {
     supabase.rpc('get_revenue_stats'),
     supabase.rpc('get_revenue_stats_mochary_method'),
     supabase.rpc('get_avg_engagement_length'),
-    supabase.rpc('get_total_sessions_this_year')
+    supabase.rpc('get_total_sessions_this_year'),
+    supabase
+      .from('sync_log')
+      .select('synced_at')
+      .eq('sync_type', 'calendar')
+      .order('synced_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
   ])
 
   const error = 
@@ -87,6 +95,9 @@ export default async function Home() {
   if (revenueStatsMochary.error) console.error('get_revenue_stats_mochary_method error:', revenueStatsMochary.error)
   if (avgEngagementLength.error) console.error('get_avg_engagement_length error:', avgEngagementLength.error)
   if (totalSessionsThisYear.error) console.error('get_total_sessions_this_year error:', totalSessionsThisYear.error)
+  // Deliberately excluded from the `error` aggregate above: the last-synced timestamp is
+  // supplementary, so failing to read it should degrade to "Never synced", not blank the dashboard.
+  if (lastCalendarSync.error) console.error('sync_log error:', lastCalendarSync.error)
 
   // Also log what data we're getting
   console.log('thisWeekData.data:', thisWeekData.data)
@@ -137,6 +148,7 @@ export default async function Home() {
         future={transformClientData(futureData.data || [])}
         totalClients={totalClients}
         statsData={statsData}
+        lastSyncedAt={lastCalendarSync.data?.synced_at ?? null}
         error={error?.message || null}
       />
     </main>

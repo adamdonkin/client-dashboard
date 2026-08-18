@@ -384,6 +384,22 @@ serve(async (req)=>{
       }
     };
     console.log('Sync complete:', result);
+    // Record the run for the dashboard's "last synced" display. Both the manual button
+    // and the daily cron land here, so this covers both. A logging failure must never
+    // fail a sync that already succeeded.
+    const { error: logError } = await supabase.from('sync_log').insert({
+      user_id,
+      sync_type: 'calendar',
+      status: 'success',
+      events_synced: synced,
+      events_cancelled: cancelled,
+      events_reconciled: reconciled,
+      errors,
+      message: result.message
+    });
+    if (logError) {
+      console.error('Failed to record sync in sync_log:', logError);
+    }
     return new Response(JSON.stringify(result), {
       headers: {
         ...corsHeaders,
