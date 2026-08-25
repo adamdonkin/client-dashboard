@@ -48,19 +48,100 @@ async function fetchGranolaNoteDetail(apiKey: string, noteId: string): Promise<G
   return res.json()
 }
 
-function extractPlainText(content: any): string {
-  if (!content) return ''
-  const parts: string[] = []
-  function walk(node: any) {
-    if (node.type === 'text') {
-      parts.push(node.text || '')
-    } else if (node.content) {
-      for (const child of node.content) walk(child)
-      if (node.type === 'paragraph' || node.type === 'listItem') parts.push('\n')
+// The session workspace stores notes as TipTap JSON using headings, bullet and ordered
+// lists, and blockquotes. Serialising to markdown rather than bare text keeps that
+// structure legible to the model: a topic heading stays separable from its bullets, and a
+// blockquote of the client's own words stays distinguishable from Adam's commentary.
+function renderInline(node: any): string {
+  if (!node) return ''
+  if (node.type === 'text') {
+    let text = node.text || ''
+    const marks: string[] = (node.marks || []).map((m: any) => m.type)
+    if (marks.includes('code')) text = `\`${text}\``
+    if (marks.includes('bold')) text = `**${text}**`
+    if (marks.includes('italic')) text = `*${text}*`
+    const link = (node.marks || []).find((m: any) => m.type === 'link')
+    if (link?.attrs?.href) text = `[${text}](${link.attrs.href})`
+    return text
+  }
+  if (node.type === 'hardBreak') return '\n'
+  if (Array.isArray(node.content)) return node.content.map(renderInline).join('')
+  return ''
+}
+
+function renderBlocks(nodes: any[], indent: string): string[] {
+  const out: string[] = []
+  for (const node of nodes || []) {
+    if (!node) continue
+    switch (node.type) {
+      case 'heading': {
+        const level = Math.min(Math.max(Number(node.attrs?.level) || 3, 1), 6)
+        const text = renderInline(node).trim()
+        if (text) out.push(`${indent}${'#'.repeat(level)} ${text}`)
+        break
+      }
+      case 'paragraph': {
+        const text = renderInline(node).trim()
+        if (text) out.push(`${indent}${text}`)
+        break
+      }
+      case 'bulletList':
+      case 'orderedList': {
+        const ordered = node.type === 'orderedList'
+        let counter = Number(node.attrs?.start) || 1
+        for (const item of node.content || []) {
+          const marker = ordered ? `${counter++}. ` : '- '
+          const inner = renderBlocks(item?.content || [], '')
+          if (inner.length === 0) continue
+          out.push(`${indent}${marker}${inner[0]}`)
+          for (const line of inner.slice(1)) {
+            out.push(`${indent}${' '.repeat(marker.length)}${line}`)
+          }
+        }
+        break
+      }
+      case 'blockquote': {
+        for (const line of renderBlocks(node.content || [], '')) {
+          out.push(`${indent}> ${line}`)
+        }
+        break
+      }
+      case 'codeBlock': {
+        const text = renderInline(node)
+        if (text.trim()) out.push(`${indent}\`\`\`\n${text}\n${indent}\`\`\``)
+        break
+      }
+      case 'horizontalRule': {
+        out.push(`${indent}---`)
+        break
+      }
+      // Atom node with no children: without an explicit case it would vanish silently.
+      case 'actionBlock': {
+        const title = (node.attrs?.prefillTitle || '').trim()
+        out.push(`${indent}- [action] ${title || '(linked action item)'}`)
+        break
+      }
+      case 'image': {
+        break
+      }
+      default: {
+        if (Array.isArray(node.content)) {
+          out.push(...renderBlocks(node.content, indent))
+        } else {
+          const text = renderInline(node).trim()
+          if (text) out.push(`${indent}${text}`)
+        }
+      }
     }
   }
-  walk(content)
-  return parts.join('').trim()
+  return out
+}
+
+function extractMarkdown(content: any): string {
+  if (!content) return ''
+  if (typeof content === 'string') return content.trim()
+  const root = Array.isArray(content.content) ? content.content : [content]
+  return renderBlocks(root, '').join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 // --- Pre-read prompt ---
@@ -85,8 +166,8 @@ function buildPreReadPrompt(context: {
 
   const sessionNotesBlock = sessionNotes.length > 0
     ? sessionNotes.map(sn => {
-        const connText = extractPlainText(sn.connection_notes)
-        const topicsText = extractPlainText(sn.topics_content)
+        const connText = extractMarkdown(sn.connection_notes)
+        const topicsText = extractMarkdown(sn.topics_content)
         const dateStr = sn.session_date ? new Date(sn.session_date).toLocaleDateString() : 'Unknown date'
         return `--- Session: ${dateStr} ---\nConnection notes:\n${connText || '(none)'}\n\nTopics:\n${topicsText || '(none)'}`
       }).join('\n\n')
@@ -407,7 +488,7 @@ ${JSON.stringify(existingDetails)}
 
 Source data:
 ${granolaSummary || ''}
-${(prevNotes || []).map((sn: any) => extractPlainText(sn.connection_notes)).filter(Boolean).join('\n')}
+${(prevNotes || []).map((sn: any) => extractMarkdown(sn.connection_notes)).filter(Boolean).join('\n')}
 ${client.notes || ''}
 
 Return ONLY valid JSON, no explanation.`
