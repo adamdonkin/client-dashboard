@@ -146,6 +146,14 @@ function extractMarkdown(content: any): string {
 
 // --- Pre-read prompt ---
 
+// Notes are serialised and screened for emptiness before they reach the prompt, so the
+// prompt only ever sees sessions that actually have content.
+interface PreparedSessionNote {
+  sessionDate: string | null
+  connectionNotes: string
+  topics: string
+}
+
 function buildPreReadPrompt(context: {
   clientName: string
   companyName: string | null
@@ -156,7 +164,7 @@ function buildPreReadPrompt(context: {
   engagementLength: string | null
   actions: any[]
   granolaSummary: string | null
-  sessionNotes: any[]
+  sessionNotes: PreparedSessionNote[]
 }): string {
   const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, actions, granolaSummary, sessionNotes } = context
 
@@ -166,10 +174,15 @@ function buildPreReadPrompt(context: {
 
   const sessionNotesBlock = sessionNotes.length > 0
     ? sessionNotes.map(sn => {
-        const connText = extractMarkdown(sn.connection_notes)
-        const topicsText = extractMarkdown(sn.topics_content)
-        const dateStr = sn.session_date ? new Date(sn.session_date).toLocaleDateString() : 'Unknown date'
-        return `--- Session: ${dateStr} ---\nConnection notes:\n${connText || '(none)'}\n\nTopics:\n${topicsText || '(none)'}`
+        const dateStr = sn.sessionDate
+          ? new Date(sn.sessionDate).toLocaleDateString('en-US', {
+              month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
+            })
+          : 'Unknown date'
+        const parts = [`--- Session: ${dateStr} ---`]
+        if (sn.connectionNotes) parts.push(`Connection notes:\n${sn.connectionNotes}`)
+        if (sn.topics) parts.push(`Topics:\n${sn.topics}`)
+        return parts.join('\n\n')
       }).join('\n\n')
     : 'No previous session notes available.'
 
@@ -406,13 +419,42 @@ serve(async (req) => {
       engagementLength += ` (since ${firstDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`
     }
 
-    // Fetch previous session notes (last 3 sessions)
+    // Fetch the most recent sessions that actually have notes.
+    //
+    // Three filters matter here, and without them the model routinely receives nothing.
+    // `user_id`: this function runs with the service role, so RLS does not scope the query,
+    // and a team member opening the same session creates a second row for it.
+    // `session_date < event.start_time`: opening the workspace for an upcoming session
+    // inserts an empty row stamped with that session's start time, which would otherwise
+    // sort first and present the session being prepped for as "where you left off".
+    // The non-null check drops the placeholder rows that the calendar backfill created for
+    // every past event.
+    //
+    // Over-fetching then screening in JS is deliberate: a note column can hold an empty
+    // TipTap document, which is non-null but serialises to nothing.
     const { data: prevNotes } = await supabase
       .from('session_notes')
       .select('connection_notes, topics_content, session_date')
       .eq('client_id', event.client_id)
+      .eq('user_id', user_id)
+      .lt('session_date', event.start_time)
+      .or('connection_notes.not.is.null,topics_content.not.is.null')
       .order('session_date', { ascending: false })
-      .limit(3)
+      .limit(12)
+
+    const preparedNotes: PreparedSessionNote[] = (prevNotes || [])
+      .map((sn: any) => ({
+        sessionDate: sn.session_date,
+        connectionNotes: extractMarkdown(sn.connection_notes),
+        topics: extractMarkdown(sn.topics_content),
+      }))
+      .filter(sn => sn.connectionNotes || sn.topics)
+      .slice(0, 3)
+
+    console.log(
+      `SESSION_NOTES client=${client.name} rows_matched=${prevNotes?.length ?? 0} ` +
+      `with_content=${preparedNotes.length}`,
+    )
 
     // Build prompt
     const prompt = buildPreReadPrompt({
@@ -425,7 +467,7 @@ serve(async (req) => {
       engagementLength,
       actions: actions || [],
       granolaSummary,
-      sessionNotes: prevNotes || [],
+      sessionNotes: preparedNotes,
     })
 
     // Call Claude API
@@ -488,7 +530,7 @@ ${JSON.stringify(existingDetails)}
 
 Source data:
 ${granolaSummary || ''}
-${(prevNotes || []).map((sn: any) => extractMarkdown(sn.connection_notes)).filter(Boolean).join('\n')}
+${preparedNotes.map(sn => sn.connectionNotes).filter(Boolean).join('\n')}
 ${client.notes || ''}
 
 Return ONLY valid JSON, no explanation.`
