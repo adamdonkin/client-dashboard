@@ -193,7 +193,7 @@ function buildPreReadPrompt(context: {
         .join('\n')
     : ''
 
-  return `You are Adam Donkin's coaching session prep assistant. Generate a pre-read document for his upcoming session.
+  return `You are preparing a factual pre-read for Adam Donkin's upcoming coaching session. Your job is to report what is on record, not to interpret it.
 
 ## Client information
 - Name: ${clientName}
@@ -217,41 +217,38 @@ ${sessionNotesBlock}
 
 ---
 
-Generate the pre-read in the following structure. Write in prose for narrative sections with **bold headers** on each paragraph for scanning. Use bullets only for reference lists. Be direct and conversational — like a sharp colleague briefing Adam, not a formal report.
-
-FORMATTING: Use frequent paragraph breaks for readability — aim for 3-4 sentences per paragraph. Maintain full depth and detail.
+RULES — these override any instinct to be helpful or thorough:
+- Report only what is in the data above. Never infer, diagnose, or conclude.
+- No advice, suggestions, coaching moves, or questions for Adam to ask.
+- No characterisation of mood, energy, or emotional state unless the client said it themselves — in which case quote them.
+- No meaning-making. Never write that something "signals", "suggests", "reflects", "points to", or "is really about" anything.
+- Prefer the client's own words. Quote short phrases verbatim where the notes contain them.
+- Bullets, not prose. One fact per bullet. No connective narration between bullets.
+- Attribute anything non-obvious to its session date, e.g. "(Mar 4)".
+- If a section has no supporting data, write "Nothing on record." and move on. Do not pad. A short pre-read is the correct output when the inputs are thin — length is never a goal.
 
 ### ${clientName} — Session prep for ${sessionDate}
 
 **Quick context**
-- Role, company, what the company does (1-2 lines)
-- How long they've been working together (use the "Working together" field from client information above)
-- Session cadence (estimate from dates)
+- Role, company, and what the company does — 1-2 lines
+- Working together: use the "Working together" field above verbatim if present
 
 **Connection reminders**
-Bullet points of personal details Adam can reference naturally. Always include partner/spouse name, children's names and ages, and any life events mentioned. Also include hobbies, health updates, and anything personal mentioned in passing. Use the "Known personal details" section above as the baseline and add anything new found in the session notes or Granola summaries.
+Personal details Adam can reference naturally, as bullets. Partner/spouse name, children's names and ages, life events, hobbies, health, pets. Use "Known personal details" above as the baseline and add anything stated in the session notes or Granola summary. Facts as recorded — no advice about how to use them.
 
-**Where you left off (last session)**
-Prose paragraphs with bold headers. Put Adam back in the room. Include:
-- What was discussed in detail
-- Emotional texture — were they energized, stuck, anxious, relieved?
-- Key decisions made or almost-made
-- Problem-solution structures discussed
-- Any frameworks introduced or referenced
+**Where you left off**
+The recent sessions, most recent first, each under its own date subheading. This is the substance of the pre-read, so put everything load-bearing here as bullets:
+- What was discussed
+- What was decided
+- What the client said they would do, quoted where the notes allow
+- Anything raised and left unresolved, with the date it was raised
+- Any framework or model referenced by name
 
-**Patterns & arc**
-2-4 coaching patterns, one paragraph each. Name each pattern plainly. Connect current themes to the long-running developmental arc.
-
-**Session intention**
-- What would make this session a 5/5?
-- Specific threads to pick up with lead-in questions
-- 1-2 coaching moves Adam might consider
-- What to watch for in the client's energy
+**Open actions**
+The open actions listed above, verbatim, with due dates and status. Do not editorialise on progress.
 
 **Key people**
-Bullet list of direct reports and key relationships mentioned, with titles if known.
-
-IMPORTANT: Only include information you can substantiate from the data provided. If data is sparse, say so briefly rather than inventing details. Flag what's missing.`
+Direct reports and key relationships mentioned, with titles where known. Name, title, relationship. Nothing further.`
 }
 
 // --- Main handler ---
