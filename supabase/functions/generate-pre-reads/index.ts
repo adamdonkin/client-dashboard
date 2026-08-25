@@ -179,6 +179,10 @@ interface PreparedSessionNote {
 // restate it loses ground.
 const LAST_SESSION_TOKEN = '{{LAST_SESSION}}'
 
+// Topics the client sent ahead of the session are their own words, usually pasted in from
+// Slack. They pass through verbatim for the same reason the write-up does.
+const SESSION_TOPICS_TOKEN = '{{SESSION_TOPICS}}'
+
 function buildPreReadPrompt(context: {
   clientName: string
   companyName: string | null
@@ -190,8 +194,9 @@ function buildPreReadPrompt(context: {
   lastSessionDay: string | null
   granolaSummary: string | null
   coachNotes: string
+  sessionTopics: string
 }): string {
-  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, lastSessionDay, granolaSummary, coachNotes } = context
+  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, lastSessionDay, granolaSummary, coachNotes, sessionTopics } = context
 
   const lastSessionLabel = lastSessionDay ? formatSessionDay(lastSessionDay) : null
 
@@ -221,6 +226,17 @@ Only what Adam's own notes contain that the session write-up above does not. Bul
     : `**Last session — ${lastSessionLabel || 'date unknown'}**
 Write this section from Adam's notes below. Group by topic, with a short bold topic label per group and bullets under it. Nest supporting detail one level under the point it supports. This is the substance of the pre-read.`
 
+  // What the client wants to cover is the first thing Adam reaches for when prepping, so it
+  // leads. Dropped entirely when nothing was captured rather than printed as an empty heading.
+  const topicsSpec = sessionTopics
+    ? `**Topics ${clientName} sent for this session**
+${SESSION_TOPICS_TOKEN}
+
+Output the token ${SESSION_TOPICS_TOKEN} on a line by itself, exactly as written, and nothing else on that line. The topics are inserted there automatically in ${clientName}'s own words. Do not restate, summarise, or comment on them, and do not repeat them in any later section.
+
+`
+    : ''
+
   return `You are writing a pre-read for Adam Donkin's upcoming coaching session with ${clientName}.
 
 ## Client information
@@ -233,6 +249,9 @@ ${clientNotes ? `- Coach notes on file: ${clientNotes}` : ''}
 
 ## Known personal details
 ${personalBlock || 'No personal details on file yet.'}
+
+## Topics ${clientName} sent for this upcoming session
+${sessionTopics || 'None captured.'}
 
 ## Last session${lastSessionLabel ? ` (${lastSessionLabel})` : ''} — write-up already produced
 ${granolaSummary || 'No session write-up available.'}
@@ -260,7 +279,7 @@ Produce exactly these sections, in this order:
 
 ### ${clientName} — Session prep for ${sessionDate}
 
-**Quick context**
+${topicsSpec}**Quick context**
 - Role, company, and what the company does — one or two lines
 - Working together: use the "Working together" field above verbatim if present
 
@@ -457,6 +476,24 @@ serve(async (req) => {
       .order('session_date', { ascending: false })
       .limit(12)
 
+    // Topics the client sends ahead of a session get pasted into the upcoming session's own
+    // workspace row. That row is excluded from the recap above on purpose, so read it
+    // separately and label it for what it is. Team members can each hold a row for the same
+    // event, so prefer Adam's and fall back to whichever one has content.
+    const { data: upcomingRows } = await supabase
+      .from('session_notes')
+      .select('connection_notes, topics_content, user_id')
+      .eq('calendar_event_id', event.id)
+
+    const sessionTopics = [
+      ...(upcomingRows || []).filter((r: any) => r.user_id === user_id),
+      ...(upcomingRows || []),
+    ]
+      .map((r: any) => [extractMarkdown(r.topics_content), extractMarkdown(r.connection_notes)]
+        .filter(Boolean)
+        .join('\n\n'))
+      .find(Boolean) || ''
+
     const preparedNotes: PreparedSessionNote[] = (prevNotes || [])
       .map((sn: any) => ({
         day: pacificDay(sn.session_date),
@@ -495,7 +532,8 @@ serve(async (req) => {
     console.log(
       `LAST_SESSION client=${client.name} day=${lastSessionDay ?? 'none'} ` +
       `granola_day=${granolaDay ?? 'none'} notes_days=${preparedNotes.length} ` +
-      `paired_summary=${pairedSummary ? 'yes' : 'no'} paired_notes=${coachNotes ? 'yes' : 'no'}`,
+      `paired_summary=${pairedSummary ? 'yes' : 'no'} paired_notes=${coachNotes ? 'yes' : 'no'} ` +
+      `session_topics=${sessionTopics ? 'yes' : 'no'}`,
     )
 
     // Build prompt
@@ -510,6 +548,7 @@ serve(async (req) => {
       lastSessionDay,
       granolaSummary: pairedSummary,
       coachNotes,
+      sessionTopics,
     })
 
     // Call Claude API
@@ -549,6 +588,22 @@ serve(async (req) => {
     } else if (generated.includes(LAST_SESSION_TOKEN)) {
       // No write-up to splice: strip the token so it never reaches the panel.
       content = generated.replace(LAST_SESSION_TOKEN, '').replace(/\n{3,}/g, '\n\n')
+    }
+
+    // Same treatment for the client's own topics: verbatim, and never silently dropped.
+    if (sessionTopics) {
+      if (content.includes(SESSION_TOPICS_TOKEN)) {
+        content = content.replace(SESSION_TOPICS_TOKEN, sessionTopics.trim())
+      } else {
+        console.log(`SESSION_TOPICS_TOKEN_MISSING client=${client.name} - inserting topics`)
+        const block = `**Topics ${client.name} sent for this session**\n${sessionTopics.trim()}`
+        const heading = content.match(/^#{1,6} .*$/m)
+        content = heading
+          ? content.replace(heading[0], () => `${heading[0]}\n\n${block}`)
+          : `${block}\n\n${content.trim()}`
+      }
+    } else if (content.includes(SESSION_TOPICS_TOKEN)) {
+      content = content.replace(SESSION_TOPICS_TOKEN, '').replace(/\n{3,}/g, '\n\n')
     }
 
     // Save the generated pre-read
