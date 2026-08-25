@@ -204,30 +204,73 @@ function markdownToHtml(md: string): string {
     return `<table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table>`
   })
 
-  // Bullet lists
+  // Bullet lists and blockquotes.
+  //
+  // Indentation is significant: session write-ups nest supporting detail under the point
+  // it supports, and the CSS styles nested lists via `li:has(> ul)`, so a nested <ul> has
+  // to be emitted inside the open <li> rather than as its sibling.
   const lines = html.split('\n')
   const result: string[] = []
-  let inList = false
+  let depth = 0
+  let liOpen = false
+  let inQuote = false
+
+  const closeQuote = () => {
+    if (inQuote) { result.push('</blockquote>'); inQuote = false }
+  }
+  const closeLists = () => {
+    while (depth > 0) {
+      if (liOpen) { result.push('</li>'); liOpen = false }
+      result.push('</ul>')
+      depth--
+      liOpen = depth > 0
+    }
+    liOpen = false
+  }
 
   for (const line of lines) {
-    const bulletMatch = line.match(/^[-*]\s+(.+)/)
+    const bulletMatch = line.match(/^([ \t]*)[-*]\s+(.+)/)
+    const quoteMatch = line.match(/^>\s?(.*)$/)
+
     if (bulletMatch) {
-      if (!inList) { result.push('<ul>'); inList = true }
-      result.push(`<li>${bulletMatch[1]}</li>`)
-    } else {
-      if (inList) { result.push('</ul>'); inList = false }
-      if (line.trim() === '') {
-        result.push('')
-      } else if (!line.startsWith('<h') && !line.startsWith('<hr') && !line.startsWith('<table') && !line.startsWith('<thead') && !line.startsWith('<tbody') && !line.startsWith('<tr') && !line.startsWith('</') && !line.startsWith('<div')) {
-        for (const chunk of splitLongParagraph(line, 3)) {
-          result.push(`<p>${chunk}</p>`)
-        }
-      } else {
-        result.push(line)
+      closeQuote()
+      const indent = bulletMatch[1].replace(/\t/g, '  ').length
+      const target = Math.floor(indent / 2) + 1
+      while (depth < target) { result.push('<ul>'); depth++; liOpen = false }
+      while (depth > target) {
+        if (liOpen) { result.push('</li>'); liOpen = false }
+        result.push('</ul>')
+        depth--
+        liOpen = depth > 0
       }
+      if (liOpen) { result.push('</li>'); liOpen = false }
+      result.push(`<li>${bulletMatch[2]}`)
+      liOpen = true
+      continue
+    }
+
+    if (quoteMatch) {
+      closeLists()
+      if (!inQuote) { result.push('<blockquote>'); inQuote = true }
+      if (quoteMatch[1].trim()) result.push(`<p>${quoteMatch[1]}</p>`)
+      continue
+    }
+
+    closeLists()
+    closeQuote()
+
+    if (line.trim() === '') {
+      result.push('')
+    } else if (!line.startsWith('<h') && !line.startsWith('<hr') && !line.startsWith('<table') && !line.startsWith('<thead') && !line.startsWith('<tbody') && !line.startsWith('<tr') && !line.startsWith('</') && !line.startsWith('<div')) {
+      for (const chunk of splitLongParagraph(line, 3)) {
+        result.push(`<p>${chunk}</p>`)
+      }
+    } else {
+      result.push(line)
     }
   }
-  if (inList) result.push('</ul>')
+  closeLists()
+  closeQuote()
 
   return result.join('\n')
 }

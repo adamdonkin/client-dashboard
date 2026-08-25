@@ -144,15 +144,40 @@ function extractMarkdown(content: any): string {
   return renderBlocks(root, '').join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
+// Sessions are paired between Granola and the workspace by calendar day. Pacific is the
+// project's canonical timezone; comparing raw UTC timestamps would split an evening
+// session across two days and break the pairing.
+function pacificDay(value: string | null | undefined): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d)
+}
+
+function formatSessionDay(day: string): string {
+  // `day` is already a Pacific calendar date, so parse as local noon to avoid re-shifting.
+  const d = new Date(`${day}T12:00:00`)
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 // --- Pre-read prompt ---
 
 // Notes are serialised and screened for emptiness before they reach the prompt, so the
 // prompt only ever sees sessions that actually have content.
 interface PreparedSessionNote {
-  sessionDate: string | null
+  day: string | null
   connectionNotes: string
   topics: string
 }
+
+// The Granola summary is spliced in verbatim after generation. The model emits this token
+// on its own line to mark where, rather than being asked to reproduce the summary itself —
+// Granola's own write-up is the best-written part of the document and any attempt to
+// restate it loses ground.
+const LAST_SESSION_TOKEN = '{{LAST_SESSION}}'
 
 function buildPreReadPrompt(context: {
   clientName: string
@@ -162,29 +187,13 @@ function buildPreReadPrompt(context: {
   personalDetails: Record<string, string> | null
   sessionDate: string
   engagementLength: string | null
-  actions: any[]
+  lastSessionDay: string | null
   granolaSummary: string | null
-  sessionNotes: PreparedSessionNote[]
+  coachNotes: string
 }): string {
-  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, actions, granolaSummary, sessionNotes } = context
+  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, lastSessionDay, granolaSummary, coachNotes } = context
 
-  const actionsBlock = actions.length > 0
-    ? actions.map(a => `- ${a.title} | Due: ${a.due_date || 'No date'} | Status: ${a.status === 'to_do' ? 'To Do' : 'Not Done'}`).join('\n')
-    : 'No open actions.'
-
-  const sessionNotesBlock = sessionNotes.length > 0
-    ? sessionNotes.map(sn => {
-        const dateStr = sn.sessionDate
-          ? new Date(sn.sessionDate).toLocaleDateString('en-US', {
-              month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
-            })
-          : 'Unknown date'
-        const parts = [`--- Session: ${dateStr} ---`]
-        if (sn.connectionNotes) parts.push(`Connection notes:\n${sn.connectionNotes}`)
-        if (sn.topics) parts.push(`Topics:\n${sn.topics}`)
-        return parts.join('\n\n')
-      }).join('\n\n')
-    : 'No previous session notes available.'
+  const lastSessionLabel = lastSessionDay ? formatSessionDay(lastSessionDay) : null
 
   const personalBlock = personalDetails && Object.keys(personalDetails).length > 0
     ? Object.entries(personalDetails)
@@ -193,62 +202,75 @@ function buildPreReadPrompt(context: {
         .join('\n')
     : ''
 
-  return `You are preparing a factual pre-read for Adam Donkin's upcoming coaching session. Your job is to report what is on record, not to interpret it.
+  // Two shapes: when Granola captured the session its summary carries the narrative and
+  // the model only adds what the coach's notes contain beyond it. Without a summary the
+  // model has to write the session section itself, in the same voice.
+  const lastSessionSpec = granolaSummary
+    ? `**Last session — ${lastSessionLabel}**
+${LAST_SESSION_TOKEN}
+
+Output the token ${LAST_SESSION_TOKEN} on a line by itself, exactly as written, and nothing else on that line. The session write-up is inserted there automatically. Do not summarise the session yourself and do not describe what the write-up says.
+
+**From your notes**
+Only what Adam's own notes contain that the session write-up above does not. Bullets. Typical output is two to five bullets.
+- Include topics, details, names, numbers, or commitments that are missing from the write-up.
+- Include Adam's own observations, since the write-up cannot see his typed notes.
+- Do not repeat anything already in the write-up, and do not restate it in different words.
+- Never reference the write-up. No "also captured above", "as noted", "per the summary".
+- If his notes add nothing substantive, write exactly: Nothing beyond the session write-up.`
+    : `**Last session — ${lastSessionLabel || 'date unknown'}**
+Write this section from Adam's notes below. Group by topic, with a short bold topic label per group and bullets under it. Nest supporting detail one level under the point it supports. This is the substance of the pre-read.`
+
+  return `You are writing a pre-read for Adam Donkin's upcoming coaching session with ${clientName}.
 
 ## Client information
 - Name: ${clientName}
 - Company: ${companyName || 'Unknown'}
 - Role: ${role || 'Unknown'}
-- Session date: ${sessionDate}
+- Upcoming session date: ${sessionDate}
 ${engagementLength ? `- Working together: ${engagementLength}` : ''}
-${clientNotes ? `- Coach notes: ${clientNotes}` : ''}
+${clientNotes ? `- Coach notes on file: ${clientNotes}` : ''}
 
 ## Known personal details
 ${personalBlock || 'No personal details on file yet.'}
 
-## Open actions (from coaching dashboard)
-${actionsBlock}
+## Last session${lastSessionLabel ? ` (${lastSessionLabel})` : ''} — write-up already produced
+${granolaSummary || 'No session write-up available.'}
 
-## Most recent Granola session summary
-${granolaSummary || 'No Granola summary available for this client.'}
-
-## Previous session notes (Adam's notes)
-${sessionNotesBlock}
+## Last session — Adam's own notes from the workspace
+${coachNotes || 'No workspace notes for this session.'}
 
 ---
 
-RULES — these override any instinct to be helpful or thorough:
-- Report only what is in the data above. Never infer, diagnose, or conclude.
-- No advice, suggestions, coaching moves, or questions for Adam to ask.
-- No characterisation of mood, energy, or emotional state unless the client said it themselves — in which case quote them.
-- No meaning-making. Never write that something "signals", "suggests", "reflects", "points to", or "is really about" anything.
-- Prefer the client's own words. Quote short phrases verbatim where the notes contain them.
-- Bullets, not prose. One fact per bullet. No connective narration between bullets.
-- Attribute anything non-obvious to its session date, e.g. "(Mar 4)".
-- If a section has no supporting data, write "Nothing on record." and move on. Do not pad. A short pre-read is the correct output when the inputs are thin — length is never a goal.
+VOICE
+- Write in your own voice, with confidence. Summarise what was said; never announce that you are reporting it. Do not open a bullet with "described", "noted", "flagged", "stated", "surfaced", "identified", or "developed" — just say the thing.
+- Absorb ${clientName}'s phrasing into the writing rather than quoting it. Quote only where the exact words are the point, and no more than once or twice in the whole document.
+- Telegraphic bullets. Drop articles and subject pronouns wherever the meaning survives.
+- Nest supporting detail one level under the point it supports.
+- Name things crisply where the conversation named them — a framework, a distinction, a decision.
+
+DO NOT
+- No judgements about ${clientName} as a person: mood, energy, defensiveness, readiness, motivation.
+- No advice, coaching moves, or suggested questions for Adam.
+- Never mention or cross-reference your sources. No "also captured above", "per the summary", "as noted".
+- Never output an actions, next steps, or to-do section. Actions live elsewhere in the app and are displayed separately.
+- Never pad. Short is the correct length when there is little to say.
+
+Produce exactly these sections, in this order:
 
 ### ${clientName} — Session prep for ${sessionDate}
 
 **Quick context**
-- Role, company, and what the company does — 1-2 lines
+- Role, company, and what the company does — one or two lines
 - Working together: use the "Working together" field above verbatim if present
 
 **Connection reminders**
-Personal details Adam can reference naturally, as bullets. Partner/spouse name, children's names and ages, life events, hobbies, health, pets. Use "Known personal details" above as the baseline and add anything stated in the session notes or Granola summary. Facts as recorded — no advice about how to use them.
+Personal details Adam can reference naturally, as bullets. Partner or spouse, children's names and ages, life events, hobbies, health, pets. Use "Known personal details" above as the baseline and add anything stated in the material below. Facts only — no suggestions about how to use them.
 
-**Where you left off**
-The recent sessions, most recent first, each under its own date subheading. This is the substance of the pre-read, so put everything load-bearing here as bullets:
-- What was discussed
-- What was decided
-- What the client said they would do, quoted where the notes allow
-- Anything raised and left unresolved, with the date it was raised
-- Any framework or model referenced by name
-
-**Open actions**
-The open actions listed above, verbatim, with due dates and status. Do not editorialise on progress.
+${lastSessionSpec}
 
 **Key people**
-Direct reports and key relationships mentioned, with titles where known. Name, title, relationship. Nothing further.`
+People mentioned, with titles where known: name, title, relationship to ${clientName}. Nothing further.`
 }
 
 // --- Main handler ---
@@ -337,18 +359,14 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,calendar_event_id' })
 
-    // Fetch open actions for this client
-    const { data: actions } = await supabase
-      .from('client_actions')
-      .select('title, due_date, status, review_history')
-      .eq('client_id', event.client_id)
-      .in('status', ['to_do'])
-      .order('due_date', { ascending: true, nullsFirst: false })
+    // Actions are deliberately not fetched here. PreReadPanel renders them live from
+    // client_actions, which is the system of record; having the model restate them
+    // produced a stale copy that could contradict the list shown directly below it.
 
     // Find the most recent Granola note for this client. An attendee email match is the
     // only accepted link: a title or name match cannot tell two clients who share a first
     // name apart, and attaching the wrong client's history is worse than attaching none.
-    let granolaSummary: string | null = null
+    let granolaNote: GranolaNoteListItem | null = null
     if (client.email) {
       const clientEmail = client.email.toLowerCase()
       const byEmail = granolaNotes
@@ -359,13 +377,13 @@ serve(async (req) => {
           return db.getTime() - da.getTime()
         })
 
-      granolaSummary = byEmail.find(n => n.summary_markdown)?.summary_markdown ?? null
+      granolaNote = byEmail.find(n => n.summary_markdown) ?? null
     }
 
-    if (!granolaSummary) {
+    if (!granolaNote) {
       console.log(
         `GRANOLA_NO_EMAIL_MATCH client=${client.name} email=${client.email || 'none'} ` +
-        `candidates=${granolaNotes.length} - pre-read will omit the session summary`,
+        `candidates=${granolaNotes.length} - pre-read will fall back to workspace notes`,
       )
     }
 
@@ -441,16 +459,43 @@ serve(async (req) => {
 
     const preparedNotes: PreparedSessionNote[] = (prevNotes || [])
       .map((sn: any) => ({
-        sessionDate: sn.session_date,
+        day: pacificDay(sn.session_date),
         connectionNotes: extractMarkdown(sn.connection_notes),
         topics: extractMarkdown(sn.topics_content),
       }))
-      .filter(sn => sn.connectionNotes || sn.topics)
-      .slice(0, 3)
+      .filter(sn => sn.day && (sn.connectionNotes || sn.topics))
+
+    // The pre-read covers one session: the last one. Granola and the workspace are paired
+    // by calendar day so the "what your notes add" comparison is always about the same
+    // conversation — comparing a Granola note against notes from a different session would
+    // make the difference between them meaningless.
+    const granolaDay = pacificDay(
+      granolaNote?.calendar_event?.scheduled_start_time || granolaNote?.created_at,
+    )
+    const notesDay = preparedNotes[0]?.day ?? null
+
+    // Whichever source saw the most recent session decides which session this is about.
+    const lastSessionDay = [granolaDay, notesDay].filter(Boolean).sort().pop() as string | undefined
+      ?? null
+
+    const pairedNote = lastSessionDay
+      ? preparedNotes.find(sn => sn.day === lastSessionDay) ?? null
+      : null
+    const pairedSummary = lastSessionDay && granolaDay === lastSessionDay
+      ? granolaNote?.summary_markdown ?? null
+      : null
+
+    const coachNotes = pairedNote
+      ? [
+          pairedNote.connectionNotes ? `Connection notes:\n${pairedNote.connectionNotes}` : '',
+          pairedNote.topics ? `Topics:\n${pairedNote.topics}` : '',
+        ].filter(Boolean).join('\n\n')
+      : ''
 
     console.log(
-      `SESSION_NOTES client=${client.name} rows_matched=${prevNotes?.length ?? 0} ` +
-      `with_content=${preparedNotes.length}`,
+      `LAST_SESSION client=${client.name} day=${lastSessionDay ?? 'none'} ` +
+      `granola_day=${granolaDay ?? 'none'} notes_days=${preparedNotes.length} ` +
+      `paired_summary=${pairedSummary ? 'yes' : 'no'} paired_notes=${coachNotes ? 'yes' : 'no'}`,
     )
 
     // Build prompt
@@ -462,9 +507,9 @@ serve(async (req) => {
       personalDetails: client.personal_details,
       sessionDate: targetDate,
       engagementLength,
-      actions: actions || [],
-      granolaSummary,
-      sessionNotes: preparedNotes,
+      lastSessionDay,
+      granolaSummary: pairedSummary,
+      coachNotes,
     })
 
     // Call Claude API
@@ -489,7 +534,22 @@ serve(async (req) => {
     }
 
     const claudeData = await claudeRes.json()
-    const content = claudeData.content?.[0]?.text || ''
+    const generated = claudeData.content?.[0]?.text || ''
+
+    // Splice in Granola's write-up verbatim. If the model dropped the token, append the
+    // write-up rather than losing it — a misplaced section beats a missing one.
+    let content = generated
+    if (pairedSummary) {
+      if (generated.includes(LAST_SESSION_TOKEN)) {
+        content = generated.replace(LAST_SESSION_TOKEN, pairedSummary.trim())
+      } else {
+        console.log(`LAST_SESSION_TOKEN_MISSING client=${client.name} - appending write-up`)
+        content = `${generated.trim()}\n\n**Last session — ${formatSessionDay(lastSessionDay!)}**\n${pairedSummary.trim()}`
+      }
+    } else if (generated.includes(LAST_SESSION_TOKEN)) {
+      // No write-up to splice: strip the token so it never reaches the panel.
+      content = generated.replace(LAST_SESSION_TOKEN, '').replace(/\n{3,}/g, '\n\n')
+    }
 
     // Save the generated pre-read
     await supabase
@@ -526,7 +586,7 @@ Here are the existing personal details on file (keep these unless contradicted b
 ${JSON.stringify(existingDetails)}
 
 Source data:
-${granolaSummary || ''}
+${pairedSummary || ''}
 ${preparedNotes.map(sn => sn.connectionNotes).filter(Boolean).join('\n')}
 ${client.notes || ''}
 
