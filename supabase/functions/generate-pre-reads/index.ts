@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { buildPreReadPrompt, SESSION_TOPICS_TOKEN } from './prompt.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -190,14 +191,6 @@ function pacificDay(value: string | null | undefined): string | null {
   }).format(d)
 }
 
-function formatSessionDay(day: string): string {
-  // `day` is already a Pacific calendar date, so parse as local noon to avoid re-shifting.
-  const d = new Date(`${day}T12:00:00`)
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-}
-
-// --- Pre-read prompt ---
-
 // Notes are serialised and screened for emptiness before they reach the prompt, so the
 // prompt only ever sees sessions that actually have content.
 interface PreparedSessionNote {
@@ -207,124 +200,6 @@ interface PreparedSessionNote {
   topics: string
 }
 
-// The Granola summary is spliced in verbatim after generation. The model emits this token
-// on its own line to mark where, rather than being asked to reproduce the summary itself —
-// Granola's own write-up is the best-written part of the document and any attempt to
-// restate it loses ground.
-const LAST_SESSION_TOKEN = '{{LAST_SESSION}}'
-
-// Topics the client sent ahead of the session are their own words, usually pasted in from
-// Slack. They pass through verbatim for the same reason the write-up does.
-const SESSION_TOPICS_TOKEN = '{{SESSION_TOPICS}}'
-
-function buildPreReadPrompt(context: {
-  clientName: string
-  companyName: string | null
-  role: string | null
-  clientNotes: string | null
-  personalDetails: Record<string, string> | null
-  sessionDate: string
-  engagementLength: string | null
-  lastSessionDay: string | null
-  granolaSummary: string | null
-  coachNotes: string
-  sessionTopics: string
-}): string {
-  const { clientName, companyName, role, clientNotes, personalDetails, sessionDate, engagementLength, lastSessionDay, granolaSummary, coachNotes, sessionTopics } = context
-
-  const lastSessionLabel = lastSessionDay ? formatSessionDay(lastSessionDay) : null
-
-  const personalBlock = personalDetails && Object.keys(personalDetails).length > 0
-    ? Object.entries(personalDetails)
-        .filter(([, v]) => v && v.trim())
-        .map(([k, v]) => `- ${k}: ${v}`)
-        .join('\n')
-    : ''
-
-  // Two shapes: when Granola captured the session its summary carries the narrative and
-  // the model only adds what the coach's notes contain beyond it. Without a summary the
-  // model has to write the session section itself, in the same voice.
-  const lastSessionSpec = granolaSummary
-    ? `**Last session — ${lastSessionLabel}**
-${LAST_SESSION_TOKEN}
-
-Output the token ${LAST_SESSION_TOKEN} on a line by itself, exactly as written, and nothing else on that line. The session write-up is inserted there automatically. Do not summarise the session yourself and do not describe what the write-up says.
-
-**From your notes**
-Only what Adam's own notes contain that the session write-up above does not. Bullets. Typical output is two to five bullets.
-- Include topics, details, names, numbers, or commitments that are missing from the write-up.
-- Include Adam's own observations, since the write-up cannot see his typed notes.
-- Do not repeat anything already in the write-up, and do not restate it in different words.
-- Never reference the write-up. No "also captured above", "as noted", "per the summary".
-- If his notes add nothing substantive, write exactly: Nothing beyond the session write-up.`
-    : `**Last session — ${lastSessionLabel || 'date unknown'}**
-Write this section from Adam's notes below. Group by topic, with a short bold topic label per group and bullets under it. Nest supporting detail one level under the point it supports. This is the substance of the pre-read.`
-
-  // What the client wants to cover is the first thing Adam reaches for when prepping, so it
-  // leads. Dropped entirely when nothing was captured rather than printed as an empty heading.
-  const topicsSpec = sessionTopics
-    ? `**Topics ${clientName} sent for this session**
-${SESSION_TOPICS_TOKEN}
-
-Output the token ${SESSION_TOPICS_TOKEN} on a line by itself, exactly as written, and nothing else on that line. The topics are inserted there automatically in ${clientName}'s own words. Do not restate, summarise, or comment on them, and do not repeat them in any later section.
-
-`
-    : ''
-
-  return `You are writing a pre-read for Adam Donkin's upcoming coaching session with ${clientName}.
-
-## Client information
-- Name: ${clientName}
-- Company: ${companyName || 'Unknown'}
-- Role: ${role || 'Unknown'}
-- Upcoming session date: ${sessionDate}
-${engagementLength ? `- Working together: ${engagementLength}` : ''}
-${clientNotes ? `- Coach notes on file: ${clientNotes}` : ''}
-
-## Known personal details
-${personalBlock || 'No personal details on file yet.'}
-
-## Topics ${clientName} sent for this upcoming session
-${sessionTopics || 'None captured.'}
-
-## Last session${lastSessionLabel ? ` (${lastSessionLabel})` : ''} — write-up already produced
-${granolaSummary || 'No session write-up available.'}
-
-## Last session — Adam's own notes from the workspace
-${coachNotes || 'No workspace notes for this session.'}
-
----
-
-VOICE
-- Write in your own voice, with confidence. Summarise what was said; never announce that you are reporting it. Do not open a bullet with "described", "noted", "flagged", "stated", "surfaced", "identified", or "developed" — just say the thing.
-- Absorb ${clientName}'s phrasing into the writing rather than quoting it. Quote only where the exact words are the point, and no more than once or twice in the whole document.
-- Telegraphic bullets. Drop articles and subject pronouns wherever the meaning survives.
-- Nest supporting detail one level under the point it supports.
-- Name things crisply where the conversation named them — a framework, a distinction, a decision.
-
-DO NOT
-- No judgements about ${clientName} as a person: mood, energy, defensiveness, readiness, motivation.
-- No advice, coaching moves, or suggested questions for Adam.
-- Never mention or cross-reference your sources. No "also captured above", "per the summary", "as noted".
-- Never output an actions, next steps, or to-do section. Actions live elsewhere in the app and are displayed separately.
-- Never pad. Short is the correct length when there is little to say.
-
-Produce exactly these sections, in this order:
-
-### ${clientName} — Session prep for ${sessionDate}
-
-${topicsSpec}**Quick context**
-- Role, company, and what the company does — one or two lines
-- Working together: use the "Working together" field above verbatim if present
-
-**Connection reminders**
-Personal details Adam can reference naturally, as bullets. Partner or spouse, children's names and ages, life events, hobbies, health, pets. Use "Known personal details" above as the baseline and add anything stated in the material below. Facts only — no suggestions about how to use them.
-
-${lastSessionSpec}
-
-**Key people**
-People mentioned, with titles where known: name, title, relationship to ${clientName}. Nothing further.`
-}
 
 // --- Main handler ---
 
@@ -346,9 +221,12 @@ serve(async (req) => {
     if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured')
     console.log(`Using model: ${anthropicModel}`)
 
-    const { user_id, date, calendar_event_id } = await req.json()
+    // dry_run generates the pre-read and returns it without touching pre_reads, so a prompt
+    // change can be read against real client data before it replaces anything Adam relies on.
+    const { user_id, date, calendar_event_id, dry_run } = await req.json()
     if (!user_id) throw new Error('user_id is required')
     if (!calendar_event_id) throw new Error('calendar_event_id is required')
+    const dryRun = dry_run === true
 
     const targetDate = date || new Date().toISOString().slice(0, 10)
     console.log(`Generating pre-read for user ${user_id}, event ${calendar_event_id} on ${targetDate}`)
@@ -433,7 +311,7 @@ serve(async (req) => {
     }
 
     // Create or update pre_read row as 'generating'
-    await supabase
+    if (!dryRun) await supabase
       .from('pre_reads')
       .upsert({
         user_id,
@@ -545,10 +423,10 @@ serve(async (req) => {
       }))
       .filter(sn => sn.day && (sn.connectionNotes || sn.topics))
 
-    // Both halves of the recap are read against the session the calendar identified, so the
-    // "what your notes add" comparison is always about the same conversation. Sessions that
-    // predate calendar sync have no event to anchor to, so fall back to the newest notes
-    // rather than dropping the section.
+    // Both sources for the recap are read against the session the calendar identified, so
+    // they always describe the same conversation. Sessions that predate calendar sync have
+    // no event to anchor to, so fall back to the newest notes rather than dropping the
+    // section.
     const lastSessionDay = lastSessionEvent
       ? pacificDay(lastSessionEvent.start_time)
       : preparedNotes[0]?.day ?? null
@@ -616,22 +494,9 @@ serve(async (req) => {
     const claudeData = await claudeRes.json()
     const generated = claudeData.content?.[0]?.text || ''
 
-    // Splice in Granola's write-up verbatim. If the model dropped the token, append the
-    // write-up rather than losing it — a misplaced section beats a missing one.
     let content = generated
-    if (pairedSummary) {
-      if (generated.includes(LAST_SESSION_TOKEN)) {
-        content = generated.replace(LAST_SESSION_TOKEN, pairedSummary.trim())
-      } else {
-        console.log(`LAST_SESSION_TOKEN_MISSING client=${client.name} - appending write-up`)
-        content = `${generated.trim()}\n\n**Last session — ${formatSessionDay(lastSessionDay!)}**\n${pairedSummary.trim()}`
-      }
-    } else if (generated.includes(LAST_SESSION_TOKEN)) {
-      // No write-up to splice: strip the token so it never reaches the panel.
-      content = generated.replace(LAST_SESSION_TOKEN, '').replace(/\n{3,}/g, '\n\n')
-    }
 
-    // Same treatment for the client's own topics: verbatim, and never silently dropped.
+    // The client's own topics pass through verbatim, and are never silently dropped.
     if (sessionTopics) {
       if (content.includes(SESSION_TOPICS_TOKEN)) {
         content = content.replace(SESSION_TOPICS_TOKEN, sessionTopics.trim())
@@ -645,6 +510,14 @@ serve(async (req) => {
       }
     } else if (content.includes(SESSION_TOPICS_TOKEN)) {
       content = content.replace(SESSION_TOPICS_TOKEN, '').replace(/\n{3,}/g, '\n\n')
+    }
+
+    if (dryRun) {
+      console.log(`DRY_RUN client=${client.name} - returning pre-read without saving`)
+      return new Response(
+        JSON.stringify({ success: true, dry_run: true, client: client.name, content }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
     }
 
     // Save the generated pre-read
@@ -736,8 +609,8 @@ Return ONLY valid JSON, no explanation.`
 
     // Try to mark as error if we have enough context
     try {
-      const { user_id, calendar_event_id } = await req.clone().json()
-      if (user_id && calendar_event_id) {
+      const { user_id, calendar_event_id, dry_run } = await req.clone().json()
+      if (user_id && calendar_event_id && dry_run !== true) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
