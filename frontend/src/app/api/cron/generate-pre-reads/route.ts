@@ -104,9 +104,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, calendarSynced: true, message: 'All pre-reads already ready', generated: 0 })
     }
 
-    const results = await Promise.allSettled(
-      needsGeneration.map(async (event) => {
-        console.log('[cron] Generating pre-read for:', event.title)
+    const generateOne = async (event: { id: string; title: string }) => {
+      console.log('[cron] Generating pre-read for:', event.title)
+      try {
         const res = await fetch(
           `${supabaseUrl}/functions/v1/generate-pre-reads`,
           {
@@ -126,15 +126,33 @@ export async function GET(request: NextRequest) {
         if (res.ok) {
           console.log('[cron] Success:', event.title)
           return { title: event.title, success: true }
-        } else {
-          const errText = await res.text()
-          console.error('[cron] Failed:', event.title, 'status:', res.status, 'body:', errText)
-          return { title: event.title, success: false }
+        }
+        const errText = await res.text()
+        console.error('[cron] Failed:', event.title, 'status:', res.status, 'body:', errText)
+        return { title: event.title, success: false }
+      } catch (err) {
+        console.error('[cron] Error:', event.title, err)
+        return { title: event.title, success: false }
+      }
+    }
+
+    // Each invocation independently pages through the whole Granola note list, so starting
+    // every session at once put enough load on Granola to get rate-limited, which used to
+    // cost the session write-up silently. A small pool keeps the run parallel but under the
+    // limit; two sessions at a time still finishes well inside the 300s budget.
+    const CONCURRENCY = 2
+    const queue = [...needsGeneration]
+    const results: { title: string; success: boolean }[] = []
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        for (let event = queue.shift(); event; event = queue.shift()) {
+          results.push(await generateOne(event))
         }
       })
     )
 
-    const generated = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+    const generated = results.filter(r => r.success).length
     const result = { success: true, calendarSynced: true, generated, total: needsGeneration.length }
     console.log('[cron] Done:', result)
     return NextResponse.json(result)

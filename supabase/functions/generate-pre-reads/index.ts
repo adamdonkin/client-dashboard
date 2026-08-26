@@ -19,6 +19,38 @@ interface GranolaNoteListItem {
 
 // --- Granola helpers ---
 
+// Granola rate-limits well within the volume a single morning's pre-reads generate, since
+// every session prepared re-reads the whole note list. A 429 is not an answer about what
+// notes exist, so it must never be mistaken for one: treating it as the end of the list is
+// what silently produced pre-reads with the session write-up missing and no error anywhere.
+const GRANOLA_MAX_ATTEMPTS = 5
+
+async function granolaRequest(apiKey: string, url: string): Promise<Response> {
+  let attempt = 0
+  while (true) {
+    attempt++
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+    if (res.ok) return res
+
+    // A missing or forbidden note is a real answer about that note; only rate limits and
+    // outages are worth waiting out.
+    if (res.status !== 429 && res.status < 500) return res
+
+    if (attempt >= GRANOLA_MAX_ATTEMPTS) {
+      throw new Error(`Granola unavailable: status ${res.status} after ${attempt} attempts`)
+    }
+
+    // Honour Retry-After when Granola sends it. The jitter matters because several sessions
+    // are prepared at once and lockstep retries would collide all over again.
+    const retryAfter = Number(res.headers.get('retry-after'))
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : 2 ** (attempt - 1) * 500 + Math.random() * 400
+    console.log(`GRANOLA_RETRY status=${res.status} attempt=${attempt} wait=${Math.round(waitMs)}ms`)
+    await new Promise(resolve => setTimeout(resolve, waitMs))
+  }
+}
+
 async function fetchGranolaNotes(apiKey: string, since: Date): Promise<GranolaNoteListItem[]> {
   const all: GranolaNoteListItem[] = []
   let cursor: string | undefined
@@ -27,10 +59,10 @@ async function fetchGranolaNotes(apiKey: string, since: Date): Promise<GranolaNo
   while (hasMore) {
     const params = new URLSearchParams({ created_after: since.toISOString() })
     if (cursor) params.set('cursor', cursor)
-    const res = await fetch(`https://public-api.granola.ai/v1/notes?${params}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-    })
-    if (!res.ok) break
+    const res = await granolaRequest(apiKey, `https://public-api.granola.ai/v1/notes?${params}`)
+    // Abandoning the list mid-way would hand the model a partial history that looks whole,
+    // so fail loudly and let the pre-read be marked as errored instead.
+    if (!res.ok) throw new Error(`Granola note list failed with status ${res.status}`)
     const data = await res.json()
     all.push(...(data.notes || []))
     hasMore = data.hasMore === true
@@ -41,9 +73,7 @@ async function fetchGranolaNotes(apiKey: string, since: Date): Promise<GranolaNo
 }
 
 async function fetchGranolaNoteDetail(apiKey: string, noteId: string): Promise<GranolaNoteListItem | null> {
-  const res = await fetch(`https://public-api.granola.ai/v1/notes/${noteId}`, {
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-  })
+  const res = await granolaRequest(apiKey, `https://public-api.granola.ai/v1/notes/${noteId}`)
   if (!res.ok) return null
   return res.json()
 }
