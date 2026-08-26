@@ -51,13 +51,16 @@ async function granolaRequest(apiKey: string, url: string): Promise<Response> {
   }
 }
 
-async function fetchGranolaNotes(apiKey: string, since: Date): Promise<GranolaNoteListItem[]> {
+async function fetchGranolaNotes(apiKey: string, since: Date, until: Date): Promise<GranolaNoteListItem[]> {
   const all: GranolaNoteListItem[] = []
   let cursor: string | undefined
   let hasMore = true
 
   while (hasMore) {
-    const params = new URLSearchParams({ created_after: since.toISOString() })
+    const params = new URLSearchParams({
+      created_after: since.toISOString(),
+      created_before: until.toISOString(),
+    })
     if (cursor) params.set('cursor', cursor)
     const res = await granolaRequest(apiKey, `https://public-api.granola.ai/v1/notes?${params}`)
     // Abandoning the list mid-way would hand the model a partial history that looks whole,
@@ -199,6 +202,7 @@ function formatSessionDay(day: string): string {
 // prompt only ever sees sessions that actually have content.
 interface PreparedSessionNote {
   day: string | null
+  eventId: string | null
   connectionNotes: string
   topics: string
 }
@@ -370,30 +374,62 @@ serve(async (req) => {
 
     console.log(`Generating pre-read for ${client.name}`)
 
-    // Fetch Granola notes for matching
-    let granolaNotes: GranolaNoteListItem[] = []
-    if (granolaKey && client.email) {
-      const since = new Date()
-      since.setDate(since.getDate() - 90)
-      const notesList = await fetchGranolaNotes(granolaKey, since)
+    // Which session the pre-read looks back on is the calendar's answer, not Granola's and
+    // not the workspace's: the most recent booked session before this one. Deriving it from
+    // whichever source happened to have the newest material meant a Granola note for the
+    // session being prepped for could be read as the previous one, and a session Adam had
+    // not typed notes for could go missing entirely. Cancelled events are excluded to match
+    // how the dashboard RPCs compute last_session_date.
+    const { data: pastEvents } = await supabase
+      .from('calendar_events')
+      .select('id, start_time, status')
+      .eq('client_id', event.client_id)
+      .eq('user_id', user_id)
+      .lt('start_time', event.start_time)
+      .order('start_time', { ascending: false })
+      .limit(5)
 
-      // Title match is only a cheap pre-filter to limit detail fetches: the list endpoint
-      // omits attendees, so emails are available per note only. Over-inclusion here is
-      // harmless because the attendee email check below is what decides the match.
-      const nameParts = client.name.toLowerCase().split(/\s+/)
-      const calendarTitle = (event.title || '').toLowerCase()
-      const calendarWords = calendarTitle.split(/[\s<>/\-]+/).filter((w: string) => w.length >= 3 && w !== 'adam' && w !== 'coaching')
-      const searchTerms = [...new Set([...nameParts, ...calendarWords])]
-      const potentialMatches = notesList.filter(n => {
-        const t = n.title?.toLowerCase() || ''
-        return searchTerms.some(term => t.includes(term))
-      }).slice(0, 10)
+    const lastSessionEvent = (pastEvents || [])
+      .find((e: any) => !e.status || e.status !== 'cancelled') ?? null
 
-      for (const n of potentialMatches) {
+    // Granola pages newest-first across the whole account, so scanning 90 days and guessing
+    // from note titles was both expensive and lossy — common words in an invite title could
+    // crowd the real note out of the candidate list. Bracketing the request around the known
+    // session instead is one page, and the attendee email is what confirms the match.
+    let granolaNote: GranolaNoteListItem | null = null
+    if (granolaKey && client.email && lastSessionEvent) {
+      const sessionStart = new Date(lastSessionEvent.start_time).getTime()
+      const DAY_MS = 24 * 60 * 60 * 1000
+      const granolaCandidates = await fetchGranolaNotes(
+        granolaKey,
+        new Date(sessionStart - DAY_MS),
+        new Date(sessionStart + DAY_MS),
+      )
+
+      const clientEmail = client.email.toLowerCase()
+      const matched: { note: GranolaNoteListItem; distanceMs: number }[] = []
+      for (const n of granolaCandidates) {
         const detail = await fetchGranolaNoteDetail(granolaKey, n.id)
-        if (detail) granolaNotes.push(detail)
+        if (!detail?.summary_markdown) continue
+        if (!detail.attendees?.some(a => a.email?.toLowerCase() === clientEmail)) continue
+        const noteTime = new Date(
+          detail.calendar_event?.scheduled_start_time || detail.created_at,
+        ).getTime()
+        matched.push({ note: detail, distanceMs: Math.abs(noteTime - sessionStart) })
       }
-      console.log(`Fetched ${granolaNotes.length} Granola candidate notes for ${client.name}`)
+
+      // A note written up the next morning still belongs to that session, so take the
+      // closest in time rather than requiring the calendar days to line up exactly.
+      matched.sort((a, b) => a.distanceMs - b.distanceMs)
+      granolaNote = matched[0]?.note ?? null
+
+      console.log(
+        `GRANOLA_LOOKUP client=${client.name} session=${lastSessionEvent.start_time} ` +
+        `candidates=${granolaCandidates.length} email_matched=${matched.length} ` +
+        `chosen=${granolaNote ? JSON.stringify(granolaNote.title) : 'none'}`,
+      )
+    } else if (!lastSessionEvent) {
+      console.log(`NO_PAST_SESSION client=${client.name} - no booked session before this one`)
     }
 
     // Create or update pre_read row as 'generating'
@@ -411,30 +447,6 @@ serve(async (req) => {
     // Actions are deliberately not fetched here. PreReadPanel renders them live from
     // client_actions, which is the system of record; having the model restate them
     // produced a stale copy that could contradict the list shown directly below it.
-
-    // Find the most recent Granola note for this client. An attendee email match is the
-    // only accepted link: a title or name match cannot tell two clients who share a first
-    // name apart, and attaching the wrong client's history is worse than attaching none.
-    let granolaNote: GranolaNoteListItem | null = null
-    if (client.email) {
-      const clientEmail = client.email.toLowerCase()
-      const byEmail = granolaNotes
-        .filter(n => n.attendees?.some(a => a.email?.toLowerCase() === clientEmail))
-        .sort((a, b) => {
-          const da = new Date(a.calendar_event?.scheduled_start_time || a.created_at)
-          const db = new Date(b.calendar_event?.scheduled_start_time || b.created_at)
-          return db.getTime() - da.getTime()
-        })
-
-      granolaNote = byEmail.find(n => n.summary_markdown) ?? null
-    }
-
-    if (!granolaNote) {
-      console.log(
-        `GRANOLA_NO_EMAIL_MATCH client=${client.name} email=${client.email || 'none'} ` +
-        `candidates=${granolaNotes.length} - pre-read will fall back to workspace notes`,
-      )
-    }
 
     // Calculate engagement length from earliest session or calendar event
     let engagementLength: string | null = null
@@ -498,7 +510,7 @@ serve(async (req) => {
     // TipTap document, which is non-null but serialises to nothing.
     const { data: prevNotes } = await supabase
       .from('session_notes')
-      .select('connection_notes, topics_content, session_date')
+      .select('connection_notes, topics_content, session_date, calendar_event_id')
       .eq('client_id', event.client_id)
       .eq('user_id', user_id)
       .lt('session_date', event.start_time)
@@ -527,30 +539,29 @@ serve(async (req) => {
     const preparedNotes: PreparedSessionNote[] = (prevNotes || [])
       .map((sn: any) => ({
         day: pacificDay(sn.session_date),
+        eventId: sn.calendar_event_id ?? null,
         connectionNotes: extractMarkdown(sn.connection_notes),
         topics: extractMarkdown(sn.topics_content),
       }))
       .filter(sn => sn.day && (sn.connectionNotes || sn.topics))
 
-    // The pre-read covers one session: the last one. Granola and the workspace are paired
-    // by calendar day so the "what your notes add" comparison is always about the same
-    // conversation — comparing a Granola note against notes from a different session would
-    // make the difference between them meaningless.
-    const granolaDay = pacificDay(
-      granolaNote?.calendar_event?.scheduled_start_time || granolaNote?.created_at,
-    )
-    const notesDay = preparedNotes[0]?.day ?? null
+    // Both halves of the recap are read against the session the calendar identified, so the
+    // "what your notes add" comparison is always about the same conversation. Sessions that
+    // predate calendar sync have no event to anchor to, so fall back to the newest notes
+    // rather than dropping the section.
+    const lastSessionDay = lastSessionEvent
+      ? pacificDay(lastSessionEvent.start_time)
+      : preparedNotes[0]?.day ?? null
 
-    // Whichever source saw the most recent session decides which session this is about.
-    const lastSessionDay = [granolaDay, notesDay].filter(Boolean).sort().pop() as string | undefined
-      ?? null
+    const pairedNote = lastSessionEvent
+      ? preparedNotes.find(sn => sn.eventId === lastSessionEvent.id)
+        ?? preparedNotes.find(sn => sn.day === lastSessionDay)
+        ?? null
+      : preparedNotes[0] ?? null
 
-    const pairedNote = lastSessionDay
-      ? preparedNotes.find(sn => sn.day === lastSessionDay) ?? null
-      : null
-    const pairedSummary = lastSessionDay && granolaDay === lastSessionDay
-      ? granolaNote?.summary_markdown ?? null
-      : null
+    // Granola was already looked up for this exact session, so the write-up needs no further
+    // gating — the old day comparison here is what used to discard it.
+    const pairedSummary = granolaNote?.summary_markdown ?? null
 
     const coachNotes = pairedNote
       ? [
@@ -561,7 +572,7 @@ serve(async (req) => {
 
     console.log(
       `LAST_SESSION client=${client.name} day=${lastSessionDay ?? 'none'} ` +
-      `granola_day=${granolaDay ?? 'none'} notes_days=${preparedNotes.length} ` +
+      `from_event=${lastSessionEvent ? lastSessionEvent.id : 'none'} notes_rows=${preparedNotes.length} ` +
       `paired_summary=${pairedSummary ? 'yes' : 'no'} paired_notes=${coachNotes ? 'yes' : 'no'} ` +
       `session_topics=${sessionTopics ? 'yes' : 'no'}`,
     )
