@@ -220,6 +220,16 @@
   margin-bottom: 0.75em;
 }
 
+/* Markdown wraps item text in <p> when a list has blank lines between its items. Paragraph
+   spacing inside a bullet would double up on the list's own rhythm. */
+.pre-read-content .ProseMirror li > p {
+  margin-bottom: 0.25em;
+}
+
+.pre-read-content .ProseMirror li > p:last-child {
+  margin-bottom: 0;
+}
+
 .session-editor .ProseMirror blockquote {
   border-left: 3px solid var(--border);
   padding-left: 1em;

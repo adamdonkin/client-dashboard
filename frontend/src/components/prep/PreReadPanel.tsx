@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { X, Loader2, RefreshCw } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { ActionRow, ActionItem } from '@/components/ActionRow'
 
@@ -142,16 +144,27 @@ export function PreReadPanel({
   )
 }
 
+// `##`/`#` mark the pre-read's own section dividers rather than document headings, so they
+// render as the small-caps label the panel uses elsewhere. `###` stays a real heading.
+function SectionHeader({ children }: { children?: ReactNode }) {
+  return <div className="pre-read-section-header">{children}</div>
+}
+
+// A pre-read is markdown from two sources — the model's prose and Granola's write-up spliced
+// in verbatim — so bullet indentation, list tightness and heading style all vary between and
+// within documents. Parsing with remark rather than line-by-line regexes is what lets nested
+// bullets survive: any indentation step, any nesting depth, and blank lines between items.
 function MarkdownContent({ content }: { content: string }) {
-  const html = markdownToHtml(content)
   return (
-    <div
-      className="session-editor"
-    >
-      <div
-        className="ProseMirror"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+    <div className="session-editor">
+      <div className="ProseMirror">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{ h1: SectionHeader, h2: SectionHeader }}
+        >
+          {preparePreReadMarkdown(content)}
+        </ReactMarkdown>
+      </div>
     </div>
   )
 }
@@ -174,103 +187,56 @@ function splitLongParagraph(text: string, maxSentences: number): string[] {
   return chunks
 }
 
-function markdownToHtml(md: string): string {
-  // Strip the first heading (title) since it's displayed in the panel header
-  let cleaned = md.replace(/^#{1,3} .+\n*/m, '')
-
-  // First, split bold-lead paragraphs into heading + paragraph
-  // Handles both: **Title**. Rest... AND **Title.** Rest... AND **Title** — Rest...
-  let processed = cleaned
-    .replace(/^\*\*(.+?)\.\*\*\s*(.+)$/gm, '%%H3%%$1.%%/H3%%\n$2')
-    .replace(/^\*\*(.+?)\*\*([.—–:,]\s*)(.+)$/gm, '%%H3%%$1%%/H3%%\n$3')
-
-  let html = processed
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<div class="pre-read-section-header">$1</div>')
-    .replace(/^# (.+)$/gm, '<div class="pre-read-section-header">$1</div>')
-    .replace(/%%H3%%(.+?)%%\/H3%%/g, '<h3>$1</h3>')
-    .replace(/^\*\*(.+?)\*\*$/gm, '<div class="pre-read-section-header">$1</div>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^---$/gm, '<hr />')
-
-  // Tables
-  html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm, (_match, header, _sep, body) => {
-    const ths = header.split('|').filter((c: string) => c.trim()).map((c: string) => `<th>${c.trim()}</th>`).join('')
-    const rows = body.trim().split('\n').map((row: string) => {
-      const tds = row.split('|').filter((c: string) => c.trim()).map((c: string) => `<td>${c.trim()}</td>`).join('')
-      return `<tr>${tds}</tr>`
-    }).join('')
-    return `<table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table>`
-  })
-
-  // Bullet lists and blockquotes.
-  //
-  // Indentation is significant: session write-ups nest supporting detail under the point
-  // it supports, and the CSS styles nested lists via `li:has(> ul)`, so a nested <ul> has
-  // to be emitted inside the open <li> rather than as its sibling.
-  const lines = html.split('\n')
-  const result: string[] = []
-  let depth = 0
-  let liOpen = false
-  let inQuote = false
-
-  const closeQuote = () => {
-    if (inQuote) { result.push('</blockquote>'); inQuote = false }
-  }
-  const closeLists = () => {
-    while (depth > 0) {
-      if (liOpen) { result.push('</li>'); liOpen = false }
-      result.push('</ul>')
-      depth--
-      liOpen = depth > 0
-    }
-    liOpen = false
-  }
+// Long paragraphs are broken up so the panel stays skimmable. Only a line that opens a
+// top-level paragraph is eligible: an indented or lazy continuation line belongs to the list
+// item or quote above it, and inserting a blank line there would end that block.
+function splitLongParagraphs(md: string): string {
+  const lines = md.split('\n')
+  const out: string[] = []
+  let inFence = false
+  let blockOpen = false
 
   for (const line of lines) {
-    const bulletMatch = line.match(/^([ \t]*)[-*]\s+(.+)/)
-    const quoteMatch = line.match(/^>\s?(.*)$/)
-
-    if (bulletMatch) {
-      closeQuote()
-      const indent = bulletMatch[1].replace(/\t/g, '  ').length
-      const target = Math.floor(indent / 2) + 1
-      while (depth < target) { result.push('<ul>'); depth++; liOpen = false }
-      while (depth > target) {
-        if (liOpen) { result.push('</li>'); liOpen = false }
-        result.push('</ul>')
-        depth--
-        liOpen = depth > 0
-      }
-      if (liOpen) { result.push('</li>'); liOpen = false }
-      result.push(`<li>${bulletMatch[2]}`)
-      liOpen = true
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      inFence = !inFence
+      out.push(line)
+      blockOpen = false
+      continue
+    }
+    if (inFence || line.trim() === '') {
+      out.push(line)
+      if (!inFence) blockOpen = false
+      continue
+    }
+    // Headings and thematic breaks are leaf blocks, so the next line starts fresh.
+    if (/^#{1,6} /.test(line) || /^(?:-{3,}|\*{3,}|_{3,})[ \t]*$/.test(line)) {
+      out.push(line)
+      blockOpen = false
       continue
     }
 
-    if (quoteMatch) {
-      closeLists()
-      if (!inQuote) { result.push('<blockquote>'); inQuote = true }
-      if (quoteMatch[1].trim()) result.push(`<p>${quoteMatch[1]}</p>`)
-      continue
-    }
-
-    closeLists()
-    closeQuote()
-
-    if (line.trim() === '') {
-      result.push('')
-    } else if (!line.startsWith('<h') && !line.startsWith('<hr') && !line.startsWith('<table') && !line.startsWith('<thead') && !line.startsWith('<tbody') && !line.startsWith('<tr') && !line.startsWith('</') && !line.startsWith('<div')) {
-      for (const chunk of splitLongParagraph(line, 3)) {
-        result.push(`<p>${chunk}</p>`)
-      }
-    } else {
-      result.push(line)
-    }
+    const startsParagraph =
+      !blockOpen && !/^\s/.test(line) && !/^(?:[-*+]\s|\d+[.)]\s|>|\|)/.test(line)
+    out.push(startsParagraph ? splitLongParagraph(line, 3).join('\n\n') : line)
+    blockOpen = true
   }
-  closeLists()
-  closeQuote()
 
-  return result.join('\n')
+  return out.join('\n')
+}
+
+function preparePreReadMarkdown(md: string): string {
+  // The title is already shown in the panel header.
+  const withoutTitle = md.replace(/^#{1,3} .+\n*/m, '')
+
+  return splitLongParagraphs(
+    withoutTitle
+      // A bold lead-in followed by prose is the model's way of writing a sub-heading.
+      // Handles **Title.** Rest... and **Title** — Rest...
+      .replace(/^\*\*(.+?)\.\*\*\s*(.+)$/gm, '### $1.\n\n$2')
+      .replace(/^\*\*(.+?)\*\*([.—–:,]\s*)(.+)$/gm, '### $1\n\n$3')
+      // A line that is nothing but bold text is a section divider.
+      .replace(/^\*\*(.+?)\*\*$/gm, '## $1')
+      // Keep a rule a rule: touching the paragraph above would make it a setext heading.
+      .replace(/([^\n])\n(---+[ \t]*)$/gm, '$1\n\n$2'),
+  )
 }
