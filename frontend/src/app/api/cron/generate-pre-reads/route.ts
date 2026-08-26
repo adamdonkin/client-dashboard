@@ -74,6 +74,9 @@ export async function GET(request: NextRequest) {
     const dayEnd = new Date(pacificMidnight.getTime() + offsetMs + 24 * 60 * 60 * 1000 - 1000).toISOString()
     console.log('[cron] Date range:', { todayDate, dayStart, dayEnd })
 
+    // Cancelled sessions are excluded here for the same reason the Prep page hides them:
+    // there is no meeting to prepare for. Without this the cron spent a third of its work
+    // and its Granola quota on pre-reads nobody could see.
     const { data: events, error: eventsError } = await supabase
       .from('calendar_events')
       .select('id, title, client_id')
@@ -81,6 +84,7 @@ export async function GET(request: NextRequest) {
       .lte('start_time', dayEnd)
       .not('client_id', 'is', null)
       .eq('user_id', userId)
+      .or('status.is.null,status.neq.cancelled')
 
     console.log('[cron] Events found:', events?.length || 0, 'error:', eventsError?.message || 'none',
       'titles:', events?.map(e => e.title))
