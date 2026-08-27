@@ -46,8 +46,9 @@ Write the recap of that session here, from the sources above. This is the substa
 - Select rather than cover. Carry the threads Adam needs to walk in remembering; leave the rest out. A recap he can read is worth more than a complete one.
 - Specifics are what make it useful: names, numbers, dates, commitments, and the exact distinctions the conversation drew.${granolaSummary ? '\n- The write-up above is already a note tree. Carry its content, not its shape.' : ''}`
 
-  // What the client wants to cover is the first thing Adam reaches for when prepping, so it
-  // leads. Dropped entirely when nothing was captured rather than printed as an empty heading.
+  // Sits directly ahead of the recap so what the client wants to cover reads against what
+  // they left off on. Dropped entirely when nothing was captured rather than printed as an
+  // empty heading.
   const topicsSpec = sessionTopics
     ? `**Topics ${clientName} sent for this session**
 ${SESSION_TOPICS_TOKEN}
@@ -103,14 +104,14 @@ Produce exactly these sections, in this order:
 
 ### ${clientName} — Session prep for ${sessionDate}
 
-${topicsSpec}**Quick context**
+**Quick context**
 - Role, company, and what the company does — one or two lines
 - Working together: use the "Working together" field above verbatim if present
 
 **Connection reminders**
 Personal details Adam can reference naturally, as bullets. Partner or spouse, children's names and ages, life events, hobbies, health, pets. Use "Known personal details" above as the baseline and add anything stated in the material below. Facts only — no suggestions about how to use them.
 
-${lastSessionSpec}
+${topicsSpec}${lastSessionSpec}
 
 **Key people**
 People mentioned, with titles where known: name, title, relationship to ${clientName}. Nothing further.`

@@ -503,10 +503,17 @@ serve(async (req) => {
       } else {
         console.log(`SESSION_TOPICS_TOKEN_MISSING client=${client.name} - inserting topics`)
         const block = `**Topics ${client.name} sent for this session**\n${sessionTopics.trim()}`
-        const heading = content.match(/^#{1,6} .*$/m)
-        content = heading
-          ? content.replace(heading[0], () => `${heading[0]}\n\n${block}`)
-          : `${block}\n\n${content.trim()}`
+        // Preferred home is immediately ahead of the recap; the top heading is the fallback
+        // when the model omitted or renamed that section.
+        const recapHeading = content.match(/^\*\*Where you left off.*$/m)
+        const topHeading = content.match(/^#{1,6} .*$/m)
+        if (recapHeading) {
+          content = content.replace(recapHeading[0], () => `${block}\n\n${recapHeading[0]}`)
+        } else if (topHeading) {
+          content = content.replace(topHeading[0], () => `${topHeading[0]}\n\n${block}`)
+        } else {
+          content = `${block}\n\n${content.trim()}`
+        }
       }
     } else if (content.includes(SESSION_TOPICS_TOKEN)) {
       content = content.replace(SESSION_TOPICS_TOKEN, '').replace(/\n{3,}/g, '\n\n')
