@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/actions', label: 'Actions', icon: Zap },
-  { href: '/prep', label: 'Prep', icon: BookOpen },
+  { href: '/prep', label: 'Pre-reads', icon: BookOpen },
   { href: '/pre-writes', label: 'Pre-writes', icon: Send },
   { href: '/timezones', label: 'Timezones', icon: Globe },
 ]
