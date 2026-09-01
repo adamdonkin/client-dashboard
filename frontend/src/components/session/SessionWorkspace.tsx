@@ -48,9 +48,11 @@ export function SessionWorkspace({
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
   const [topicsContent, setTopicsContent] = useState<any>(undefined)
+  const [feedbackContent, setFeedbackContent] = useState<any>(undefined)
   const [dataLoaded, setDataLoaded] = useState(false)
   const connectionEditorRef = useRef<any>(null)
   const topicsEditorRef = useRef<any>(null)
+  const feedbackEditorRef = useRef<any>(null)
   const [copiedSection, setCopiedSection] = useState<string | null>(null)
 
   const handleCopySection = async (editorRef: React.RefObject<any>, sectionName: string) => {
@@ -68,12 +70,13 @@ export function SessionWorkspace({
     const load = async () => {
       const { data } = await supabase
         .from('session_notes')
-        .select('connection_notes, topics_content')
+        .select('connection_notes, topics_content, feedback_content')
         .eq('id', sessionNoteId)
         .single()
 
       setConnectionNotes(stripActionBlocks(data?.connection_notes) || null)
       setTopicsContent(stripActionBlocks(data?.topics_content) || null)
+      setFeedbackContent(stripActionBlocks(data?.feedback_content) || null)
       setDataLoaded(true)
     }
     load()
@@ -91,6 +94,14 @@ export function SessionWorkspace({
     const { error } = await supabase
       .from('session_notes')
       .update({ topics_content: content, updated_at: new Date().toISOString() })
+      .eq('id', sessionNoteId)
+    if (error) throw error
+  }, [sessionNoteId, supabase])
+
+  const handleFeedbackUpdate = useCallback(async (content: any) => {
+    const { error } = await supabase
+      .from('session_notes')
+      .update({ feedback_content: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
   }, [sessionNoteId, supabase])
@@ -151,6 +162,44 @@ export function SessionWorkspace({
       ]},
     ]},
   ]
+
+  const feedbackTemplateContent = [
+    { type: 'bulletList', content: [
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [
+          { type: 'text', marks: [{ type: 'bold' }], text: 'Rating, 1-5?' },
+          { type: 'text', text: ' ' },
+        ]},
+      ]},
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'What did you like?' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'What would it take to get to the next level?' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      ]},
+    ]},
+  ]
+
+  const insertFeedbackTemplate = (editor: any) => {
+    // Collapse first so a highlighted passage isn't replaced by the template
+    editor.chain().focus().setTextSelection(editor.state.selection.to).run()
+    const insertPos = editor.state.selection.from
+    editor.chain().focus().insertContent(feedbackTemplateContent).run()
+    // Land the cursor after "Rating, 1-5?" so the score can be typed straight away
+    setTimeout(() => {
+      let target: number | null = null
+      editor.state.doc.descendants((node: any, nodePos: number) => {
+        if (target !== null) return false
+        if (node.type.name === 'paragraph' && nodePos >= insertPos - 1 && node.textContent.startsWith('Rating, 1-5?')) {
+          target = nodePos + 1 + node.content.size
+          return false
+        }
+      })
+      if (target !== null) editor.chain().focus().setTextSelection(target).run()
+    }, 10)
+  }
 
   const insertIssueTemplate = (editor: any, title?: string) => {
     const { from: pos, to } = editor.state.selection
@@ -286,6 +335,8 @@ export function SessionWorkspace({
       setShowCreatePanel(true)
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
+    } else if (item.id === 'feedback') {
+      insertFeedbackTemplate(editor)
     }
   }
 
@@ -368,6 +419,7 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onSelectionFeedback={insertFeedbackTemplate}
               onEditorReady={(ed) => { connectionEditorRef.current = ed }}
               onCreateAction={handleInlineAction}
             />
@@ -421,7 +473,44 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onSelectionFeedback={insertFeedbackTemplate}
               onEditorReady={(ed) => { topicsEditorRef.current = ed }}
+              onCreateAction={handleInlineAction}
+            />
+          ) : (
+            <div className="min-h-[1.5em]" />
+          )}
+        </section>
+
+        <hr className="border-border/50" />
+
+        {/* Feedback */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest">
+              Feedback
+            </h2>
+            <button
+              onClick={() => handleCopySection(feedbackEditorRef, 'feedback')}
+              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Copy to clipboard"
+            >
+              {copiedSection === 'feedback' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          {dataLoaded ? (
+            <SessionEditor
+              content={feedbackContent}
+              onUpdate={handleFeedbackUpdate}
+              placeholder="Use /feedback to add the feedback questions..."
+              readOnly={notesLocked}
+              clientId={calendarEvent.client_id}
+              sessionNoteId={sessionNoteId}
+              onActionCreated={noopActionCallback}
+              onSlashCommand={handleSlashCommand}
+              onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
+              onSelectionFeedback={insertFeedbackTemplate}
+              onEditorReady={(ed) => { feedbackEditorRef.current = ed }}
               onCreateAction={handleInlineAction}
             />
           ) : (

@@ -53,7 +53,7 @@ const ListAutoJoin = Extension.create({
   },
 })
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle } from 'lucide-react'
+import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle, MessageSquare } from 'lucide-react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
@@ -74,6 +74,7 @@ interface SessionEditorProps {
   onActionCreated?: (actionId: string) => void
   onSlashCommand?: SlashCommandHandler
   onSelectionIssue?: (selectedText: string, editor: any) => void
+  onSelectionFeedback?: (editor: any) => void
   onEditorReady?: (editor: any) => void
   onCreateAction?: (title: string) => void
   showActionButtons?: boolean
@@ -91,6 +92,7 @@ export function SessionEditor({
   onActionCreated,
   onSlashCommand,
   onSelectionIssue,
+  onSelectionFeedback,
   onEditorReady,
   onCreateAction,
   showActionButtons = true,
@@ -125,6 +127,8 @@ export function SessionEditor({
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
   onSelectionIssueRef.current = onSelectionIssue
+  const onSelectionFeedbackRef = useRef(onSelectionFeedback)
+  onSelectionFeedbackRef.current = onSelectionFeedback
   const onCreateActionRef = useRef(onCreateAction)
   onCreateActionRef.current = onCreateAction
 
@@ -498,6 +502,13 @@ export function SessionEditor({
     }
   }
 
+  const handleBubbleFeedback = () => {
+    const ed = editorRef.current
+    if (!ed) return
+    onSelectionFeedbackRef.current?.(ed)
+    setSelectionToolbar(null)
+  }
+
   return (
     <div className="session-editor relative" ref={containerRef}>
       <div className={readOnly ? 'opacity-60' : ''}>
@@ -569,6 +580,15 @@ export function SessionEditor({
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Issue
               </button>
+              {onSelectionFeedback && (
+                <button
+                  onClick={handleBubbleFeedback}
+                  className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Feedback
+                </button>
+              )}
             </>
           )}
         </div>

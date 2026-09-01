@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import { Zap, Target, AlertTriangle } from 'lucide-react'
+import { Zap, Target, AlertTriangle, MessageSquare } from 'lucide-react'
 
 export interface SlashCommandItem {
   id: string
@@ -13,6 +13,7 @@ const COMMANDS: SlashCommandItem[] = [
   { id: 'action', label: 'Action', icon: <Zap className="h-4 w-4" /> },
   { id: 'issue', label: 'Issue', icon: <AlertTriangle className="h-4 w-4" /> },
   { id: 'goal', label: 'Goal', icon: <Target className="h-4 w-4" /> },
+  { id: 'feedback', label: 'Feedback', icon: <MessageSquare className="h-4 w-4" /> },
 ]
 
 interface SlashCommandMenuProps {
