@@ -76,7 +76,13 @@ export function PreReadPanel({
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-6 py-3 border-b border-border/50 shrink-0">
           <div>
-            <h2 className="text-[15px] font-semibold">{clientName}</h2>
+            <h2 className="text-[15px] font-semibold">
+              {clientId ? (
+                <a href={`/clients/${clientId}`} className="hover:underline">{clientName}</a>
+              ) : (
+                clientName
+              )}
+            </h2>
             <p className="text-[12px] text-muted-foreground">
               {companyName ? `${companyName} · ` : ''}Session prep for {sessionDate}
             </p>
