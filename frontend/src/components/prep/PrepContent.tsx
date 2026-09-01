@@ -19,6 +19,13 @@ interface SessionWithPreRead {
   pre_read_id: string | null
   pre_read_status: string
   pre_read_content: string | null
+  pre_read_session_date: string | null
+}
+
+// A pre-read is only trustworthy for the day it was written for. A rescheduled session
+// keeps its calendar event id, so an older document can still be attached to it.
+function isCurrent(s: SessionWithPreRead, date: string) {
+  return s.pre_read_status === 'ready' && s.pre_read_session_date === date
 }
 
 export function PrepContent() {
@@ -60,7 +67,7 @@ export function PrepContent() {
     const eventIds = events.map(e => e.id)
     const { data: preReads } = await supabase
       .from('pre_reads')
-      .select('id, calendar_event_id, status, content')
+      .select('id, calendar_event_id, status, content, session_date')
       .in('calendar_event_id', eventIds)
 
     const preReadMap = new Map(
@@ -80,6 +87,7 @@ export function PrepContent() {
         pre_read_id: pr?.id || null,
         pre_read_status: pr?.status || 'none',
         pre_read_content: pr?.content || null,
+        pre_read_session_date: pr?.session_date || null,
       }
     })
 
@@ -97,14 +105,14 @@ export function PrepContent() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const allAlreadyReady = sessions.every(s => s.pre_read_status === 'ready')
+      const allAlreadyReady = sessions.every(s => isCurrent(s, date))
       setSessions(prev => prev.map(s => {
-        if (!allAlreadyReady && s.pre_read_status === 'ready') return s
+        if (!allAlreadyReady && isCurrent(s, date)) return s
         return { ...s, pre_read_status: 'generating' }
       }))
 
       for (const s of sessions) {
-        if (!allAlreadyReady && s.pre_read_status === 'ready') continue
+        if (!allAlreadyReady && isCurrent(s, date)) continue
         await generateOne(session.user.id, s.id)
       }
     } finally {
@@ -160,7 +168,7 @@ export function PrepContent() {
   })()
 
   const hasAnyPreReads = sessions.some(s => s.pre_read_status === 'ready')
-  const allReady = sessions.length > 0 && sessions.every(s => s.pre_read_status === 'ready')
+  const allReady = sessions.length > 0 && sessions.every(s => isCurrent(s, date))
 
   return (
     <div className="space-y-6">
@@ -249,9 +257,18 @@ export function PrepContent() {
                     >
                       <RefreshCw className="h-3 w-3" />
                     </button>
-                    <span className="text-[11px] font-medium text-success px-2 py-0.5 rounded-full bg-success/10">
-                      Ready
-                    </span>
+                    {isCurrent(session, date) ? (
+                      <span className="text-[11px] font-medium text-success px-2 py-0.5 rounded-full bg-success/10">
+                        Ready
+                      </span>
+                    ) : (
+                      <span
+                        className="text-[11px] font-medium text-warning px-2 py-0.5 rounded-full bg-warning/10"
+                        title={`Written for ${session.pre_read_session_date ?? 'another date'} — regenerate for this session`}
+                      >
+                        Out of date
+                      </span>
+                    )}
                   </div>
                 )}
                 {session.pre_read_status === 'generating' && (
@@ -286,6 +303,13 @@ export function PrepContent() {
           sessionDate={format(parseISO(date), 'MMMM d, yyyy')}
           content={selectedSession.pre_read_content}
           status={selectedSession.pre_read_status === 'none' ? 'pending' : selectedSession.pre_read_status}
+          staleFrom={
+            selectedSession.pre_read_status === 'ready' && !isCurrent(selectedSession, date)
+              ? selectedSession.pre_read_session_date
+                ? format(parseISO(selectedSession.pre_read_session_date), 'MMMM d, yyyy')
+                : 'an earlier session'
+              : null
+          }
           onClose={() => setSelectedSession(null)}
           onRegenerate={() => handleGenerateOne(selectedSession.id)}
         />

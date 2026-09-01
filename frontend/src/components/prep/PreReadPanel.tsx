@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { X, Loader2, RefreshCw } from 'lucide-react'
+import { X, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,9 @@ interface PreReadPanelProps {
   sessionDate: string
   content: string | null
   status: string
+  // Set when the stored pre-read was written for a different date than the session being
+  // shown, which happens when a session is rescheduled and keeps its calendar event id.
+  staleFrom?: string | null
   onClose: () => void
   onRegenerate?: () => void
 }
@@ -26,6 +29,7 @@ export function PreReadPanel({
   sessionDate,
   content,
   status,
+  staleFrom,
   onClose,
   onRegenerate,
 }: PreReadPanelProps) {
@@ -113,6 +117,21 @@ export function PreReadPanel({
           {status === 'pending' && (
             <div className="flex items-center justify-center py-20">
               <p className="text-[14px] text-muted-foreground">Not yet generated</p>
+            </div>
+          )}
+
+          {status === 'ready' && staleFrom && (
+            <div className="px-6 pt-5 max-w-2xl mx-auto">
+              <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <div className="text-[13px] text-foreground">
+                  <p className="font-medium">This pre-read is out of date</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    It was written for {staleFrom}, so it may not reflect the most recent session.
+                    {onRegenerate ? ' Regenerate it to bring it up to date.' : ''}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
