@@ -96,10 +96,18 @@ export async function GET(request: NextRequest) {
     const eventIds = events.map(e => e.id)
     const { data: existingPreReads } = await supabase
       .from('pre_reads')
-      .select('calendar_event_id, status')
+      .select('calendar_event_id, status, session_date')
       .in('calendar_event_id', eventIds)
 
-    const readySet = new Set((existingPreReads || []).filter(pr => pr.status === 'ready').map(pr => pr.calendar_event_id))
+    // Rescheduling a recurring session keeps its Google event id, so calendar sync updates
+    // the row in place and the pre-read written for the old date stays attached to it.
+    // Matching on the event alone counted that document as done and skipped the session,
+    // leaving a recap of the wrong week on screen with no indication anything was stale.
+    const readySet = new Set(
+      (existingPreReads || [])
+        .filter(pr => pr.status === 'ready' && pr.session_date === todayDate)
+        .map(pr => pr.calendar_event_id)
+    )
     const needsGeneration = events.filter(e => !readySet.has(e.id))
 
     console.log('[cron] Need generation:', needsGeneration.length, 'of', events.length)
