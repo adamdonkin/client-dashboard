@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Globe, Sun } from 'lucide-react';
 import { RevenueFilter, RevenueFilterType } from './RevenueFilter';
+import { REGION_ORDER, MORNING_PRESSURE_REGIONS, getRegionColor, getTimeOffset } from '@/lib/timezoneRegions';
 
 interface ClientByRegion {
   client_id: string;
@@ -16,47 +17,6 @@ interface ClientByRegion {
 
 interface TimezoneContentProps {
   clients: ClientByRegion[];
-}
-
-const REGION_ORDER = ['West Coast', 'Mountain', 'Central', 'East Coast', 'Europe', 'Asia Pacific'];
-const MORNING_PRESSURE_REGIONS = new Set(['East Coast', 'Europe']);
-
-function getRegionColor(region: string) {
-  switch (region) {
-    case 'West Coast':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'Mountain':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    case 'Central':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'East Coast':
-      return 'bg-orange-100 text-orange-800 border-orange-200';
-    case 'Europe':
-      return 'bg-red-100 text-red-800 border-red-200';
-    case 'Asia Pacific':
-      return 'bg-purple-100 text-purple-800 border-purple-200';
-    default:
-      return 'bg-muted text-muted-foreground border-border';
-  }
-}
-
-function getTimeOffset(region: string) {
-  switch (region) {
-    case 'West Coast':
-      return 'Same timezone as you';
-    case 'Mountain':
-      return '+1 hour';
-    case 'Central':
-      return '+2 hours';
-    case 'East Coast':
-      return '+3 hours';
-    case 'Europe':
-      return '+8-9 hours';
-    case 'Asia Pacific':
-      return '+15-18 hours';
-    default:
-      return 'Unknown';
-  }
 }
 
 export function TimezoneContent({ clients }: TimezoneContentProps) {
