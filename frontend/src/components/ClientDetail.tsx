@@ -35,6 +35,7 @@ import type { ActionReviewSectionHandle } from '@/components/session/ActionRevie
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
 import type { ActionItem } from '@/components/ActionRow';
 import { copyActionsToClipboard } from '@/utils/copy-actions';
+import { getTimeOffset } from '@/lib/timezoneRegions';
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -105,6 +106,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   
   // Edit details state
   const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [region, setRegion] = useState<string | null>(null);
   const [editRole, setEditRole] = useState(client.role || '');
   const [editLocation, setEditLocation] = useState(client.location || '');
   const [editMonthlyFee, setEditMonthlyFee] = useState(client.monthly_fee?.toString() || '');
@@ -378,6 +380,25 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     saveNotes();
     setIsEditingNotes(false);
   };
+
+  // The city-to-region mapping lives in the get_clients_by_region RPC, which is also what
+  // the Timezones page reads, so the two views can never disagree about where a client is.
+  // Re-runs when the location changes so editing the city updates the header immediately.
+  useEffect(() => {
+    const fetchRegion = async () => {
+      const { data, error } = await supabase.rpc('get_clients_by_region');
+      if (error) {
+        console.error('Error fetching client region:', error);
+        return;
+      }
+      const rows = (data || []) as { client_id: string; region: string }[];
+      setRegion(rows.find(r => r.client_id === client.id)?.region ?? null);
+    };
+
+    if (client.id) {
+      fetchRegion();
+    }
+  }, [client.id, currentClient?.location, supabase]);
 
   // Sync edit details state when client changes
   useEffect(() => {
@@ -737,22 +758,48 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                         </SelectContent>
                       </Select>
                     </div>
-                    <div
-                      className="flex items-center gap-2 text-muted-foreground cursor-pointer hover:text-muted-foreground/70 transition-colors"
-                      onClick={() => setIsEditingHeader(true)}
-                      title="Click to edit"
-                    >
-                      {currentClient?.company_name && (
+                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer hover:text-muted-foreground/70 transition-colors"
+                        onClick={() => setIsEditingHeader(true)}
+                        title="Click to edit"
+                      >
+                        {currentClient?.company_name && (
+                          <>
+                            <span className="font-medium">{currentClient.company_name}</span>
+                            {currentClient?.role && <span>•</span>}
+                          </>
+                        )}
+                        {currentClient?.role && <span>{currentClient.role}</span>}
+                        {!currentClient?.company_name && !currentClient?.role && (
+                          <span className="text-muted-foreground/50 italic text-sm">Add company & role</span>
+                        )}
+                      </div>
+
+                      {/* Sits outside the click-to-edit area above, which opens the company
+                          and role editor rather than the location field. */}
+                      {region ? (
                         <>
-                          <span className="font-medium">{currentClient.company_name}</span>
-                          {currentClient?.role && <span>•</span>}
+                          <span>•</span>
+                          <span>{region}</span>
+                          {region !== 'West Coast' && (
+                            <>
+                              <span>•</span>
+                              <span>{getTimeOffset(region)}</span>
+                            </>
+                          )}
                         </>
-                      )}
-                      {currentClient?.role && <span>{currentClient.role}</span>}
-                      {!currentClient?.company_name && !currentClient?.role && (
-                        <span className="text-muted-foreground/50 italic text-sm">Add company & role</span>
-                      )}
-                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                      ) : !currentClient?.location ? (
+                        <>
+                          <span>•</span>
+                          <button
+                            onClick={() => setIsEditingDetails(true)}
+                            className="italic hover:text-foreground transition-colors"
+                          >
+                            Add location
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </>
                 )}
