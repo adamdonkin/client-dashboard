@@ -57,11 +57,13 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
     }).format(num);
   };
 
-  // Capacity calculations (always use total, not filtered)
+  // Capacity follows the filter like every other card. It used to stay unfiltered
+  // as a reminder that Jessie Barry sits outside Mochary Method, which meant the
+  // headcount and the revenue below it described different sets of clients.
   // Use capacity_count if available (active + pending), otherwise fall back to active_paying_clients
-  const capacityCount = statsData.revenueStats?.capacity_count || statsData.revenueStats?.active_paying_clients || 0;
-  const activeClientCount = statsData.revenueStats?.active_paying_clients || 0;
-  const pendingClientCount = statsData.revenueStats?.pending_clients || 0;
+  const capacityCount = currentRevenueStats?.capacity_count || currentRevenueStats?.active_paying_clients || 0;
+  const activeClientCount = currentRevenueStats?.active_paying_clients || 0;
+  const pendingClientCount = currentRevenueStats?.pending_clients || 0;
   const maxCapacity = 20;
   const availableSlots = Math.max(0, maxCapacity - capacityCount);
   
