@@ -1381,11 +1381,18 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     return (
                       <div key={key} className="flex gap-3 items-start">
                         <span className="text-[13px] text-muted-foreground shrink-0 w-[80px] pt-1.5">{label}</span>
-                        <input
-                          type="text"
+                        {/* Auto-extracted details run to several lines, so the field grows
+                            to its content rather than hiding all but the first line. */}
+                        <textarea
                           value={editPersonal[key] || ''}
-                          onChange={(e) => setEditPersonal(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="flex-1 text-[13px] px-2 py-1 rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          onChange={(e) => {
+                            setEditPersonal(prev => ({ ...prev, [key]: e.target.value }))
+                            e.target.style.height = 'auto'
+                            e.target.style.height = e.target.scrollHeight + 'px'
+                          }}
+                          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }}
+                          rows={1}
+                          className="flex-1 min-w-0 text-[13px] px-2 py-1 rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none overflow-hidden"
                           placeholder={`Add ${label.toLowerCase()}...`}
                         />
                       </div>
@@ -1402,7 +1409,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                       .map(([key, value]) => (
                         <div key={key} className="flex gap-3">
                           <span className="text-[13px] text-muted-foreground shrink-0 w-[80px]">{PERSONAL_DETAIL_LABELS[key] || key.replace(/_/g, ' ')}</span>
-                          <span className="text-[13px] text-foreground">{value}</span>
+                          <span className="text-[13px] text-foreground min-w-0 whitespace-pre-wrap break-words">{value}</span>
                         </div>
                       ))
                   ) : (
