@@ -43,6 +43,10 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
     ? (statsData.revenueStatsMochary || statsData.revenueStats)
     : statsData.revenueStats;
 
+  // Read from the same row as the total it sits under, so the two are never
+  // drawn from different client sets and cannot double count.
+  const pendingRevenue = parseFloat(currentRevenueStats?.pending_monthly_revenue || '0');
+
   const formatCurrency = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     return new Intl.NumberFormat('en-US', {
@@ -58,7 +62,6 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
   const capacityCount = statsData.revenueStats?.capacity_count || statsData.revenueStats?.active_paying_clients || 0;
   const activeClientCount = statsData.revenueStats?.active_paying_clients || 0;
   const pendingClientCount = statsData.revenueStats?.pending_clients || 0;
-  const pendingRevenue = parseFloat(statsData.revenueStats?.pending_monthly_revenue || '0');
   const maxCapacity = 20;
   const availableSlots = Math.max(0, maxCapacity - capacityCount);
   
