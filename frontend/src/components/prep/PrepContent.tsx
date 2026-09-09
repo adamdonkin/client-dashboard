@@ -3,10 +3,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { format, parseISO, addDays, subDays } from 'date-fns'
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PreReadPanel } from './PreReadPanel'
+import { CheckInPanel } from './CheckInPanel'
 import { cn } from '@/lib/utils'
+
+const CHECK_IN_DAYS = 7
+
+// Both the session list and the check-in list need the same Pacific day window,
+// and a drift between the two would silently shift who counts as a week out.
+function pacificDayBounds(day: string) {
+  const startLocal = new Date(`${day}T00:00:00`)
+  const endLocal = new Date(`${day}T23:59:59`)
+  const pacificRef = new Date(startLocal.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+  const offsetMs = startLocal.getTime() - pacificRef.getTime()
+  return {
+    start: new Date(startLocal.getTime() + offsetMs).toISOString(),
+    end: new Date(endLocal.getTime() + offsetMs).toISOString(),
+  }
+}
 
 interface SessionWithPreRead {
   id: string
@@ -20,6 +36,20 @@ interface SessionWithPreRead {
   pre_read_status: string
   pre_read_content: string | null
   pre_read_session_date: string | null
+}
+
+interface CheckIn {
+  // Null when the workspace was never opened, in which case the calendar event
+  // id is the only thing that can be linked to.
+  note_id: string | null
+  event_id: string
+  event_title: string
+  client_id: string
+  client_name: string
+  company_name: string | null
+  role: string | null
+  last_session: string
+  last_session_end: string
 }
 
 // A pre-read is only trustworthy for the day it was written for. A rescheduled session
@@ -38,16 +68,13 @@ export function PrepContent() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [selectedSession, setSelectedSession] = useState<SessionWithPreRead | null>(null)
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([])
+  const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null)
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
 
-    const startLocal = new Date(`${date}T00:00:00`)
-    const endLocal = new Date(`${date}T23:59:59`)
-    const pacificRef = new Date(startLocal.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
-    const offsetMs = startLocal.getTime() - pacificRef.getTime()
-    const dayStart = new Date(startLocal.getTime() + offsetMs).toISOString()
-    const dayEnd = new Date(endLocal.getTime() + offsetMs).toISOString()
+    const { start: dayStart, end: dayEnd } = pacificDayBounds(date)
 
     const { data: events } = await supabase
       .from('calendar_events')
@@ -95,9 +122,91 @@ export function PrepContent() {
     setLoading(false)
   }, [date, supabase])
 
+  const fetchCheckIns = useCallback(async () => {
+    const weekAgo = format(subDays(parseISO(date), CHECK_IN_DAYS), 'yyyy-MM-dd')
+    const { start, end } = pacificDayBounds(weekAgo)
+
+    const { data: events } = await supabase
+      .from('calendar_events')
+      .select('id, title, start_time, end_time, client_id, clients(id, name, company_name, role, status, is_active)')
+      .gte('start_time', start)
+      .lte('start_time', end)
+      .not('client_id', 'is', null)
+      .or('status.is.null,status.neq.cancelled')
+      .order('start_time', { ascending: true })
+
+    if (!events || events.length === 0) {
+      setCheckIns([])
+      return
+    }
+
+    const active = events.filter((e: any) =>
+      e.clients &&
+      (e.clients.is_active === null || e.clients.is_active === true) &&
+      (e.clients.status === null || !['inactive', 'staff'].includes(e.clients.status))
+    )
+
+    if (active.length === 0) {
+      setCheckIns([])
+      return
+    }
+
+    // Anything scheduled between that session and the end of the day being viewed
+    // means the week-old session is no longer the last time we spoke. This also
+    // drops anyone already sitting in the list above, since seeing them today
+    // makes a check-in moot.
+    const { end: viewedEnd } = pacificDayBounds(date)
+    const { data: since } = await supabase
+      .from('calendar_events')
+      .select('client_id')
+      .in('client_id', active.map((e: any) => e.client_id))
+      .gt('start_time', end)
+      .lte('start_time', viewedEnd)
+      .or('status.is.null,status.neq.cancelled')
+
+    const seenSince = new Set((since || []).map((r: any) => r.client_id))
+    const eligible = active.filter((e: any) => !seenSince.has(e.client_id))
+
+    if (eligible.length === 0) {
+      setCheckIns([])
+      return
+    }
+
+    const { data: notes } = await supabase
+      .from('session_notes')
+      .select('id, calendar_event_id')
+      .in('calendar_event_id', eligible.map((e: any) => e.id))
+
+    const noteMap = new Map((notes || []).map(n => [n.calendar_event_id, n.id]))
+
+    const seenClients = new Set<string>()
+    setCheckIns(
+      eligible.reduce((acc: CheckIn[], e: any) => {
+        if (seenClients.has(e.client_id)) return acc
+        seenClients.add(e.client_id)
+        acc.push({
+          note_id: noteMap.get(e.id) || null,
+          event_id: e.id,
+          event_title: e.title,
+          client_id: e.client_id,
+          client_name: e.clients?.name || 'Unknown',
+          company_name: e.clients?.company_name || null,
+          role: e.clients?.role || null,
+          last_session: e.start_time,
+          last_session_end: e.end_time,
+        })
+        return acc
+      }, [])
+    )
+  }, [date, supabase])
+
   useEffect(() => {
     fetchSessions()
   }, [fetchSessions])
+
+  useEffect(() => {
+    fetchCheckIns()
+  }, [fetchCheckIns])
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -222,7 +331,7 @@ export function PrepContent() {
           {sessions.map(session => (
             <div
               key={session.id}
-              onClick={() => setSelectedSession(session)}
+              onClick={() => { setSelectedSession(session); setSelectedCheckIn(null) }}
               className={cn(
                 'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors text-left cursor-pointer',
                 selectedSession?.id === session.id
@@ -294,6 +403,50 @@ export function PrepContent() {
         </div>
       )}
 
+      {checkIns.length > 0 && (
+        <div className="pt-2">
+          <div className="flex items-center gap-2 mb-2 px-4">
+            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+            <h2 className="text-[13px] font-medium text-muted-foreground">Check-ins</h2>
+          </div>
+
+          <div className="space-y-1">
+            {checkIns.map(c => (
+              <div
+                key={c.client_id}
+                onClick={() => { setSelectedCheckIn(c); setSelectedSession(null) }}
+                className={cn(
+                  'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors cursor-pointer',
+                  selectedCheckIn?.client_id === c.client_id
+                    ? 'border-primary/30 bg-accent'
+                    : 'border-border/50 hover:bg-muted/50',
+                )}
+              >
+                <div className="text-[13px] text-muted-foreground shrink-0 w-[90px]">
+                  {format(parseISO(c.last_session), 'MMM d')}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span className="text-[14px] font-medium text-foreground">
+                    {c.client_name}
+                  </span>
+                  {(c.company_name || c.role) && (
+                    <span className="text-[13px] text-muted-foreground ml-2">
+                      {[c.company_name, c.role].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="shrink-0 flex items-center gap-1 text-[13px] text-muted-foreground">
+                  <span>{CHECK_IN_DAYS} days ago</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {selectedSession && (
         <PreReadPanel
           key={selectedSession.id}
@@ -312,6 +465,27 @@ export function PrepContent() {
           }
           onClose={() => setSelectedSession(null)}
           onRegenerate={() => handleGenerateOne(selectedSession.id)}
+        />
+      )}
+
+      {selectedCheckIn && (
+        <CheckInPanel
+          key={selectedCheckIn.client_id}
+          calendarEvent={{
+            id: selectedCheckIn.event_id,
+            client_id: selectedCheckIn.client_id,
+            start_time: selectedCheckIn.last_session,
+            end_time: selectedCheckIn.last_session_end,
+            title: selectedCheckIn.event_title,
+          }}
+          client={{
+            id: selectedCheckIn.client_id,
+            name: selectedCheckIn.client_name,
+            company_name: selectedCheckIn.company_name,
+            role: selectedCheckIn.role,
+          }}
+          sessionNoteId={selectedCheckIn.note_id}
+          onClose={() => setSelectedCheckIn(null)}
         />
       )}
     </div>
