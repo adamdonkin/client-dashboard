@@ -133,7 +133,7 @@ export function SessionWorkspace({
     dueDate.setDate(dueDate.getDate() + 7)
     const dueDateStr = dueDate.toISOString().slice(0, 10)
 
-    await supabase
+    const { data } = await supabase
       .from('client_actions')
       .insert({
         user_id: session.user.id,
@@ -145,8 +145,13 @@ export function SessionWorkspace({
         due_date: dueDateStr,
         session_note_id: sessionNoteId,
       })
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .single()
 
     setActionRefreshKey(k => k + 1)
+
+    // Open the panel so the due date can be agreed on with the client
+    if (data) setSelectedAction(data)
   }, [calendarEvent.client_id, sessionNoteId, supabase])
 
   const issueTemplateContent = [
