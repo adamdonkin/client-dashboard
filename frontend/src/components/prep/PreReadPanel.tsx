@@ -53,9 +53,9 @@ export function PreReadPanel({
     console.log('[PreReadPanel] Fetching actions for clientId:', clientId)
     const { data, error } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at')
+      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
       .eq('client_id', clientId)
-      .in('status', ['to_do', 'not_done'])
+      .eq('status', 'to_do')
       .order('due_date', { ascending: true, nullsFirst: false })
     console.log('[PreReadPanel] Actions result:', { count: data?.length, error })
     if (data) setActions(data)
