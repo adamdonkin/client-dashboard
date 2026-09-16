@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { X, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
+import { panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 import { ActionRow, ActionItem } from '@/components/ActionRow'
 
 interface PreReadPanelProps {
@@ -33,17 +34,9 @@ export function PreReadPanel({
   onClose,
   onRegenerate,
 }: PreReadPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  const { panelRef, closing, requestClose } = useDismissiblePanel<HTMLDivElement>(onClose)
 
   const fetchActions = useCallback(async () => {
     if (!clientId) {
@@ -70,7 +63,7 @@ export function PreReadPanel({
       ref={panelRef}
       className={cn(
         'fixed top-0 right-0 z-50 h-full w-[55vw] max-w-[800px] min-w-[400px] bg-background border-l border-border shadow-xl',
-        'animate-in slide-in-from-right duration-200',
+        panelSlideClass(closing),
       )}
     >
       <div className="flex flex-col h-full">
@@ -98,7 +91,7 @@ export function PreReadPanel({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <X className="h-4 w-4" />

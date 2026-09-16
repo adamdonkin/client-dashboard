@@ -11,6 +11,7 @@ import { SessionEditor } from './SessionEditor'
 import { SourceBadge } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { cn } from '@/lib/utils'
+import { panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 
 interface ActionDetailPanelProps {
   action: ActionItem
@@ -31,8 +32,8 @@ export function ActionDetailPanel({
   const [title, setTitle] = useState(action.title)
   const [dueDate, setDueDate] = useState(action.due_date || '')
   const titleDebounceRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingTitleRef = useRef<string | null>(null)
   const actionRef = useRef(action)
-  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     actionRef.current = action
@@ -64,30 +65,57 @@ export function ActionDetailPanel({
     })
   }, [supabase, onUpdated])
 
-  useEffect(() => {
-    return () => {
-      if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current)
-    }
-  }, [])
-
-  const saveTitle = useCallback(async (newTitle: string) => {
-    if (!newTitle.trim()) return
+  const writeTitle = useCallback(async (newTitle: string) => {
     await supabase
       .from('client_actions')
       .update({ title: newTitle.trim(), updated_at: new Date().toISOString() })
       .eq('id', actionRef.current.id)
+  }, [supabase])
+  const writeTitleRef = useRef(writeTitle)
+  writeTitleRef.current = writeTitle
 
+  const saveTitle = useCallback(async (newTitle: string) => {
+    if (!newTitle.trim()) return
+    pendingTitleRef.current = null
+    await writeTitle(newTitle)
     onUpdated?.({ ...actionRef.current, title: newTitle.trim() })
-  }, [supabase, onUpdated])
+  }, [writeTitle, onUpdated])
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
+    pendingTitleRef.current = newTitle
     if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current)
     titleDebounceRef.current = setTimeout(() => {
       saveTitle(newTitle)
     }, 500)
   }
+
+  // Write a title that is still inside its debounce window. onUpdated fires up
+  // front rather than after the round trip, because by then we may be unmounted
+  // and the parent would read it as a request to re-open the panel.
+  const flushTitle = useCallback(() => {
+    if (titleDebounceRef.current) {
+      clearTimeout(titleDebounceRef.current)
+      titleDebounceRef.current = null
+    }
+    const pending = pendingTitleRef.current
+    if (pending === null || !pending.trim()) return
+    pendingTitleRef.current = null
+    onUpdated?.({ ...actionRef.current, title: pending.trim() })
+    writeTitle(pending)
+  }, [writeTitle, onUpdated])
+
+  // Safety net for unmounts that bypass requestClose, such as navigating away
+  useEffect(() => {
+    return () => {
+      if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current)
+      const pending = pendingTitleRef.current
+      if (pending !== null && pending.trim()) writeTitleRef.current(pending)
+    }
+  }, [])
+
+  const { panelRef, closing, requestClose } = useDismissiblePanel<HTMLDivElement>(onClose, flushTitle)
 
   const handleDateChange = async (newDate: string) => {
     setDueDate(newDate)
@@ -118,23 +146,15 @@ export function ActionDetailPanel({
       .eq('id', action.id)
     const updated = { ...actionRef.current, status: 'cancelled' }
     onUpdated?.(updated)
-    onClose()
+    requestClose()
   }
 
   const handleDelete = async () => {
-    onClose()
+    requestClose()
     onDeleted?.(action.id)
     await supabase.from('client_actions').delete().eq('id', action.id)
     toast('Action deleted')
   }
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   const history = action.review_history || []
 
@@ -144,7 +164,7 @@ export function ActionDetailPanel({
         ref={panelRef}
         className={cn(
           'fixed top-0 right-0 z-50 h-full w-[420px] max-w-[90vw] bg-background border-l border-border shadow-xl',
-          'animate-in slide-in-from-right duration-200',
+          panelSlideClass(closing),
         )}
       >
         <div className="flex flex-col h-full">
@@ -183,7 +203,7 @@ export function ActionDetailPanel({
                 </DropdownMenuContent>
               </DropdownMenu>
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <X className="h-4 w-4" />
