@@ -230,12 +230,14 @@
   margin-bottom: 0;
 }
 
+/* The rule and the indent are what mark this as a quote, so the text itself reads at
+   full contrast rather than being dimmed a second time. */
 .session-editor .ProseMirror blockquote {
   border-left: 3px solid var(--border);
   padding-left: 1em;
   margin-left: 0;
   margin-right: 0;
-  color: var(--muted-foreground);
+  color: var(--foreground);
 }
 
 .session-editor .ProseMirror strong {
