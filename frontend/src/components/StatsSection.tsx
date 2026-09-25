@@ -9,8 +9,7 @@ interface RevenueStats {
   annual_projection: string;
   active_paying_clients: number;
   average_client_fee: string;
-  pending_monthly_revenue?: string;
-  pending_clients?: number;
+  lead_clients?: number;
   capacity_count?: number;
 }
 
@@ -43,10 +42,6 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
     ? (statsData.revenueStatsMochary || statsData.revenueStats)
     : statsData.revenueStats;
 
-  // Read from the same row as the total it sits under, so the two are never
-  // drawn from different client sets and cannot double count.
-  const pendingRevenue = parseFloat(currentRevenueStats?.pending_monthly_revenue || '0');
-
   const formatCurrency = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     return new Intl.NumberFormat('en-US', {
@@ -60,10 +55,8 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
   // Capacity follows the filter like every other card. It used to stay unfiltered
   // as a reminder that Jessie Barry sits outside Mochary Method, which meant the
   // headcount and the revenue below it described different sets of clients.
-  // Use capacity_count if available (active + pending), otherwise fall back to active_paying_clients
   const capacityCount = currentRevenueStats?.capacity_count || currentRevenueStats?.active_paying_clients || 0;
-  const activeClientCount = currentRevenueStats?.active_paying_clients || 0;
-  const pendingClientCount = currentRevenueStats?.pending_clients || 0;
+  const leadCount = currentRevenueStats?.lead_clients || 0;
   const maxCapacity = 20;
   const availableSlots = Math.max(0, maxCapacity - capacityCount);
   
@@ -81,13 +74,16 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
   };
 
   const getCapacityText = () => {
-    // Always show breakdown if there are pending clients
-    if (pendingClientCount > 0) {
-      return `${activeClientCount} active + ${pendingClientCount} pending`;
+    const slots =
+      availableSlots === 0 ? 'At Capacity'
+      : availableSlots === 1 ? '1 slot available'
+      : `${availableSlots} slots available`;
+    // Leads sit alongside the slot count rather than inside it — they haven't
+    // taken a slot, and most won't.
+    if (leadCount > 0) {
+      return `${slots} · ${leadCount} ${leadCount === 1 ? 'lead' : 'leads'}`;
     }
-    if (availableSlots === 0) return 'At Capacity';
-    if (availableSlots === 1) return '1 slot available';
-    return `${availableSlots} slots available`;
+    return slots;
   };
 
   return (
@@ -125,15 +121,9 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <div className="text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.total_monthly_revenue) : '$0'}
               </div>
-              {pendingRevenue > 0 ? (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  +{formatCurrency(pendingRevenue)} pending
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Monthly revenue
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Monthly revenue
+              </p>
             </CardContent>
           </Card>
 
@@ -147,15 +137,9 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <div className="text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.annual_projection) : '$0'}
               </div>
-              {pendingRevenue > 0 ? (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  +{formatCurrency(pendingRevenue * 12)} pending
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Annual revenue
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Annual revenue
+              </p>
             </CardContent>
           </Card>
 

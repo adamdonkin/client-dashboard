@@ -209,7 +209,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'pending': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'lead': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
       case 'waiting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       case 'inactive': return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
       default: return 'bg-muted text-muted-foreground';
@@ -218,7 +218,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
   const statusOptions: { value: ClientStatus; label: string }[] = [
     { value: 'active', label: 'Active' },
-    { value: 'pending', label: 'Pending' },
+    { value: 'lead', label: 'Lead' },
     { value: 'waiting', label: 'Waitlist' },
     { value: 'inactive', label: 'Inactive' },
   ];
@@ -529,7 +529,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         .update({ 
           status: newStatus,
           // Also update is_active for backward compatibility
-          is_active: newStatus === 'active' || newStatus === 'pending'
+          is_active: newStatus === 'active' || newStatus === 'lead'
         })
         .eq('id', client.id);
 
