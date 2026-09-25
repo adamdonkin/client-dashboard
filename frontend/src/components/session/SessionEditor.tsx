@@ -69,6 +69,7 @@ interface SessionEditorProps {
   placeholder?: string
   autofocus?: boolean
   readOnly?: boolean
+  dimWhenReadOnly?: boolean
   clientId?: string
   sessionNoteId?: string
   onActionCreated?: (actionId: string) => void
@@ -87,6 +88,7 @@ export function SessionEditor({
   placeholder = 'Start typing...',
   autofocus = false,
   readOnly = false,
+  dimWhenReadOnly = true,
   clientId,
   sessionNoteId,
   onActionCreated,
@@ -511,7 +513,7 @@ export function SessionEditor({
 
   return (
     <div className="session-editor relative" ref={containerRef}>
-      <div className={readOnly ? 'opacity-60' : ''}>
+      <div className={readOnly && dimWhenReadOnly ? 'opacity-60' : ''}>
         <EditorContent editor={editor} />
       </div>
       {!readOnly && selectionToolbar && editor && (

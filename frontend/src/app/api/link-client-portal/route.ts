@@ -2,6 +2,30 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Portal links grant read access to a client's notes, so only the client's
+// owner or an editor on the owner's team may change them.
+async function canManageClient(serviceSupabase: SupabaseClient, userId: string, clientId: string) {
+  const { data: client } = await serviceSupabase
+    .from('clients')
+    .select('user_id')
+    .eq('id', clientId)
+    .single()
+
+  if (!client) return false
+  if (client.user_id === userId) return true
+
+  const { data: teamRow } = await serviceSupabase
+    .from('team_access')
+    .select('id')
+    .eq('owner_id', client.user_id)
+    .eq('member_id', userId)
+    .eq('role', 'editor')
+    .limit(1)
+
+  return (teamRow?.length ?? 0) > 0
+}
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
@@ -23,6 +47,11 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  if (!(await canManageClient(serviceSupabase, user.id, clientId))) {
+    console.error(`link-client-portal: user ${user.id} not permitted to link client ${clientId}`)
+    return NextResponse.json({ error: 'You do not have permission to manage portal access for this client' }, { status: 403 })
+  }
 
   // Find auth user by email
   const { data: { users }, error: listError } = await serviceSupabase.auth.admin.listUsers()
@@ -64,6 +93,11 @@ export async function DELETE(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  if (!(await canManageClient(serviceSupabase, user.id, clientId))) {
+    console.error(`link-client-portal: user ${user.id} not permitted to unlink client ${clientId}`)
+    return NextResponse.json({ error: 'You do not have permission to manage portal access for this client' }, { status: 403 })
+  }
 
   const { error } = await serviceSupabase
     .from('clients')

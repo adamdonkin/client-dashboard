@@ -6,6 +6,9 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { ClientSearch } from '@/components/ClientSearch'
 import { AppSidebar } from '@/components/AppSidebar'
 import { Toaster } from 'sonner'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { isTeamMember } from '@/lib/clientAccess'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,11 +30,16 @@ export const metadata: Metadata = {
   description: "Manage your client sessions and schedules",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const { data: { session } } = await supabase.auth.getSession()
+  const isClientUser = !!session && !(await isTeamMember(supabase, session.user.id))
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -39,10 +47,16 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            <ClientSearch />
-            <AppSidebar>
-              {children}
-            </AppSidebar>
+            {isClientUser ? (
+              children
+            ) : (
+              <>
+                <ClientSearch />
+                <AppSidebar>
+                  {children}
+                </AppSidebar>
+              </>
+            )}
             <Toaster position="bottom-center" />
           </AuthProvider>
         </ThemeProvider>

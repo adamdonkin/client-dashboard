@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Copy, Check, Lock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -13,6 +13,7 @@ import { ActionsSidebar } from './ActionsSidebar'
 import type { ActionsSidebarHandle } from './ActionsSidebar'
 import { ActionCreatePanel } from './ActionCreatePanel'
 import { ActionDetailPanel } from './ActionDetailPanel'
+import { ShareNoteButton } from './ShareNoteButton'
 import type { ActionItem } from '@/components/ActionRow'
 
 interface CalendarEvent {
@@ -28,6 +29,7 @@ interface ClientInfo {
   name: string
   company_name: string | null
   role: string | null
+  email?: string | null
 }
 
 interface SessionWorkspaceProps {
@@ -36,6 +38,7 @@ interface SessionWorkspaceProps {
   sessionNoteId: string
   notesLocked?: boolean
   clientView?: boolean
+  sharedWithClient?: boolean
 }
 
 export function SessionWorkspace({
@@ -44,6 +47,7 @@ export function SessionWorkspace({
   sessionNoteId,
   notesLocked = false,
   clientView = false,
+  sharedWithClient = false,
 }: SessionWorkspaceProps) {
   const supabase = createClientComponentClient()
   const [connectionNotes, setConnectionNotes] = useState<any>(undefined)
@@ -366,6 +370,60 @@ export function SessionWorkspace({
   const clientName = client?.name || 'Unknown Client'
   const subtitle = [client?.company_name, client?.role].filter(Boolean).join(' · ')
 
+  if (clientView) {
+    const sections = [
+      { key: 'connection', title: 'Connection', content: connectionNotes, ref: connectionEditorRef },
+      { key: 'topics', title: 'Topics', content: topicsContent, ref: topicsEditorRef },
+      { key: 'feedback', title: 'Feedback', content: feedbackContent, ref: feedbackEditorRef },
+    ].filter(s => hasDocContent(s.content))
+
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="border-b border-border/50 sticky top-0 bg-background z-10">
+          <div className="px-6 py-3 text-center max-sm:px-4">
+            <span className="text-[15px] font-medium text-foreground">{clientName}</span>
+            <p className="text-[13px] text-muted-foreground">
+              {sessionDate} · {sessionTime} · {durationMins} min
+            </p>
+          </div>
+        </div>
+
+        <div className="w-2xl mx-auto px-6 py-8 pb-24 space-y-10 max-sm:w-full max-sm:px-4">
+          {dataLoaded && sections.length === 0 && (
+            <p className="text-[13px] text-muted-foreground text-center">There are no notes for this session yet.</p>
+          )}
+          {dataLoaded && sections.map((section, i) => (
+            <Fragment key={section.key}>
+              {i > 0 && <hr className="border-border/50" />}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest">
+                    {section.title}
+                  </h2>
+                  <button
+                    onClick={() => handleCopySection(section.ref, section.key)}
+                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Copy to clipboard"
+                  >
+                    {copiedSection === section.key ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+                <SessionEditor
+                  content={section.content}
+                  onUpdate={noopUpdate}
+                  readOnly
+                  dimWhenReadOnly={false}
+                  placeholder=""
+                  onEditorReady={(ed) => { section.ref.current = ed }}
+                />
+              </section>
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Slim header */}
@@ -386,6 +444,14 @@ export function SessionWorkspace({
             <span className="text-[13px] text-muted-foreground">
               {sessionDate} · {sessionTime} · {durationMins} min
             </span>
+            {!clientView && (
+              <ShareNoteButton
+                sessionNoteId={sessionNoteId}
+                initialShared={sharedWithClient}
+                clientName={clientName}
+                clientEmail={client?.email}
+              />
+            )}
           </div>
         </div>
         {notesLocked && (
@@ -572,6 +638,15 @@ export function SessionWorkspace({
       )}
     </div>
   )
+}
+
+const noopUpdate = async () => {}
+
+function hasDocContent(content: any): boolean {
+  if (!content) return false
+  if (typeof content.text === 'string' && content.text.trim()) return true
+  if (content.type === 'image') return true
+  return Array.isArray(content.content) && content.content.some(hasDocContent)
 }
 
 function stripActionBlocks(content: any): any {

@@ -27,6 +27,7 @@ interface ClientInfo {
   name: string
   company_name: string | null
   role: string | null
+  email?: string | null
 }
 
 export default function SessionPage({ params }: SessionPageProps) {
@@ -37,6 +38,7 @@ export default function SessionPage({ params }: SessionPageProps) {
   const [notesLocked, setNotesLocked] = useState(false)
   const [clientView, setClientView] = useState(false)
   const [teamConfirmed, setTeamConfirmed] = useState(false)
+  const [sharedWithClient, setSharedWithClient] = useState(false)
 
   useLayoutEffect(() => {
     document.body.setAttribute('data-session-readonly', 'true')
@@ -122,10 +124,44 @@ export default function SessionPage({ params }: SessionPageProps) {
       // Try to find an existing session_notes row by ID first
       let noteRow = await supabase
         .from('session_notes')
-        .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+        .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at, shared_with_client')
         .eq('id', id)
         .single()
         .then(r => r.data)
+
+      // Clients only ever receive note links, and can only read notes shared with them
+      if (!isTeamUser) {
+        if (!noteRow) {
+          setError("This note hasn't been shared with you. Ask your coach for a new link.")
+          setLoading(false)
+          return
+        }
+
+        const event = noteRow.calendar_event_id
+          ? await supabase
+              .from('calendar_events')
+              .select('id, client_id, start_time, end_time, title')
+              .eq('id', noteRow.calendar_event_id)
+              .single()
+              .then(r => r.data)
+          : null
+
+        setCalendarEvent(event || {
+          id: noteRow.id,
+          client_id: noteRow.client_id,
+          start_time: noteRow.session_date || new Date().toISOString(),
+          end_time: noteRow.session_date || new Date().toISOString(),
+          title: 'Session',
+        })
+
+        const { data: clientRows } = await supabase.rpc('get_shared_note_client', { p_note_id: noteRow.id })
+        const clientRow = clientRows?.[0]
+        if (clientRow) setClient({ ...clientRow, role: null })
+
+        setSessionNoteId(noteRow.id)
+        setLoading(false)
+        return
+      }
 
       // If not found, treat the ID as a calendar_event_id (backward compat)
       let event: CalendarEvent | null = null
@@ -148,7 +184,7 @@ export default function SessionPage({ params }: SessionPageProps) {
         // Don't filter by user_id — RLS handles access, and team members need to see the owner's notes
         const { data: existingNotes } = await supabase
           .from('session_notes')
-          .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at, user_id, connection_notes')
+          .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at, shared_with_client, user_id, connection_notes')
           .eq('calendar_event_id', event.id)
           .order('created_at', { ascending: true })
 
@@ -170,7 +206,7 @@ export default function SessionPage({ params }: SessionPageProps) {
               calendar_event_id: event.id,
               session_date: event.start_time,
             })
-            .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at')
+            .select('id, client_id, calendar_event_id, session_date, locked_by, locked_at, shared_with_client')
             .single()
 
           if (createErr || !created) {
@@ -206,11 +242,13 @@ export default function SessionPage({ params }: SessionPageProps) {
       }
       setCalendarEvent(calEvent)
 
+      setSharedWithClient(!!noteRow.shared_with_client)
+
       // Fetch client info
       if (noteRow.client_id) {
         const { data: clientData } = await supabase
           .from('clients')
-          .select('id, name, company_name, role')
+          .select('id, name, company_name, role, email')
           .eq('id', noteRow.client_id)
           .single()
         if (clientData) setClient(clientData)
@@ -287,6 +325,7 @@ export default function SessionPage({ params }: SessionPageProps) {
       sessionNoteId={sessionNoteId}
       notesLocked={notesLocked}
       clientView={clientView}
+      sharedWithClient={sharedWithClient}
     />
   )
 }

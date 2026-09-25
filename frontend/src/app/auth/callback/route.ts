@@ -1,48 +1,29 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { isTeamMember, linkClientByEmail } from '@/lib/clientAccess'
+
+function safeRedirectPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  return value
+}
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const redirect = safeRedirectPath(requestUrl.searchParams.get('redirect'))
 
   if (code) {
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     await supabase.auth.exchangeCodeForSession(code)
 
-    // Check if this user is a coach/team member or a client
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const [{ data: clientMatch }, { data: teamCheck }, { data: ownerCheck }] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .limit(1)
-          .single(),
-        supabase
-          .from('team_access')
-          .select('id')
-          .or(`owner_id.eq.${user.id},member_id.eq.${user.id}`)
-          .limit(1),
-        supabase
-          .from('clients')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1),
-      ])
-
-      const isCoachOrTeam = (teamCheck && teamCheck.length > 0) || (ownerCheck && ownerCheck.length > 0)
-
-      const redirect = requestUrl.searchParams.get('redirect')
-
-      if (!isCoachOrTeam && clientMatch) {
-        const target = redirect || `/clients/${clientMatch.id}`
-        return NextResponse.redirect(new URL(target, requestUrl.origin))
-      }
+    if (user && !(await isTeamMember(supabase, user.id))) {
+      await linkClientByEmail(user)
+      return NextResponse.redirect(new URL(redirect || '/no-access', requestUrl.origin))
     }
   }
 
-  return NextResponse.redirect(requestUrl.origin)
+  return NextResponse.redirect(new URL(redirect || '/', requestUrl.origin))
 }
