@@ -273,6 +273,32 @@
   letter-spacing: -0.02em;
 }
 
+.session-editor .ProseMirror .issue-copy-button {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  padding: 2px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms, color 150ms;
+}
+
+.session-editor .ProseMirror :is(h1, h2, h3):hover .issue-copy-button,
+.session-editor .ProseMirror .issue-copy-button:focus-visible {
+  opacity: 1;
+}
+
+.session-editor .ProseMirror .issue-copy-button:hover {
+  color: var(--foreground);
+}
+
+@media (hover: none) {
+  .session-editor .ProseMirror .issue-copy-button {
+    opacity: 0.6;
+  }
+}
+
 /* Action block nodes use sans-serif UI font, not the editor's serif */
 .session-editor .ProseMirror [data-node-view-wrapper] {
   font-family: var(--font-geist-sans), sans-serif;

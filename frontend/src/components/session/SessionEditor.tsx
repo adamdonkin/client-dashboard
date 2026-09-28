@@ -57,6 +57,7 @@ import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, Alert
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
+import { IssueCopy } from './IssueCopyExtension'
 
 export type SlashCommandHandler = (command: SlashCommandItem, editor: any) => void
 
@@ -226,6 +227,7 @@ export function SessionEditor({
       }),
       ListKit,
       ListAutoJoin,
+      IssueCopy,
       Link.configure({
         openOnClick: false,
         autolink: true,
