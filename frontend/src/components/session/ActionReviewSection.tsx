@@ -41,7 +41,16 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
 
     const { data } = await query.order('due_date', { ascending: true, nullsFirst: false })
 
-    setActions(data || [])
+    // Actions ticked off during this review stay in place until the page is reloaded
+    setActions(prev => {
+      const next: ActionItem[] = [...(data || [])]
+      prev.forEach((action, index) => {
+        if (action.status === 'completed' && !next.some(a => a.id === action.id)) {
+          next.splice(Math.min(index, next.length), 0, action)
+        }
+      })
+      return next
+    })
     setLoading(false)
   }, [clientId, sessionNoteId, supabase])
 
@@ -70,7 +79,13 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
   }, [showCompleted, fetchCompleted])
 
   const handleChanged = (updated: ActionItem) => {
-    if (updated.status === 'completed' || updated.status === 'cancelled') {
+    const inOpenList = actions.some(a => a.id === updated.id)
+    if (inOpenList && (updated.status === 'completed' || updated.status === 'to_do')) {
+      setActions(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a))
+      setCompletedActions(prev => updated.status === 'completed'
+        ? [updated, ...prev.filter(a => a.id !== updated.id)]
+        : prev.filter(a => a.id !== updated.id))
+    } else if (updated.status === 'completed' || updated.status === 'cancelled') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
     } else if (updated.status === 'to_do') {
@@ -91,12 +106,14 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
   useImperativeHandle(ref, () => ({
     applyChanged: handleChanged,
     applyRemoved: handleRemoved,
-    getActions: () => actions,
+    getActions: () => actions.filter(a => a.status === 'to_do'),
   }))
 
   if (loading) {
     return <p className="text-[15px] text-muted-foreground">Loading actions...</p>
   }
+
+  const completedInSection = completedActions.filter(c => !actions.some(a => a.id === c.id))
 
   if (actions.length === 0 && completedActions.length === 0 && !showCompleted) {
     return <p className="text-[15px] text-muted-foreground">No open actions</p>
@@ -113,6 +130,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           onSelect={onActionSelect}
           showSource
           reviewSessionNoteId={sessionNoteId}
+          highlightCompleted
         />
       ))}
 
@@ -126,9 +144,9 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           : `Show completed & cancelled`}
       </button>
 
-      {showCompleted && completedActions.length > 0 && (
+      {showCompleted && completedInSection.length > 0 && (
         <div className="space-y-1.5 opacity-60">
-          {completedActions.map(action => (
+          {completedInSection.map(action => (
             <ActionRow
               key={action.id}
               action={action}
@@ -141,7 +159,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
         </div>
       )}
 
-      {showCompleted && completedActions.length === 0 && (
+      {showCompleted && completedInSection.length === 0 && (
         <p className="text-[12px] text-muted-foreground pl-4">No actions completed this week</p>
       )}
 

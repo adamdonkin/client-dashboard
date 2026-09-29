@@ -98,6 +98,7 @@ interface ActionRowProps {
   showSource?: boolean
   className?: string
   reviewSessionNoteId?: string
+  highlightCompleted?: boolean
 }
 
 export function ActionRow({
@@ -108,6 +109,7 @@ export function ActionRow({
   showSource = false,
   className,
   reviewSessionNoteId,
+  highlightCompleted = false,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const [action, setAction] = useState(initialAction)
@@ -121,6 +123,7 @@ export function ActionRow({
   const overdue = isOverdue(action.due_date)
   const showReviewButtons = isDueOrOverdue(action.due_date) && action.status === 'to_do'
   const isResolved = action.status === 'completed' || action.status === 'cancelled'
+  const celebrate = highlightCompleted && action.status === 'completed'
 
   const handleRowClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, [data-slot="popover-content"], [data-radix-popper-content-wrapper]')) return
@@ -182,7 +185,9 @@ export function ActionRow({
           onClick={toggleDone}
           className={cn(
             'shrink-0 h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer',
-            action.status === 'completed'
+            celebrate
+              ? 'bg-success border-success text-white'
+              : action.status === 'completed'
               ? 'bg-primary border-primary text-primary-foreground'
               : action.status === 'cancelled'
                 ? 'bg-muted border-muted-foreground/30 text-muted-foreground'
