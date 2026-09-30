@@ -273,15 +273,29 @@
   letter-spacing: -0.02em;
 }
 
+.session-editor .ProseMirror :is(h1, h2, h3):has(.issue-copy-button) {
+  position: relative;
+  padding-right: 2rem;
+}
+
 .session-editor .ProseMirror .issue-copy-button {
+  position: absolute;
+  right: -5px;
+  top: calc(0.8em - 12px);
   display: inline-flex;
-  vertical-align: middle;
-  margin-left: 0.5rem;
-  padding: 2px;
+  padding: 5px;
+  border-radius: 6px;
+  background-color: var(--muted);
   color: var(--muted-foreground);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms, color 150ms;
+}
+
+.session-editor .ProseMirror .issue-copy-button::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 
 .session-editor .ProseMirror :is(h1, h2, h3):hover .issue-copy-button,
