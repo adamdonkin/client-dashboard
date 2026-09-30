@@ -1,6 +1,6 @@
 'use client'
 
-import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { useEditor, EditorContent, Extension, textblockTypeInputRule } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { canJoin } from '@tiptap/pm/transform'
 import StarterKit from '@tiptap/starter-kit'
@@ -8,6 +8,23 @@ import { ListKit } from '@tiptap/extension-list'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
+
+// Notes have one visible heading style (level 3), so "# ", "## " and "### " all
+// make it. Higher priority so it runs before StarterKit's per-level rules.
+const IssueHeadingShortcut = Extension.create({
+  name: 'issueHeadingShortcut',
+  priority: 1000,
+
+  addInputRules() {
+    return [
+      textblockTypeInputRule({
+        find: /^#{1,3}\s$/,
+        type: this.editor.schema.nodes.heading,
+        getAttributes: { level: 3 },
+      }),
+    ]
+  },
+})
 
 const listAutoJoinKey = new PluginKey('listAutoJoin')
 const listTypes = new Set(['bulletList', 'orderedList'])
@@ -225,6 +242,7 @@ export function SessionEditor({
         orderedList: false,
         listItem: false,
       }),
+      IssueHeadingShortcut,
       ListKit,
       ListAutoJoin,
       IssueCopy,
@@ -577,13 +595,6 @@ export function SessionEditor({
                 <Zap className="h-3.5 w-3.5" />
                 Action
               </button>
-              <button
-                onClick={handleBubbleIssue}
-                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Issue
-              </button>
               {onSelectionFeedback && (
                 <button
                   onClick={handleBubbleFeedback}
@@ -593,6 +604,13 @@ export function SessionEditor({
                   Feedback
                 </button>
               )}
+              <button
+                onClick={handleBubbleIssue}
+                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Issue
+              </button>
             </>
           )}
         </div>
