@@ -35,11 +35,17 @@ export function ActionDetailPanel({
   const pendingTitleRef = useRef<string | null>(null)
   const actionRef = useRef(action)
 
+  actionRef.current = action
+
+  // The title box owns its text while the panel is open. Syncing it from the
+  // saved action would clobber keystrokes typed during a save and move the cursor.
   useEffect(() => {
-    actionRef.current = action
     setTitle(action.title)
+  }, [action.id])
+
+  useEffect(() => {
     setDueDate(action.due_date || '')
-  }, [action.id, action.title, action.due_date])
+  }, [action.id, action.due_date])
 
   const initialContent = action.description_content || (
     action.description
