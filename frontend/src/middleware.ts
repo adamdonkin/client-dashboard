@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 import { isTeamMember } from '@/lib/clientAccess'
 
 const PUBLIC_ROUTES = ['/auth/login', '/auth/callback', '/api/cron']
-const CLIENT_ROUTES = ['/sessions/', '/no-access']
+const CLIENT_ROUTES = ['/sessions/', '/no-access', '/api/attachments/']
 const TEAM_ONLY_ROUTES = ['/sessions/new']
 
 export async function middleware(req: NextRequest) {

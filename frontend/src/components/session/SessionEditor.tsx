@@ -9,6 +9,17 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 
+// Chrome exposes pasted images through items, Safari often only through files.
+function imageFiles(data: DataTransfer | null): File[] {
+  if (!data) return []
+  const files = Array.from(data.files).filter(f => f.type.startsWith('image/'))
+  if (files.length > 0) return files
+  return Array.from(data.items)
+    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+    .map(item => item.getAsFile())
+    .filter((f): f is File => f !== null)
+}
+
 // Notes have one visible heading style (level 3), so "# ", "## " and "### " all
 // make it. Higher priority so it runs before StarterKit's per-level rules.
 const IssueHeadingShortcut = Extension.create({
@@ -72,6 +83,8 @@ const ListAutoJoin = Extension.create({
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle, MessageSquare } from 'lucide-react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { toast } from 'sonner'
+import { ATTACHMENT_BUCKET, attachmentSrc } from '@/lib/attachments'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
 import { IssueCopy } from './IssueCopyExtension'
@@ -175,45 +188,53 @@ export function SessionEditor({
       { type: 'paragraph' },
     ]).run()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      URL.revokeObjectURL(blobUrl)
-      return
-    }
-
-    const ext = file.name.split('.').pop() || 'png'
-    const path = `${session.user.id}/${Date.now()}.${ext}`
-
-    const { error } = await supabase.storage
-      .from('action-attachments')
-      .upload(path, file, { contentType: file.type })
-
-    if (error) {
-      console.error('Image upload failed:', error)
-      URL.revokeObjectURL(blobUrl)
-      return
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('action-attachments')
-      .getPublicUrl(path)
-
-    const preload = new window.Image()
-    preload.src = urlData.publicUrl
-    preload.onload = () => {
-      ed.state.doc.descendants((node, pos) => {
+    const updatePlaceholder = (src: string | null) => {
+      ed.state.doc.descendants((node: any, pos: number) => {
         if (node.type.name === 'image' && node.attrs.src === blobUrl) {
-          const tr = ed.view.state.tr.setNodeMarkup(pos, undefined, {
-            ...node.attrs,
-            src: urlData.publicUrl,
-          })
+          const tr = src
+            ? ed.view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, src })
+            : ed.view.state.tr.delete(pos, pos + node.nodeSize)
           ed.view.dispatch(tr)
           return false
         }
       })
       URL.revokeObjectURL(blobUrl)
     }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      updatePlaceholder(null)
+      toast.error('Image not added: you seem to be signed out')
+      return
+    }
+
+    // Pasted files often have a generic name with no extension, so go by type
+    const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '')
+    const path = `${session.user.id}/${Date.now()}.${ext}`
+
+    const { error } = await supabase.storage
+      .from(ATTACHMENT_BUCKET)
+      .upload(path, file, { contentType: file.type })
+
+    if (error) {
+      console.error('Image upload failed:', error)
+      updatePlaceholder(null)
+      toast.error(`Image upload failed: ${error.message}`)
+      return
+    }
+
+    const src = attachmentSrc(path)
+    const preload = new window.Image()
+    preload.onload = () => updatePlaceholder(src)
+    preload.onerror = () => {
+      console.error('Uploaded image could not be loaded:', src)
+      updatePlaceholder(src)
+      toast.error('Image uploaded but could not be displayed')
+    }
+    preload.src = src
   }, [supabase])
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filteredItems = COMMANDS.filter((item) =>
     item.label.toLowerCase().startsWith(slashQuery.toLowerCase())
@@ -229,6 +250,11 @@ export function SessionEditor({
     setSlashQuery('')
     slashActiveRef.current = false
     slashStartPosRef.current = null
+
+    if (item.id === 'image') {
+      fileInputRef.current?.click()
+      return
+    }
 
     if (onSlashCommandRef.current) {
       onSlashCommandRef.current(item, ed)
@@ -331,32 +357,21 @@ export function SessionEditor({
         return false
       },
       handlePaste: (view, event) => {
-        const items = event.clipboardData?.items
-        if (!items) return false
-
-        for (const item of Array.from(items)) {
-          if (item.type.startsWith('image/')) {
-            event.preventDefault()
-            const file = item.getAsFile()
-            if (file) uploadAndInsertImage(file)
-            return true
-          }
-        }
-        return false
+        const files = imageFiles(event.clipboardData)
+        if (files.length === 0) return false
+        event.preventDefault()
+        files.forEach(uploadAndInsertImage)
+        return true
       },
       handleDrop: (view, event) => {
-        const files = event.dataTransfer?.files
-        if (!files?.length) return false
-
-        for (const file of Array.from(files)) {
-          if (file.type.startsWith('image/')) {
-            event.preventDefault()
-            uploadAndInsertImage(file)
-            return true
-          }
-        }
-        return false
+        const files = imageFiles(event.dataTransfer)
+        if (files.length === 0) return false
+        event.preventDefault()
+        files.forEach(uploadAndInsertImage)
+        return true
       },
+      // Safari puts placeholder <img> tags in pasted HTML that never load
+      transformPastedHTML: (html) => html.replace(/<img[^>]*src="webkit-fake-url:[^"]*"[^>]*>/gi, ''),
     },
     onUpdate: ({ editor: ed }) => {
       const { from } = ed.state.selection
@@ -614,6 +629,19 @@ export function SessionEditor({
             </>
           )}
         </div>
+      )}
+      {!readOnly && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            Array.from(e.target.files || []).forEach(uploadAndInsertImage)
+            e.target.value = ''
+          }}
+        />
       )}
       {!readOnly && slashActive && filteredItems.length > 0 && slashPos && (
         <div
