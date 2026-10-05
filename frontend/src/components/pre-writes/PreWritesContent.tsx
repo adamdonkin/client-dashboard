@@ -191,6 +191,7 @@ export function PreWritesContent() {
         .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, client_id')
         .in('client_id', clientIds)
         .eq('status', 'to_do')
+        .is('assigned_to', null)
         .order('due_date', { ascending: true, nullsFirst: false })
 
       const aMap = new Map<string, ActionItem[]>()
