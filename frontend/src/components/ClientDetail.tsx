@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [cadenceOptions, setCadenceOptions] = useState<string[]>([]);
   const [durationOptions, setDurationOptions] = useState<string[]>([]);
   const [referralOptions, setReferralOptions] = useState<string[]>([]);
+  const [statusValues, setStatusValues] = useState<ClientStatus[]>(['active', 'lead', 'waiting', 'inactive', 'staff']);
 
   // Fetch enum values from database
   useEffect(() => {
@@ -201,6 +203,14 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       } else if (referralData) {
         setReferralOptions(referralData.map((row: { value: string }) => row.value));
       }
+
+      const { data: statusData, error: statusError } = await supabase
+        .rpc('get_enum_values', { enum_name: 'client_status' });
+      if (statusError) {
+        console.error('Error fetching status options:', statusError.message || statusError);
+      } else if (statusData) {
+        setStatusValues(statusData.map((row: { value: string }) => row.value as ClientStatus));
+      }
     };
     
     fetchEnumValues();
@@ -212,16 +222,19 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       case 'lead': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
       case 'waiting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       case 'inactive': return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+      case 'staff': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
       default: return 'bg-muted text-muted-foreground';
     }
   };
 
-  const statusOptions: { value: ClientStatus; label: string }[] = [
-    { value: 'active', label: 'Active' },
-    { value: 'lead', label: 'Lead' },
-    { value: 'waiting', label: 'Waitlist' },
-    { value: 'inactive', label: 'Inactive' },
-  ];
+  const statusLabels: Record<string, string> = {
+    active: 'Active',
+    lead: 'Lead',
+    waiting: 'Waitlist',
+    inactive: 'Inactive',
+    staff: 'Staff',
+  };
+  const statusOptions = statusValues.map(value => ({ value, label: statusLabels[value] || value }));
 
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -293,7 +306,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id, exclude_from_pre_writes')
         .eq('id', client.id)
         .single();
       
@@ -521,6 +534,20 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setIsEditingContact(false);
   };
 
+  const togglePreWrites = async () => {
+    const exclude = !currentClient?.exclude_from_pre_writes;
+    setCurrentClient(prev => prev ? { ...prev, exclude_from_pre_writes: exclude } : prev);
+    const { error } = await supabase
+      .from('clients')
+      .update({ exclude_from_pre_writes: exclude })
+      .eq('id', client.id);
+    if (error) {
+      console.error('Error updating pre-write setting:', error);
+      setCurrentClient(prev => prev ? { ...prev, exclude_from_pre_writes: !exclude } : prev);
+      toast.error('Could not save the pre-write setting');
+    }
+  };
+
   // Handle status change
   const handleStatusChange = async (newStatus: ClientStatus) => {
     try {
@@ -529,7 +556,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         .update({ 
           status: newStatus,
           // Also update is_active for backward compatibility
-          is_active: newStatus === 'active' || newStatus === 'lead'
+          is_active: newStatus === 'active' || newStatus === 'lead' || newStatus === 'staff'
         })
         .eq('id', client.id);
 
@@ -1332,6 +1359,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     })()}
                   </span>
                 </div>
+                <button
+                  onClick={togglePreWrites}
+                  className="ml-auto flex items-center gap-1.5 px-2 py-0.5 -mr-2 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                  title={currentClient?.exclude_from_pre_writes ? 'Include in weekly pre-writes' : 'Exclude from weekly pre-writes'}
+                >
+                  <span className="text-muted-foreground">Pre-writes:</span>
+                  <span className={currentClient?.exclude_from_pre_writes ? 'font-semibold text-muted-foreground' : 'font-semibold'}>
+                    {currentClient?.exclude_from_pre_writes ? 'Off' : 'On'}
+                  </span>
+                </button>
               </div>
             </CardContent>
           </Card>

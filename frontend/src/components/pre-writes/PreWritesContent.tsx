@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { format, parseISO, startOfWeek, addDays } from 'date-fns'
@@ -100,7 +100,8 @@ export function PreWritesContent() {
   const supabase = createClientComponentClient()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [sessionsByDay, setSessionsByDay] = useState<Map<string, ClientSession[]>>(new Map())
+  const [sessions, setSessions] = useState<ClientSession[]>([])
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
   const [unmatchedEvents, setUnmatchedEvents] = useState<UnmatchedEvent[]>([])
   const [actionsMap, setActionsMap] = useState<Map<string, ActionItem[]>>(new Map())
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -130,7 +131,7 @@ export function PreWritesContent() {
         .order('start_time', { ascending: true }),
       supabase
         .from('clients')
-        .select('id, name, email, slack, company_name')
+        .select('id, name, email, slack, company_name, exclude_from_pre_writes')
         .eq('is_active', true),
       supabase
         .from('pre_write_sent')
@@ -141,6 +142,7 @@ export function PreWritesContent() {
 
     const events = eventsRes.data || []
     const activeClients = new Set((clientsRes.data || []).map((c: any) => c.id))
+    setExcludedIds(new Set((clientsRes.data || []).filter((c: any) => c.exclude_from_pre_writes).map((c: any) => c.id)))
 
     const matched: ClientSession[] = []
     const unmatched: UnmatchedEvent[] = []
@@ -173,15 +175,7 @@ export function PreWritesContent() {
       }
     }
 
-    const byDay = new Map<string, ClientSession[]>()
-    for (const day of DAY_NAMES) {
-      const daySessions = matched.filter(s => s.dayLabel === day)
-      if (daySessions.length > 0) {
-        byDay.set(day, daySessions)
-      }
-    }
-
-    setSessionsByDay(byDay)
+    setSessions(matched)
     setUnmatchedEvents(unmatched)
 
     const clientIds = [...new Set(matched.map(s => s.clientId))]
@@ -247,7 +241,20 @@ export function PreWritesContent() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const totalClients = Array.from(sessionsByDay.values()).reduce((sum, arr) => sum + arr.length, 0)
+  const includedSessions = useMemo(
+    () => sessions.filter(s => !excludedIds.has(s.clientId)),
+    [sessions, excludedIds],
+  )
+  const sessionsByDay = useMemo(() => {
+    const byDay = new Map<string, ClientSession[]>()
+    for (const day of DAY_NAMES) {
+      const daySessions = includedSessions.filter(s => s.dayLabel === day)
+      if (daySessions.length > 0) byDay.set(day, daySessions)
+    }
+    return byDay
+  }, [includedSessions])
+  const totalClients = includedSessions.length
+  const sentCount = includedSessions.filter(s => sentSet.has(s.eventId)).length
 
   return (
     <div className="space-y-6">
@@ -257,7 +264,7 @@ export function PreWritesContent() {
         </span>
         {!loading && totalClients > 0 && (
           <span className="text-[13px] text-muted-foreground">
-            {sentSet.size}/{totalClients} sent
+            {sentCount}/{totalClients} sent
           </span>
         )}
       </div>
@@ -374,8 +381,7 @@ export function PreWritesContent() {
                             title="Copy message to clipboard"
                           >
                             {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                          </button>
-                        </div>
+                          </button>                        </div>
                       </div>
                     )
                   })}

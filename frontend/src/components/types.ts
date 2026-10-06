@@ -29,4 +29,5 @@ export interface Client {
   referred_by?: string;
   personal_details?: Record<string, string>;
   user_id?: string;
+  exclude_from_pre_writes?: boolean;
 } 
