@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { X } from 'lucide-react'
 import { ActionDatePicker } from './ActionDatePicker'
 import { cn } from '@/lib/utils'
+import { PANEL_MOBILE_CLASS } from '@/lib/dismissiblePanel'
 
 interface ActionCreatePanelProps {
   clientId: string
@@ -73,6 +74,7 @@ export function ActionCreatePanel({
     <div
       className={cn(
         'fixed top-0 right-0 z-50 h-full w-[420px] max-w-[90vw] bg-background border-l border-border shadow-xl',
+        PANEL_MOBILE_CLASS,
         'animate-in slide-in-from-right duration-200',
       )}
     >

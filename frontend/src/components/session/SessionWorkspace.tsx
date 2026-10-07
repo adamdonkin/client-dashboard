@@ -388,7 +388,7 @@ export function SessionWorkspace({
           </div>
         </div>
 
-        <div className="w-2xl mx-auto px-6 py-8 pb-24 space-y-10 max-sm:w-full max-sm:px-4">
+        <div className="w-full max-w-2xl mx-auto px-6 py-8 pb-24 space-y-10 max-sm:px-4">
           {dataLoaded && sections.length === 0 && (
             <p className="text-[13px] text-muted-foreground text-center">There are no notes for this session yet.</p>
           )}
@@ -428,20 +428,23 @@ export function SessionWorkspace({
     <div className="min-h-screen bg-background flex flex-col">
       {/* Slim header */}
       <div className="border-b border-border/50 sticky top-0 bg-background z-10">
-        <div className="px-6 py-3 flex items-center justify-between">
-          <div className="w-20" />
-          <div className="text-center">
+        <div className="px-6 py-3 flex items-center justify-between gap-2 max-sm:px-3">
+          <div className="w-20 shrink-0 max-sm:w-10" />
+          <div className="text-center min-w-0">
             {clientView ? (
               <span className="text-[15px] font-medium text-foreground">{clientName}</span>
             ) : (
               <a href={`/clients/${calendarEvent.client_id}`} className="text-[15px] font-medium text-foreground hover:underline">{clientName}</a>
             )}
             {subtitle && (
-              <p className="text-[13px] text-muted-foreground">{subtitle}</p>
+              <p className="text-[13px] text-muted-foreground truncate">{subtitle}</p>
             )}
+            <p className="sm:hidden text-[12px] text-muted-foreground">
+              {sessionDate} · {sessionTime} · {durationMins} min
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-muted-foreground">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[13px] text-muted-foreground max-sm:hidden">
               {sessionDate} · {sessionTime} · {durationMins} min
             </span>
             {!clientView && (
@@ -463,7 +466,7 @@ export function SessionWorkspace({
       </div>
 
       {/* Document body */}
-      <div className="w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10 max-sm:w-full max-sm:px-4">
+      <div className="w-full max-w-2xl mx-auto px-6 py-8 pb-[50vh] space-y-10 max-sm:px-4">
         {/* Connection */}
         <section>
           <div className="flex items-center justify-between mb-4">

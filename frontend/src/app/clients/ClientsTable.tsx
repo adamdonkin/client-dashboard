@@ -126,7 +126,32 @@ export function ClientsTable({ clients }: ClientsTableProps) {
   )
 
   return (
-    <Table>
+    <>
+    <ul className="sm:hidden divide-y divide-border -my-2">
+      {sortedClients.map((client) => (
+        <li key={client.id}>
+          <button
+            onClick={() => router.push(`/clients/${client.id}`)}
+            className="w-full flex items-center justify-between gap-3 py-2.5 text-left"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center text-sm font-medium text-foreground">
+                <span className="truncate">{client.name}</span>
+                <StatusBadge status={getEffectiveStatus(client)} />
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {[client.company_name, client.role].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+            <div className="shrink-0 text-right text-xs text-muted-foreground">
+              {client.monthly_fee ? <div className="text-sm text-foreground">${client.monthly_fee.toLocaleString()}</div> : null}
+              {client.cadence && <div>{client.cadence}</div>}
+            </div>
+          </button>
+        </li>
+      ))}
+    </ul>
+    <Table className="max-sm:hidden">
       <TableHeader>
         <TableRow>
           <SortableHeader field="company_name">Company</SortableHeader>
@@ -182,6 +207,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
         ))}
       </TableBody>
     </Table>
+    </>
   )
 }
 

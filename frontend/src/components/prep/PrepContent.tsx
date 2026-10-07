@@ -281,11 +281,11 @@ export function PrepContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 sm:gap-3">
           <button
             onClick={() => setDate(format(subDays(parseISO(date), 1), 'yyyy-MM-dd'))}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-2.5 sm:p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -294,7 +294,7 @@ export function PrepContent() {
           </span>
           <button
             onClick={() => setDate(format(addDays(parseISO(date), 1), 'yyyy-MM-dd'))}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="p-2.5 sm:p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -303,16 +303,18 @@ export function PrepContent() {
         {sessions.length > 0 && (
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="shrink-0"
             onClick={handleGenerate}
             disabled={generating}
+            title={generating ? 'Generating...' : allReady ? 'Regenerate all' : 'Generate all'}
+            aria-label={allReady ? 'Regenerate all' : 'Generate all'}
           >
             {generating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className="h-4 w-4" />
             )}
-            {generating ? 'Generating...' : allReady ? 'Regenerate All' : 'Generate All'}
           </Button>
         )}
       </div>
@@ -333,14 +335,14 @@ export function PrepContent() {
               key={session.id}
               onClick={() => { setSelectedSession(session); setSelectedCheckIn(null) }}
               className={cn(
-                'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors text-left cursor-pointer',
+                'w-full flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 rounded-lg border transition-colors text-left cursor-pointer',
                 selectedSession?.id === session.id
                   ? 'border-primary/30 bg-accent'
                   : 'border-border/50 hover:bg-muted/50',
               )}
             >
-              <div className="text-[13px] text-muted-foreground shrink-0 w-[90px]">
-                <Clock className="h-3 w-3 inline mr-1 -mt-0.5" />
+              <div className="text-[13px] text-muted-foreground shrink-0 w-[68px] sm:w-[90px]">
+                <Clock className="h-3 w-3 inline mr-1 -mt-0.5 max-sm:hidden" />
                 {format(parseISO(session.start_time), 'h:mm a')}
               </div>
 
@@ -349,7 +351,7 @@ export function PrepContent() {
                   {session.client_name}
                 </span>
                 {(session.company_name || session.role) && (
-                  <span className="text-[13px] text-muted-foreground ml-2">
+                  <span className="text-[13px] text-muted-foreground max-sm:block max-sm:truncate sm:ml-2">
                     {[session.company_name, session.role].filter(Boolean).join(' · ')}
                   </span>
                 )}
@@ -361,10 +363,10 @@ export function PrepContent() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleGenerateOne(session.id) }}
                       disabled={generating}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                      className="p-2.5 -m-1.5 sm:p-1 sm:m-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
                       title="Regenerate"
                     >
-                      <RefreshCw className="h-3 w-3" />
+                      <RefreshCw className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
                     {isCurrent(session, date) ? (
                       <span className="text-[11px] font-medium text-success px-2 py-0.5 rounded-full bg-success/10">
@@ -387,7 +389,7 @@ export function PrepContent() {
                   <button
                     onClick={(e) => { e.stopPropagation(); handleGenerateOne(session.id) }}
                     disabled={generating}
-                    className="text-[11px] font-medium text-primary hover:text-primary/80 px-2 py-0.5 rounded-full border border-primary/30 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                    className="text-[12px] sm:text-[11px] font-medium text-primary hover:text-primary/80 px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-full border border-primary/30 hover:bg-primary/5 transition-colors disabled:opacity-50"
                   >
                     Generate
                   </button>
@@ -416,13 +418,13 @@ export function PrepContent() {
                 key={c.client_id}
                 onClick={() => { setSelectedCheckIn(c); setSelectedSession(null) }}
                 className={cn(
-                  'w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors cursor-pointer',
+                  'w-full flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 rounded-lg border transition-colors cursor-pointer',
                   selectedCheckIn?.client_id === c.client_id
                     ? 'border-primary/30 bg-accent'
                     : 'border-border/50 hover:bg-muted/50',
                 )}
               >
-                <div className="text-[13px] text-muted-foreground shrink-0 w-[90px]">
+                <div className="text-[13px] text-muted-foreground shrink-0 w-[68px] sm:w-[90px]">
                   {format(parseISO(c.last_session), 'MMM d')}
                 </div>
 
@@ -431,14 +433,14 @@ export function PrepContent() {
                     {c.client_name}
                   </span>
                   {(c.company_name || c.role) && (
-                    <span className="text-[13px] text-muted-foreground ml-2">
+                    <span className="text-[13px] text-muted-foreground max-sm:block max-sm:truncate sm:ml-2">
                       {[c.company_name, c.role].filter(Boolean).join(' · ')}
                     </span>
                   )}
                 </div>
 
                 <div className="shrink-0 flex items-center gap-1 text-[13px] text-muted-foreground">
-                  <span>{CHECK_IN_DAYS} days ago</span>
+                  <span className="max-sm:hidden">{CHECK_IN_DAYS} days ago</span>
                   <ChevronRight className="h-3.5 w-3.5" />
                 </div>
               </div>

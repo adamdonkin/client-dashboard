@@ -31,6 +31,10 @@ const NAV_ITEMS = [
   { href: '/timezones', label: 'Timezones', icon: Globe },
 ]
 
+// Pages whose own top bar is right-aligned, so the nav toggle can sit in it
+// instead of needing a row of its own.
+const TOGGLE_IN_HEADER_ROUTES = new Set(['/'])
+
 function isOverlayRoute(pathname: string) {
   return pathname.startsWith('/sessions/') || pathname.startsWith('/auth/')
 }
@@ -42,11 +46,10 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient()
 
   const isPersistent = !isOverlayRoute(pathname)
+  const toggleInHeader = TOGGLE_IN_HEADER_ROUTES.has(pathname)
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [upcoming, setUpcoming] = useState<UpcomingSession[]>([])
   const [recent, setRecent] = useState<RecentSession[]>([])
-
-  const sidebarVisible = isPersistent || overlayOpen
 
   const fetchSidebarData = useCallback(async () => {
     if (!user) return
@@ -114,7 +117,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
   const navigate = (href: string) => {
     router.push(href)
-    if (!isPersistent) setOverlayOpen(false)
+    setOverlayOpen(false)
   }
 
   const formatRecentDate = (startTime: string) => {
@@ -154,21 +157,28 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Toggle button — only visible on overlay pages */}
-      {!isPersistent && (
+      {/* Pages that pin the sidebar only do so on wide screens; below lg every
+          page uses the overlay, so the toggle and backdrop exist there too. */}
+      {/* Centered in a 48px band so it lines up with page headers that use h-12 */}
+      <div className={cn('fixed top-0 left-3 z-40 h-12 flex items-center', isPersistent && 'lg:hidden')}>
         <button
           onClick={() => { setOverlayOpen(true); fetchSidebarData() }}
-          className="fixed top-3 left-3 z-40 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className={cn(
+            'p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
+            isPersistent && 'bg-background/80 backdrop-blur',
+          )}
           title="Open navigation"
         >
           <PanelLeft className="h-4.5 w-4.5" />
         </button>
-      )}
+      </div>
 
-      {/* Backdrop — only on overlay mode */}
-      {!isPersistent && overlayOpen && (
+      {overlayOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/20 dark:bg-black/40 transition-opacity"
+          className={cn(
+            'fixed inset-0 z-50 bg-black/20 dark:bg-black/40 transition-opacity',
+            isPersistent && 'lg:hidden',
+          )}
           onClick={() => setOverlayOpen(false)}
         />
       )}
@@ -177,8 +187,8 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           'fixed top-0 left-0 z-50 h-full w-60 bg-background border-r border-border transition-transform duration-200 ease-out overflow-y-auto',
-          sidebarVisible ? 'translate-x-0' : '-translate-x-full',
-          !isPersistent && 'shadow-lg'
+          overlayOpen ? 'translate-x-0' : '-translate-x-full',
+          isPersistent ? 'lg:translate-x-0 max-lg:shadow-lg' : 'shadow-lg',
         )}
       >
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
@@ -188,14 +198,15 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
           >
             Coaching
           </button>
-          {!isPersistent && (
-            <button
-              onClick={() => setOverlayOpen(false)}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            onClick={() => setOverlayOpen(false)}
+            className={cn(
+              'p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
+              isPersistent && 'lg:hidden',
+            )}
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <nav className="px-2 mt-1">
@@ -277,10 +288,12 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Page content — shifts right when sidebar is persistent */}
+      {/* Page content — shifts right when sidebar is pinned; below lg it
+          leaves room at the top for the toggle button instead */}
       <div className={cn(
         'transition-[margin-left] duration-200',
-        isPersistent && 'ml-60'
+        isPersistent && 'lg:ml-60',
+        isPersistent && !toggleInHeader && 'max-lg:pt-10',
       )}>
         {children}
       </div>

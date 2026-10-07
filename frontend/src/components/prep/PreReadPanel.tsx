@@ -6,7 +6,7 @@ import { X, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
-import { panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
+import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 import { ActionRow, ActionItem } from '@/components/ActionRow'
 
 interface PreReadPanelProps {
@@ -63,11 +63,12 @@ export function PreReadPanel({
       ref={panelRef}
       className={cn(
         'fixed top-0 right-0 z-50 h-full w-[55vw] max-w-[800px] min-w-[400px] bg-background border-l border-border shadow-xl',
+        PANEL_MOBILE_CLASS,
         panelSlideClass(closing),
       )}
     >
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-6 py-3 border-b border-border/50 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-border/50 shrink-0">
           <div>
             <h2 className="text-[15px] font-semibold">
               {clientId ? (
@@ -84,7 +85,7 @@ export function PreReadPanel({
             {onRegenerate && status !== 'generating' && (
               <button
                 onClick={onRegenerate}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="p-2.5 sm:p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 title="Regenerate pre-read"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -92,9 +93,10 @@ export function PreReadPanel({
             )}
             <button
               onClick={requestClose}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="p-2 -mr-1 sm:p-1 sm:mr-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Close"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>
           </div>
         </div>
@@ -108,7 +110,7 @@ export function PreReadPanel({
           )}
 
           {status === 'error' && (
-            <div className="px-6 py-8">
+            <div className="px-4 sm:px-6 py-8">
               <p className="text-[14px] text-danger">Failed to generate pre-read. Try again.</p>
             </div>
           )}
@@ -120,7 +122,7 @@ export function PreReadPanel({
           )}
 
           {status === 'ready' && staleFrom && (
-            <div className="px-6 pt-5 max-w-2xl mx-auto">
+            <div className="px-4 sm:px-6 pt-5 max-w-2xl mx-auto">
               <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
                 <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                 <div className="text-[13px] text-foreground">
@@ -135,13 +137,13 @@ export function PreReadPanel({
           )}
 
           {status === 'ready' && content && (
-            <div className="px-6 py-5 pre-read-content max-w-2xl mx-auto">
+            <div className="px-4 sm:px-6 py-5 pre-read-content max-w-2xl mx-auto">
               <MarkdownContent content={content} />
             </div>
           )}
 
           {actions.length > 0 && (
-            <div className="px-6 pb-8 max-w-2xl mx-auto">
+            <div className="px-4 sm:px-6 pb-8 max-w-2xl mx-auto">
               <div className="pre-read-section-header mt-6 mb-3 text-[13px] font-medium text-muted-foreground uppercase tracking-[0.1em]">
                 Open Actions
               </div>

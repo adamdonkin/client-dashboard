@@ -137,6 +137,14 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* iOS Safari zooms the page when a text field under 16px gets focus */
+  @media (max-width: 639px) {
+    input:not([type='checkbox']):not([type='radio']),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* Tiptap editor styles */

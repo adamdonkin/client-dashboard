@@ -106,7 +106,6 @@ export function PreWritesContent() {
   const [actionsMap, setActionsMap] = useState<Map<string, ActionItem[]>>(new Map())
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedSlackId, setCopiedSlackId] = useState<string | null>(null)
-  const [sentSet, setSentSet] = useState<Set<string>>(new Set())
 
   const weekRange = getWeekRange()
 
@@ -121,7 +120,7 @@ export function PreWritesContent() {
     const weekStart = new Date(monday.getTime() + offsetMs).toISOString()
     const weekEnd = new Date(fridayEnd.getTime() + offsetMs).toISOString()
 
-    const [eventsRes, clientsRes, sentRes] = await Promise.all([
+    const [eventsRes, clientsRes] = await Promise.all([
       supabase
         .from('calendar_events')
         .select('id, title, start_time, client_id, status, clients(id, name, email, slack, company_name)')
@@ -133,12 +132,7 @@ export function PreWritesContent() {
         .from('clients')
         .select('id, name, email, slack, company_name, exclude_from_pre_writes')
         .eq('is_active', true),
-      supabase
-        .from('pre_write_sent')
-        .select('calendar_event_id'),
     ])
-
-    setSentSet(new Set((sentRes.data || []).map((r: any) => r.calendar_event_id)))
 
     const events = eventsRes.data || []
     const activeClients = new Set((clientsRes.data || []).map((c: any) => c.id))
@@ -204,27 +198,6 @@ export function PreWritesContent() {
     fetchData()
   }, [fetchData])
 
-  const toggleSent = async (eventId: string) => {
-    const isSent = sentSet.has(eventId)
-    const next = new Set(sentSet)
-
-    if (isSent) {
-      next.delete(eventId)
-      setSentSet(next)
-      await supabase.from('pre_write_sent').delete().eq('calendar_event_id', eventId)
-    } else {
-      next.add(eventId)
-      setSentSet(next)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        await supabase.from('pre_write_sent').insert({
-          calendar_event_id: eventId,
-          sent_by: session.user.id,
-        })
-      }
-    }
-  }
-
   const handleCopy = async (session: ClientSession) => {
     const channel: 'slack' | 'email' = session.slack ? 'slack' : 'email'
     const actions = actionsMap.get(session.clientId) || []
@@ -254,19 +227,11 @@ export function PreWritesContent() {
     return byDay
   }, [includedSessions])
   const totalClients = includedSessions.length
-  const sentCount = includedSessions.filter(s => sentSet.has(s.eventId)).length
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <span className="text-[14px] font-medium text-foreground">
-          {weekRange.label}
-        </span>
-        {!loading && totalClients > 0 && (
-          <span className="text-[13px] text-muted-foreground">
-            {sentCount}/{totalClients} sent
-          </span>
-        )}
+      <div className="text-[14px] font-medium text-foreground">
+        {weekRange.label}
       </div>
 
       {loading ? (
@@ -293,43 +258,24 @@ export function PreWritesContent() {
                   {daySessions.map(session => {
                     const channel: 'slack' | 'email' = session.slack ? 'slack' : 'email'
                     const isCopied = copiedId === session.eventId
-                    const isSent = sentSet.has(session.eventId)
                     const actions = actionsMap.get(session.clientId) || []
                     const actionCount = actions.filter(a => a.status === 'to_do').length
 
                     return (
                       <div
                         key={session.eventId}
-                        className={cn(
-                          'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors',
-                          isSent
-                            ? 'border-border/30 bg-muted/30'
-                            : 'border-border/50 hover:bg-muted/50',
-                        )}
+                        className="flex items-center gap-3 px-3 sm:px-4 py-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
                       >
-                        <button
-                          onClick={() => toggleSent(session.eventId)}
-                          className={cn(
-                            'shrink-0 h-4 w-4 rounded-full border flex items-center justify-center transition-colors cursor-pointer',
-                            isSent
-                              ? 'bg-muted-foreground/40 border-transparent text-background'
-                              : 'border-border hover:border-muted-foreground',
-                          )}
-                          title={isSent ? 'Mark as not sent' : 'Mark as sent'}
-                        >
-                          {isSent && <Check className="h-2.5 w-2.5" />}
-                        </button>
-
-                        <div className={cn('flex-1 min-w-0', isSent && 'opacity-50')}>
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className="text-[14px] font-medium text-foreground hover:underline cursor-pointer"
+                              className="text-[14px] font-medium text-foreground hover:underline cursor-pointer shrink-0 max-w-full truncate"
                               onClick={() => router.push(`/clients/${session.clientId}`)}
                             >
                               {session.clientName}
                             </span>
                             {session.companyName && (
-                              <span className="text-[13px] text-muted-foreground">
+                              <span className="text-[13px] text-muted-foreground truncate">
                                 {session.companyName}
                               </span>
                             )}
@@ -373,7 +319,7 @@ export function PreWritesContent() {
                           <button
                             onClick={() => handleCopy(session)}
                             className={cn(
-                              'p-1.5 rounded-md transition-colors cursor-pointer',
+                              'p-2.5 -m-1 sm:p-1.5 sm:m-0 rounded-md transition-colors cursor-pointer',
                               isCopied
                                 ? 'text-success'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-accent',

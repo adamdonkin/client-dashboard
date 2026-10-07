@@ -346,7 +346,7 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
         <div className="text-center py-8 text-muted-foreground">
           Loading...
         </div>
@@ -366,9 +366,9 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-end mb-4">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -377,7 +377,7 @@ export default function ClientsPage() {
                 Add Client
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Client</DialogTitle>
                 <DialogDescription>
@@ -390,7 +390,7 @@ export default function ClientsPage() {
                     {saveError}
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium">Name *</label>
                     <input
@@ -537,10 +537,10 @@ export default function ClientsPage() {
             </DialogContent>
           </Dialog>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
           {statusFilter !== 'inactive' && statusFilter !== 'staff' ? (
-            <div className="flex items-baseline gap-6">
+            <div className="flex items-baseline gap-4 sm:gap-6">
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-foreground">{formatCurrency(tabStats[statusFilter].revenue)}</span>
                 <span className="text-sm text-muted-foreground">/mo</span>
@@ -574,10 +574,10 @@ export default function ClientsPage() {
       </div>
 
       {/* Status Tabs */}
-      <div className="flex gap-1 mb-4 border-b">
+      <div className="flex gap-1 mb-4 border-b overflow-x-auto max-sm:-mx-4 max-sm:px-4 [scrollbar-width:none]">
         <button
           onClick={() => setStatusFilter('active')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px max-sm:mb-0 whitespace-nowrap transition-colors ${
             statusFilter === 'active'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -587,7 +587,7 @@ export default function ClientsPage() {
         </button>
         <button
           onClick={() => setStatusFilter('lead')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px max-sm:mb-0 whitespace-nowrap transition-colors ${
             statusFilter === 'lead'
               ? 'border-amber-500 text-amber-600 dark:text-amber-400'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -597,7 +597,7 @@ export default function ClientsPage() {
         </button>
         <button
           onClick={() => setStatusFilter('waiting')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px max-sm:mb-0 whitespace-nowrap transition-colors ${
             statusFilter === 'waiting'
               ? 'border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -607,7 +607,7 @@ export default function ClientsPage() {
         </button>
         <button
           onClick={() => setStatusFilter('inactive')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px max-sm:mb-0 whitespace-nowrap transition-colors ${
             statusFilter === 'inactive'
               ? 'border-gray-500 text-gray-600 dark:text-gray-400'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -617,7 +617,7 @@ export default function ClientsPage() {
         </button>
         <button
           onClick={() => setStatusFilter('staff')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 -mb-px max-sm:mb-0 whitespace-nowrap transition-colors ${
             statusFilter === 'staff'
               ? 'border-purple-500 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-muted-foreground hover:text-foreground'

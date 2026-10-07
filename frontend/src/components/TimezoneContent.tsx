@@ -70,8 +70,8 @@ export function TimezoneContent({ clients }: TimezoneContentProps) {
           <Sun className="h-5 w-5 text-orange-500" />
         </CardHeader>
         <CardContent>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold">{pressure.morning_pressure_pct}%</span>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-3xl sm:text-4xl font-bold">{pressure.morning_pressure_pct}%</span>
             <span className="text-muted-foreground">of clients need morning PT slots</span>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
@@ -97,7 +97,7 @@ export function TimezoneContent({ clients }: TimezoneContentProps) {
               {regions.map((region) => (
                 <div
                   key={region.region}
-                  className={`p-4 rounded-lg border ${getRegionColor(region.region)}`}
+                  className={`p-3 sm:p-4 rounded-lg border ${getRegionColor(region.region)}`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div>

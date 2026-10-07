@@ -3,7 +3,7 @@
 import { X, ExternalLink } from 'lucide-react'
 import { SessionWorkspace } from '@/components/session/SessionWorkspace'
 import { cn } from '@/lib/utils'
-import { panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
+import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 
 interface CheckInPanelProps {
   calendarEvent: {
@@ -33,6 +33,7 @@ export function CheckInPanel({ calendarEvent, client, sessionNoteId, onClose }: 
       ref={panelRef}
       className={cn(
         'fixed top-0 right-0 z-50 h-full w-[55vw] max-w-[800px] min-w-[400px] bg-background border-l border-border shadow-xl',
+        PANEL_MOBILE_CLASS,
         panelSlideClass(closing),
       )}
     >

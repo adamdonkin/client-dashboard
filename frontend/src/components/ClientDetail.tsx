@@ -597,8 +597,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   // Loading state
   if (loading && !currentClient) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="min-h-screen bg-background p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
           <div className="animate-pulse">
             <div className="flex items-center space-x-4 mb-6">
               <div className="w-16 h-16 bg-muted rounded-full"></div>
@@ -620,8 +620,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   // Error state
   if (error || !currentClient) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="min-h-screen bg-background p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
@@ -701,8 +701,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const clientName = currentClient?.client_name || 'Unknown Client';
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Client Header */}
         <Card className="border-l-4 border-l-primary">
           <CardHeader>
@@ -722,7 +722,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                       className="w-full text-3xl font-bold bg-transparent border-b-2 border-primary outline-none"
                       placeholder="Client name"
                     />
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <input
                         type="text"
                         value={headerCompany}
@@ -759,7 +759,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3 mb-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
                       <h1
                         className="text-2xl font-bold cursor-pointer hover:text-primary/80 transition-colors"
                         onClick={() => setIsEditingHeader(true)}
@@ -834,7 +834,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   Last: {currentClient.last_session_date ? (
@@ -856,7 +856,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     <span className="font-medium text-foreground">None</span>
                   )}
                 </span>
-                <span className="text-border">·</span>
+                <span className="text-border max-sm:hidden">·</span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" />
                   Next: {currentClient.next_session_date ? (
@@ -878,7 +878,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     <span className="font-medium text-foreground">Not scheduled</span>
                   )}
                 </span>
-                <span className="text-border">·</span>
+                <span className="text-border max-sm:hidden">·</span>
                 <button
                   onClick={() => router.push(`/sessions/new?clientId=${client.id}`)}
                   className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
@@ -988,7 +988,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     }
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground">Name</label>
                       <input
@@ -1062,7 +1062,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   </div>
                   <div className="pt-2 border-t">
                     <p className="text-xs text-muted-foreground mb-2">Executive Assistant</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground">EA Name</label>
                         <input
@@ -1098,7 +1098,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
                     {currentClient?.client_email && (
                       <button
                         onClick={() => copyToClipboard(currentClient.client_email!, 'email')}
@@ -1152,7 +1152,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span>EA: {currentClient?.ea_name || currentClient?.ea_email}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
                         {currentClient?.ea_email && (
                           <button
                             onClick={() => copyToClipboard(currentClient.ea_email!, 'ea_email')}
@@ -1220,7 +1220,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                     }
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground">Role</label>
                       <input
@@ -1305,7 +1305,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
                   {currentClient?.location && (
                     <div className="flex items-center gap-1.5">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -1341,7 +1341,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                   )}
                 </div>
               )}
-              <div className="flex items-center gap-4 pt-1.5 border-t">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 border-t">
                 <div>
                   <span className="text-muted-foreground">Sessions:</span>{' '}
                   <span className="font-semibold">{loading ? '...' : sessionHistory.length}</span>
@@ -1547,16 +1547,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                 {sessionHistory.map((session, index) => (
                   <div key={session.session_id}>
                     <div
-                      className="flex items-start gap-4 cursor-pointer hover:bg-muted/50 rounded-md -mx-2 px-2 py-1 transition-colors"
+                      className="flex items-start gap-3 sm:gap-4 cursor-pointer hover:bg-muted/50 rounded-md -mx-2 px-2 py-1 transition-colors"
                       onClick={() => router.push(`/sessions/${session.session_id}`)}
                     >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
+                      <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-full bg-muted">
                         {getSessionIcon(session.session_status)}
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{getSessionTitle(session)}</p>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-2 max-sm:flex-col max-sm:items-start max-sm:gap-0.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="font-medium truncate">{getSessionTitle(session)}</p>
                             <Badge variant="outline" className="text-xs">
                               {formatSessionDuration(session.session_duration)}
                             </Badge>

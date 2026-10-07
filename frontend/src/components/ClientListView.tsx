@@ -49,9 +49,9 @@ export function ClientListView({ clients, title, badgeColor }: ClientListViewPro
           <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40%]">Client</TableHead>
-              <TableHead className="w-[30%]">Last Session</TableHead>
-              <TableHead className="w-[30%]">Next Session</TableHead>
+              <TableHead className="w-[40%] max-sm:w-auto">Client</TableHead>
+              <TableHead className="w-[30%] max-sm:hidden">Last Session</TableHead>
+              <TableHead className="w-[30%] max-sm:w-auto">Next Session</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -63,8 +63,11 @@ export function ClientListView({ clients, title, badgeColor }: ClientListViewPro
               >
                 <TableCell>
                   <div>{client.client_name}</div>
+                  <div className="sm:hidden text-xs text-muted-foreground">
+                    Last: {client.last_session_date ? formatLastSessionDate(client.last_session_date) : 'None'}
+                  </div>
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-sm max-sm:hidden">
                   {client.last_session_date
                     ? client.last_session_event_id ? (
                         <span
@@ -84,7 +87,7 @@ export function ClientListView({ clients, title, badgeColor }: ClientListViewPro
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
+                    <Calendar className="h-4 w-4 max-sm:hidden" />
                     {client.next_session_date ? (
                       client.next_session_event_id ? (
                         <span

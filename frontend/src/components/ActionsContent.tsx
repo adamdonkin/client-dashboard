@@ -25,14 +25,14 @@ function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSe
         className="cursor-pointer select-none pb-0"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {expanded
-              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             }
             <CardTitle
-              className="text-base cursor-pointer hover:underline"
+              className="text-base cursor-pointer hover:underline truncate"
               onClick={(e) => {
                 e.stopPropagation()
                 if (group.client_id) router.push(`/clients/${group.client_id}`)
@@ -41,12 +41,12 @@ function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSe
               {group.client_name}
             </CardTitle>
             {group.company_name && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground truncate max-sm:hidden">
                 {group.company_name}{group.role ? ` · ${group.role}` : ''}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {group.actions.length > 0 && (
               <button
                 onClick={async (e) => {
@@ -62,7 +62,7 @@ function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSe
               </button>
             )}
             {group.next_session_date && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <span className="text-xs text-muted-foreground flex items-center gap-1 max-sm:hidden">
                 <Calendar className="h-3 w-3" />
                 {formatRelativeDate(group.next_session_date)}
               </span>
@@ -263,7 +263,7 @@ export function ActionsContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
           {viewTabs.map(tab => (
             <button
@@ -280,13 +280,13 @@ export function ActionsContent() {
           ))}
         </div>
         {viewTab === 'by_client' && (
-          <div className="relative">
+          <div className="relative max-sm:flex-1 max-sm:min-w-[160px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Filter clients..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 w-[200px] text-sm"
+              className="pl-8 h-8 w-[200px] max-sm:w-full text-sm"
             />
           </div>
         )}

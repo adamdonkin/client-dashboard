@@ -11,7 +11,7 @@ import { SessionEditor } from './SessionEditor'
 import { SourceBadge } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { cn } from '@/lib/utils'
-import { panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
+import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 
 interface ActionDetailPanelProps {
   action: ActionItem
@@ -170,6 +170,7 @@ export function ActionDetailPanel({
         ref={panelRef}
         className={cn(
           'fixed top-0 right-0 z-50 h-full w-[420px] max-w-[90vw] bg-background border-l border-border shadow-xl',
+          PANEL_MOBILE_CLASS,
           panelSlideClass(closing),
         )}
       >

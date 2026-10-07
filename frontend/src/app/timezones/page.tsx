@@ -34,9 +34,9 @@ export default async function TimezonesPage() {
   }));
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold text-foreground">Client Timezone Distribution</h1>
         <p className="text-muted-foreground mt-1">
           Analyze your client distribution to manage morning slot availability

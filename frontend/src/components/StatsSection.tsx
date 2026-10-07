@@ -87,12 +87,12 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Revenue Filter */}
       <RevenueFilter value={revenueFilter} onChange={handleFilterChange} />
       
       {/* Revenue Statistics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {/* Capacity */}
           <Link href="/clients">
             <Card className={`flex flex-col ${getCapacityBgColor(capacityCount)} cursor-pointer hover:opacity-80 transition-opacity`}>
@@ -101,7 +101,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex-1 flex flex-col justify-end">
-                <div className={`text-2xl font-bold ${getCapacityColor(capacityCount)}`}>
+                <div className={`text-xl sm:text-2xl font-bold ${getCapacityColor(capacityCount)}`}>
                   {capacityCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -118,7 +118,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.total_monthly_revenue) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -134,7 +134,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.annual_projection) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -150,7 +150,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
               <Gauge className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-end">
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">
                 {currentRevenueStats ? formatCurrency(currentRevenueStats.average_client_fee) : '$0'}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -161,7 +161,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
       </div>
 
       {/* Session Statistics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
           {/* Sessions Completed: Week / Month / Year */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

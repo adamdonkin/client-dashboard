@@ -16,6 +16,10 @@ const PORTAL_SELECTOR = [
   '[data-slot="dialog-overlay"]',
 ].join(',')
 
+// Side panels take the whole screen on phones, where their desktop widths
+// would leave a sliver of page behind them or overflow the screen.
+export const PANEL_MOBILE_CLASS = 'max-sm:w-full max-sm:min-w-0 max-sm:max-w-none max-sm:border-l-0'
+
 export function panelSlideClass(closing: boolean): string {
   return closing
     ? 'animate-out slide-out-to-right fill-mode-forwards duration-200 pointer-events-none'

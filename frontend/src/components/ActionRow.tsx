@@ -216,7 +216,9 @@ export function ActionRow({
 
         <div className="flex items-center gap-2 shrink-0">
           {showSource && action.source && (
-            <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
+            <span className="max-sm:hidden">
+              <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
+            </span>
           )}
 
           {isResolved && action.status === 'cancelled' && (
