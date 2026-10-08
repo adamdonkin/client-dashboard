@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import CoachingDashboard from "@/components/CoachingDashboard"
 import { redirect } from 'next/navigation'
 import { Client } from '@/components/types'
+import { AVERAGE_WEEKS, addDays, averageCompleted, mondayOf, pacificToday } from '@/lib/sessionsByWeek'
 
 const transformClientData = (dbClients: any[] | null): Client[] => {
   if (!dbClients) {
@@ -25,6 +26,8 @@ export default async function Home() {
     redirect('/auth/login');
   }
 
+  const currentMonday = mondayOf(pacificToday())
+
   const [
     needsSchedulingData,
     thisWeekData,
@@ -32,7 +35,7 @@ export default async function Home() {
     dashboardStatsData,
     sessionsThisWeek,
     scheduledSessionsThisWeek,
-    avgSessionsPerWeek,
+    sessionsByWeek,
     avgSessionsPerMonth,
     sessionsThisMonth,
     rescheduleRate,
@@ -48,7 +51,7 @@ export default async function Home() {
     supabase.rpc('get_scheduling_dashboard'),
     supabase.rpc('get_sessions_this_week'),
     supabase.rpc('get_scheduled_sessions_this_week'),
-    supabase.rpc('get_avg_sessions_per_week'),
+    supabase.rpc('get_sessions_by_week', { p_start: addDays(currentMonday, -AVERAGE_WEEKS * 7) }),
     supabase.rpc('get_avg_sessions_per_month'),
     supabase.rpc('get_sessions_this_month'),
     supabase.rpc('get_reschedule_cancel_rate'),
@@ -72,7 +75,7 @@ export default async function Home() {
     dashboardStatsData.error ||
     sessionsThisWeek.error ||
     scheduledSessionsThisWeek.error ||
-    avgSessionsPerWeek.error ||
+    sessionsByWeek.error ||
     avgSessionsPerMonth.error ||
     sessionsThisMonth.error ||
     rescheduleRate.error ||
@@ -87,7 +90,7 @@ export default async function Home() {
   if (dashboardStatsData.error) console.error('get_scheduling_dashboard error:', dashboardStatsData.error)
   if (sessionsThisWeek.error) console.error('get_sessions_this_week error:', sessionsThisWeek.error)
   if (scheduledSessionsThisWeek.error) console.error('get_scheduled_sessions_this_week error:', scheduledSessionsThisWeek.error)
-  if (avgSessionsPerWeek.error) console.error('get_avg_sessions_per_week error:', avgSessionsPerWeek.error)
+  if (sessionsByWeek.error) console.error('get_sessions_by_week error:', sessionsByWeek.error)
   if (avgSessionsPerMonth.error) console.error('get_avg_sessions_per_month error:', avgSessionsPerMonth.error)
   if (sessionsThisMonth.error) console.error('get_sessions_this_month error:', sessionsThisMonth.error)
   if (rescheduleRate.error) console.error('get_reschedule_cancel_rate error:', rescheduleRate.error)
@@ -114,7 +117,7 @@ export default async function Home() {
   const statsData = {
     sessionsThisWeek: sessionsThisWeek.data || 0,
     scheduledSessionsThisWeek: scheduledSessionsThisWeek.data || 0,
-    avgSessionsPerWeek: avgSessionsPerWeek.data || 0,
+    avgSessionsPerWeek: averageCompleted(sessionsByWeek.data || [], currentMonday),
     avgSessionsPerMonth: avgSessionsPerMonth.data || 0,
     sessionsThisMonth: sessionsThisMonth.data || 0,
     rescheduleRate: rescheduleRate.data || 0,

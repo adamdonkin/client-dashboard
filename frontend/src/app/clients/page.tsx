@@ -34,7 +34,34 @@ interface ClientRow {
   is_active: boolean | null;
   cadence: string | null;
   session_duration: string | null;
+  hourly_rate?: number | null;
+  recent_hours?: number;
+  recent_sessions?: number;
 }
+
+interface SessionHours {
+  client_id: string;
+  hours: number | string;
+  sessions: number;
+  first_session: string | null;
+}
+
+const HOURLY_WINDOW_MONTHS = 3;
+const MS_PER_MONTH = (365.25 / 12) * 24 * 60 * 60 * 1000;
+
+// Fees paid over the window divided by hours actually coached in it. A client
+// who started partway through is only charged from their first session.
+const hourlyRate = (monthlyFee: number | null, h: SessionHours | undefined): number | null => {
+  const hours = h ? Number(h.hours) : 0;
+  if (!monthlyFee || !h || hours <= 0 || !h.first_session) return null;
+  const now = Date.now();
+  const firstSession = new Date(h.first_session).getTime();
+  if (now - firstSession < MS_PER_MONTH) return null;
+  const windowStart = now - HOURLY_WINDOW_MONTHS * MS_PER_MONTH;
+  const from = Math.max(windowStart, firstSession);
+  const months = (now - from) / MS_PER_MONTH;
+  return (monthlyFee * months) / hours;
+};
 
 type StatusFilter = 'active' | 'lead' | 'waiting' | 'inactive' | 'staff';
 
@@ -200,15 +227,31 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     setLoading(true)
     
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id, name, email, company_name, location, role, monthly_fee, referral_source, status, is_active, cadence, session_duration')
-      .order('company_name', { ascending: true, nullsFirst: false })
+    const [{ data, error }, { data: hoursData, error: hoursError }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select('id, name, email, company_name, location, role, monthly_fee, referral_source, status, is_active, cadence, session_duration')
+        .order('company_name', { ascending: true, nullsFirst: false }),
+      supabase.rpc('get_client_session_hours', { p_months: HOURLY_WINDOW_MONTHS }),
+    ])
+
+    if (hoursError) console.error('Error fetching client session hours:', hoursError)
 
     if (error) {
       console.error('Error fetching clients:', error)
     } else {
-      setClients(data || [])
+      const hoursByClient = new Map<string, SessionHours>(
+        ((hoursData || []) as SessionHours[]).map(h => [h.client_id, h])
+      )
+      setClients((data || []).map(c => {
+        const h = hoursByClient.get(c.id)
+        return {
+          ...c,
+          hourly_rate: hourlyRate(c.monthly_fee, h),
+          recent_hours: h ? Number(h.hours) : 0,
+          recent_sessions: h?.sessions ?? 0,
+        }
+      }))
     }
     setLoading(false)
   }

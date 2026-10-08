@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Calendar, TrendingUp, DollarSign, Target, Users, Clock, Gauge } from 'lucide-react';
 import { RevenueFilter, RevenueFilterType } from './RevenueFilter';
+import { SessionsByWeekPanel } from './SessionsByWeekPanel';
 
 interface RevenueStats {
   total_monthly_revenue: string;
@@ -31,6 +32,14 @@ interface StatsSectionProps {
 
 export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionProps) {
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilterType>('mochary-method');
+  const [showWeekly, setShowWeekly] = useState(false);
+  const weeklyCardProps = {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: () => setShowWeekly(true),
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowWeekly(true); } },
+    className: 'cursor-pointer hover:opacity-80 transition-opacity',
+  };
   
   const handleFilterChange = (filter: RevenueFilterType) => {
     setRevenueFilter(filter);
@@ -163,7 +172,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
       {/* Session Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
           {/* Sessions Completed: Week / Month / Year */}
-          <Card>
+          <Card {...weeklyCardProps} title="See sessions by week">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Sessions Completed</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -190,7 +199,7 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
           </Card>
 
           {/* Avg Sessions: Week / Month */}
-          <Card>
+          <Card {...weeklyCardProps} title="See sessions by week">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Avg Sessions</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -223,6 +232,8 @@ export function StatsSection({ statsData, onRevenueFilterChange }: StatsSectionP
             </CardContent>
           </Card>
       </div>
+
+      {showWeekly && <SessionsByWeekPanel onClose={() => setShowWeekly(false)} />}
     </div>
   );
 }
