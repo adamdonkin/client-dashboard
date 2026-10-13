@@ -102,14 +102,24 @@ function paragraphText(node: any): string {
   return inlineText(node)
 }
 
-function inlineText(node: any): string {
+function linkHref(c: any): string | null {
+  return c.marks?.find((m: any) => m.type === 'link')?.attrs?.href || null
+}
+
+// Plain-text targets can't hold a link, so the URL is written out after its
+// text unless the text already is the URL.
+export function inlineText(node: any): string {
   if (!node.content) return ''
   return node.content
-    .map((c: any) => c.text || '')
+    .map((c: any) => {
+      const text = c.text || ''
+      const href = linkHref(c)
+      return href && href !== text ? `${text} (${href})` : text
+    })
     .join('')
 }
 
-function inlineHtml(node: any): string {
+export function inlineHtml(node: any): string {
   if (!node.content) return ''
   return node.content
     .map((c: any) => {
@@ -119,11 +129,13 @@ function inlineHtml(node: any): string {
         if (mark.type === 'bold') text = `<b>${text}</b>`
         if (mark.type === 'italic') text = `<i>${text}</i>`
       }
+      const href = linkHref(c)
+      if (href) text = `<a href="${escapeHtml(href)}">${text}</a>`
       return text
     })
     .join('')
 }
 
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+export function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

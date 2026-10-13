@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import type { ActionItem } from '@/components/ActionRow'
 import { extractDescriptionLines } from '@/utils/copy-actions'
+import { escapeHtml } from '@/utils/tiptap-clipboard'
 
 interface ClientSession {
   eventId: string
@@ -54,14 +55,14 @@ function formatActions(actions: ActionItem[]): { plain: string; html: string } {
       ? ` by ${format(parseISO(a.due_date.length > 10 ? a.due_date.slice(0, 10) : a.due_date), 'MMM d')}`
       : ''
     plainLines.push(`• ${a.title}${date}`)
-    htmlParts.push(`<li>${a.title}${date}`)
+    htmlParts.push(`<li>${escapeHtml(a.title)}${date}`)
 
     const desc = extractDescriptionLines(a.description_content, a.description)
     for (const d of desc) {
-      plainLines.push(`  ◦ ${d}`)
+      plainLines.push(`  ◦ ${d.plain}`)
     }
     if (desc.length > 0) {
-      htmlParts.push(`<ul>${desc.map(l => `<li>${l}</li>`).join('')}</ul>`)
+      htmlParts.push(`<ul>${desc.map(l => `<li>${l.html}</li>`).join('')}</ul>`)
     }
     htmlParts.push('</li>')
   }
