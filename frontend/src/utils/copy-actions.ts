@@ -49,36 +49,45 @@ export function extractDescriptionLines(content: any, fallbackText?: string | nu
   return []
 }
 
-export async function copyActionsToClipboard(actions: ActionItem[]) {
-  const openActions = actions.filter(a => a.status === 'to_do')
-  if (openActions.length === 0) return
+type CopyableAction = Pick<ActionItem, 'title' | 'due_date' | 'description' | 'description_content'>
 
-  const plainLines: string[] = []
-  const htmlParts: string[] = []
+// One action as a bullet with its description nested under it.
+function formatAction(a: CopyableAction): { plain: string[]; html: string } {
+  const date = a.due_date ? ` by ${format(parseISO(a.due_date.length > 10 ? a.due_date.slice(0, 10) : a.due_date), 'MMM d')}` : ''
+  const plain = [`• ${a.title}${date}`]
+  let html = `<li>${escapeHtml(a.title)}${date}`
 
-  for (const a of openActions) {
-    const date = a.due_date ? ` by ${format(parseISO(a.due_date.length > 10 ? a.due_date.slice(0, 10) : a.due_date), 'MMM d')}` : ''
-    plainLines.push(`• ${a.title}${date}`)
-    htmlParts.push(`<li>${escapeHtml(a.title)}${date}`)
-
-    const desc = extractDescriptionLines(a.description_content, a.description)
-    if (desc.length > 0) {
-      for (const line of desc) {
-        plainLines.push(`  ◦ ${line.plain}`)
-      }
-      htmlParts.push(`<ul>${desc.map(l => `<li>${l.html}</li>`).join('')}</ul>`)
+  const desc = extractDescriptionLines(a.description_content, a.description)
+  if (desc.length > 0) {
+    for (const line of desc) {
+      plain.push(`  ◦ ${line.plain}`)
     }
-
-    htmlParts.push('</li>')
+    html += `<ul>${desc.map(l => `<li>${l.html}</li>`).join('')}</ul>`
   }
 
-  const plain = `Actions:\n${plainLines.join('\n')}`
-  const html = `<b>Actions:</b><ul>${htmlParts.join('')}</ul>`
+  return { plain, html: `${html}</li>` }
+}
 
+async function writeClipboard(plain: string, html: string) {
   await navigator.clipboard.write([
     new ClipboardItem({
       'text/plain': new Blob([plain], { type: 'text/plain' }),
       'text/html': new Blob([html], { type: 'text/html' }),
     }),
   ])
+}
+
+export async function copyActionsToClipboard(actions: ActionItem[]) {
+  const openActions = actions.filter(a => a.status === 'to_do')
+  if (openActions.length === 0) return
+
+  const formatted = openActions.map(formatAction)
+  const plain = `Actions:\n${formatted.flatMap(f => f.plain).join('\n')}`
+  const html = `<b>Actions:</b><ul>${formatted.map(f => f.html).join('')}</ul>`
+  await writeClipboard(plain, html)
+}
+
+export async function copyActionToClipboard(action: CopyableAction) {
+  const { plain, html } = formatAction(action)
+  await writeClipboard(plain.join('\n'), `<ul>${html}</ul>`)
 }

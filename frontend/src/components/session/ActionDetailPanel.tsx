@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
-import { X, Trash2, Check, MoreHorizontal, XCircle, User } from 'lucide-react'
+import { X, Trash2, Check, Copy, MoreHorizontal, XCircle, User } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ActionDatePicker } from './ActionDatePicker'
 import { SessionEditor } from './SessionEditor'
 import { SourceBadge } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { cn } from '@/lib/utils'
+import { copyActionToClipboard } from '@/utils/copy-actions'
 import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 
 interface ActionDetailPanelProps {
@@ -53,7 +54,14 @@ export function ActionDetailPanel({
       : undefined
   )
 
+  // Ahead of the save round trip, so copying right after typing includes the edit
+  const latestDescriptionRef = useRef<any>(action.description_content ?? null)
+  useEffect(() => {
+    latestDescriptionRef.current = actionRef.current.description_content ?? null
+  }, [action.id])
+
   const handleDescriptionUpdate = useCallback(async (content: any) => {
+    latestDescriptionRef.current = content
     const plainText = extractPlainText(content)
     await supabase
       .from('client_actions')
@@ -162,6 +170,19 @@ export function ActionDetailPanel({
     toast('Action deleted')
   }
 
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await copyActionToClipboard({
+      title: title.trim() || action.title,
+      due_date: dueDate || null,
+      description: action.description,
+      description_content: latestDescriptionRef.current ?? initialContent,
+    })
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const history = action.review_history || []
 
   return (
@@ -190,6 +211,13 @@ export function ActionDetailPanel({
               {isCompleted ? 'Completed' : 'Mark complete'}
             </button>
             <div className="flex items-center gap-1">
+              <button
+                onClick={handleCopy}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Copy to clipboard"
+              >
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
