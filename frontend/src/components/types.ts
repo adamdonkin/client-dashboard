@@ -20,6 +20,10 @@ export interface Client {
   ea_name?: string;
   ea_slack?: string;
   location?: string;
+  office_street?: string;
+  office_city?: string;
+  office_state?: string;
+  office_zip?: string;
   notes?: string;
   monthly_fee?: number;
   phone?: string;

@@ -18,6 +18,7 @@ import {
   User,
   DollarSign,
   MapPin,
+  Building2,
   Pencil,
   Check,
   RefreshCw,
@@ -110,6 +111,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [region, setRegion] = useState<string | null>(null);
   const [editRole, setEditRole] = useState(client.role || '');
   const [editLocation, setEditLocation] = useState(client.location || '');
+  const [editOfficeStreet, setEditOfficeStreet] = useState(client.office_street || '');
+  const [editOfficeCity, setEditOfficeCity] = useState(client.office_city || '');
+  const [editOfficeState, setEditOfficeState] = useState(client.office_state || '');
+  const [editOfficeZip, setEditOfficeZip] = useState(client.office_zip || '');
   const [editMonthlyFee, setEditMonthlyFee] = useState(client.monthly_fee?.toString() || '');
   const [editCadence, setEditCadence] = useState(client.cadence || '');
   const [editDuration, setEditDuration] = useState(client.session_duration || '');
@@ -306,7 +311,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id, exclude_from_pre_writes')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, office_street, office_city, office_state, office_zip, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id, exclude_from_pre_writes')
         .eq('id', client.id)
         .single();
       
@@ -417,6 +422,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   useEffect(() => {
     setEditRole(currentClient?.role || '');
     setEditLocation(currentClient?.location || '');
+    setEditOfficeStreet(currentClient?.office_street || '');
+    setEditOfficeCity(currentClient?.office_city || '');
+    setEditOfficeState(currentClient?.office_state || '');
+    setEditOfficeZip(currentClient?.office_zip || '');
     setEditMonthlyFee(currentClient?.monthly_fee?.toString() || '');
     setEditCadence(currentClient?.cadence || '');
     setEditDuration(currentClient?.session_duration || '');
@@ -431,6 +440,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       const updates: Record<string, unknown> = {
         role: editRole || null,
         location: editLocation || null,
+        office_street: editOfficeStreet.trim() || null,
+        office_city: editOfficeCity.trim() || null,
+        office_state: editOfficeState.trim() || null,
+        office_zip: editOfficeZip.trim() || null,
         monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : null,
         cadence: editCadence || null,
         session_duration: editDuration || null,
@@ -450,6 +463,10 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           ...prev, 
           role: editRole || undefined,
           location: editLocation || undefined,
+          office_street: editOfficeStreet.trim() || undefined,
+          office_city: editOfficeCity.trim() || undefined,
+          office_state: editOfficeState.trim() || undefined,
+          office_zip: editOfficeZip.trim() || undefined,
           monthly_fee: editMonthlyFee ? parseFloat(editMonthlyFee) : undefined,
           cadence: editCadence || undefined,
           session_duration: editDuration || undefined,
@@ -463,6 +480,12 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       setIsSaving(false);
     }
   };
+
+  const officeCityLine = [
+    currentClient?.office_city,
+    [currentClient?.office_state, currentClient?.office_zip].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ');
+  const officeAddress = [currentClient?.office_street, officeCityLine].filter(Boolean).join(', ');
 
   const handleDoneEditingDetails = () => {
     saveDetails();
@@ -1302,6 +1325,55 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                         />
                       </div>
                     )}
+                    <div className="sm:col-span-2 space-y-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Office Street Address</label>
+                        <input
+                          type="text"
+                          value={editOfficeStreet}
+                          onChange={(e) => setEditOfficeStreet(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          placeholder="e.g. 548 Market St, Suite 200"
+                          autoComplete="street-address"
+                        />
+                      </div>
+                      <div className="grid grid-cols-[1fr_72px_96px] gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground">City</label>
+                          <input
+                            type="text"
+                            value={editOfficeCity}
+                            onChange={(e) => setEditOfficeCity(e.target.value)}
+                            className="w-full px-2 py-1 text-sm border rounded bg-background"
+                            placeholder="e.g. San Francisco"
+                            autoComplete="address-level2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">State</label>
+                          <input
+                            type="text"
+                            value={editOfficeState}
+                            onChange={(e) => setEditOfficeState(e.target.value)}
+                            className="w-full px-2 py-1 text-sm border rounded bg-background"
+                            placeholder="CA"
+                            autoComplete="address-level1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Zip</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={editOfficeZip}
+                            onChange={(e) => setEditOfficeZip(e.target.value)}
+                            className="w-full px-2 py-1 text-sm border rounded bg-background"
+                            placeholder="94104"
+                            autoComplete="postal-code"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1337,6 +1409,12 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
                         {currentClient.referral_source}
                         {currentClient.referred_by && ` (${currentClient.referred_by})`}
                       </span>
+                    </div>
+                  )}
+                  {officeAddress && (
+                    <div className="sm:col-span-2 flex items-start gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                      <span>{officeAddress}</span>
                     </div>
                   )}
                 </div>

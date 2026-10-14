@@ -1,0 +1,5 @@
+ALTER TABLE clients
+    ADD COLUMN IF NOT EXISTS office_street TEXT,
+    ADD COLUMN IF NOT EXISTS office_city TEXT,
+    ADD COLUMN IF NOT EXISTS office_state TEXT,
+    ADD COLUMN IF NOT EXISTS office_zip TEXT;
