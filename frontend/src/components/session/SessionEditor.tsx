@@ -81,7 +81,7 @@ const ListAutoJoin = Extension.create({
   },
 })
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle, MessageSquare } from 'lucide-react'
+import { Bold, Italic, Heading1, List, ListOrdered, TextQuote, Link2, Zap, AlertTriangle, Target } from 'lucide-react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { ATTACHMENT_BUCKET, attachmentSrc } from '@/lib/attachments'
@@ -106,7 +106,7 @@ interface SessionEditorProps {
   onActionCreated?: (actionId: string) => void
   onSlashCommand?: SlashCommandHandler
   onSelectionIssue?: (selectedText: string, editor: any) => void
-  onSelectionFeedback?: (editor: any) => void
+  onSelectionGoal?: (selectedText: string, editor: any) => void
   onEditorReady?: (editor: any) => void
   onCreateAction?: (title: string) => void
   showActionButtons?: boolean
@@ -125,7 +125,7 @@ export function SessionEditor({
   onActionCreated,
   onSlashCommand,
   onSelectionIssue,
-  onSelectionFeedback,
+  onSelectionGoal,
   onEditorReady,
   onCreateAction,
   showActionButtons = true,
@@ -160,8 +160,8 @@ export function SessionEditor({
   onSlashCommandRef.current = onSlashCommand
   const onSelectionIssueRef = useRef(onSelectionIssue)
   onSelectionIssueRef.current = onSelectionIssue
-  const onSelectionFeedbackRef = useRef(onSelectionFeedback)
-  onSelectionFeedbackRef.current = onSelectionFeedback
+  const onSelectionGoalRef = useRef(onSelectionGoal)
+  onSelectionGoalRef.current = onSelectionGoal
   const onCreateActionRef = useRef(onCreateAction)
   onCreateActionRef.current = onCreateAction
 
@@ -539,10 +539,11 @@ export function SessionEditor({
     }
   }
 
-  const handleBubbleFeedback = () => {
+  const handleBubbleGoal = () => {
     const ed = editorRef.current
     if (!ed) return
-    onSelectionFeedbackRef.current?.(ed)
+    const { from, to } = ed.state.selection
+    onSelectionGoalRef.current?.(ed.state.doc.textBetween(from, to, ' '), ed)
     setSelectionToolbar(null)
   }
 
@@ -610,15 +611,6 @@ export function SessionEditor({
                 <Zap className="h-3.5 w-3.5" />
                 Action
               </button>
-              {onSelectionFeedback && (
-                <button
-                  onClick={handleBubbleFeedback}
-                  className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Feedback
-                </button>
-              )}
               <button
                 onClick={handleBubbleIssue}
                 className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
@@ -626,6 +618,15 @@ export function SessionEditor({
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Issue
               </button>
+              {onSelectionGoal && (
+                <button
+                  onClick={handleBubbleGoal}
+                  className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+                >
+                  <Target className="h-3.5 w-3.5" />
+                  Goal
+                </button>
+              )}
             </>
           )}
         </div>

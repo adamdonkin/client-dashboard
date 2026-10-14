@@ -337,6 +337,89 @@ export function SessionWorkspace({
       .run()
   }
 
+  const GOAL_TITLE_PLACEHOLDER = 'Goal you intend to accomplish'
+
+  const nextGoalNumber = (doc: any) => {
+    let max = 0
+    doc.forEach((node: any) => {
+      if (node.type.name !== 'heading') return
+      const match = node.textContent.match(/^#(\d+)\./)
+      if (match) max = Math.max(max, Number(match[1]))
+    })
+    return max + 1
+  }
+
+  const goalTemplateContent = (prefix: string, title: string) => {
+    const bold = (text: string, extra: any[] = []) => ({ type: 'text', marks: [{ type: 'bold' }, ...extra], text })
+    const item = (content: any[], withSubBullet = false) => ({
+      type: 'listItem',
+      content: [
+        { type: 'paragraph', content },
+        ...(withSubBullet ? [{ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] }] : []),
+      ],
+    })
+    const owner = client?.name?.split(' ')[0] ?? ''
+    return [
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: `${prefix}${title}` }] },
+      { type: 'bulletList', content: [
+        item([{ type: 'text', text: owner ? `Owner: ${owner}` : 'Owner: ' }]),
+        item([{ type: 'text', text: 'Due: ' }]),
+        item([{ type: 'text', text: 'Status: 🔴 Off track  |  🟡 At risk  |  🟢 On track' }]),
+        item([bold('What’s good?')], true),
+        item([bold('What’s not good?')], true),
+        item([bold('What will you do to fix the '), bold('not good', [{ type: 'italic' }]), bold('?')], true),
+      ]},
+    ]
+  }
+
+  const insertGoalTemplate = (editor: any, title?: string) => {
+    const { from, to } = editor.state.selection
+    const doc = editor.state.doc
+    const prefix = `#${nextGoalNumber(doc)}. `
+    const goalTitle = title?.trim()
+
+    if (!goalTitle) {
+      editor.chain().focus().insertContent(goalTemplateContent(prefix, GOAL_TITLE_PLACEHOLDER)).run()
+      setTimeout(() => {
+        let headingPos: number | null = null
+        editor.state.doc.descendants((node: any, nodePos: number) => {
+          if (headingPos !== null) return false
+          if (node.type.name === 'heading' && nodePos >= from - 1) {
+            headingPos = nodePos
+            return false
+          }
+        })
+        if (headingPos !== null) {
+          const headingNode = editor.state.doc.nodeAt(headingPos)
+          if (headingNode) {
+            const hFrom = headingPos + 1 + prefix.length
+            editor.chain().focus().setTextSelection({ from: hFrom, to: headingPos + 1 + headingNode.content.size }).run()
+          }
+        }
+      }, 10)
+      return
+    }
+
+    const content = goalTemplateContent(prefix, goalTitle)
+    const $from = doc.resolve(from)
+    const $to = doc.resolve(to)
+    const blockStart = $from.before(1)
+    const blockEnd = $to.after(1)
+    const startBlock = $from.node(1)
+
+    // Whole block selected: the block becomes the goal. Otherwise lift the
+    // selected text out and put the goal after its top-level block, so the
+    // heading never ends up nested inside a list.
+    if (startBlock === $to.node(1) && startBlock.isTextblock && startBlock.textContent.trim() === goalTitle) {
+      editor.chain().focus().insertContentAt({ from: blockStart, to: blockEnd }, content).run()
+    } else {
+      editor.chain().focus()
+        .insertContentAt(blockEnd, content)
+        .deleteRange({ from, to })
+        .run()
+    }
+  }
+
   const handleSlashCommand: SlashCommandHandler = (item, editor) => {
     if (item.id === 'action') {
       slashActionEditorRef.current = editor
@@ -344,6 +427,8 @@ export function SessionWorkspace({
       setShowCreatePanel(true)
     } else if (item.id === 'issue') {
       insertIssueTemplate(editor)
+    } else if (item.id === 'goal') {
+      insertGoalTemplate(editor)
     } else if (item.id === 'feedback') {
       insertFeedbackTemplate(editor)
     }
@@ -493,7 +578,7 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
-              onSelectionFeedback={insertFeedbackTemplate}
+              onSelectionGoal={(text, ed) => insertGoalTemplate(ed, text)}
               onEditorReady={(ed) => { connectionEditorRef.current = ed }}
               onCreateAction={handleInlineAction}
             />
@@ -547,7 +632,7 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
-              onSelectionFeedback={insertFeedbackTemplate}
+              onSelectionGoal={(text, ed) => insertGoalTemplate(ed, text)}
               onEditorReady={(ed) => { topicsEditorRef.current = ed }}
               onCreateAction={handleInlineAction}
             />
@@ -583,7 +668,7 @@ export function SessionWorkspace({
               onActionCreated={noopActionCallback}
               onSlashCommand={handleSlashCommand}
               onSelectionIssue={(text, ed) => insertIssueTemplate(ed, text)}
-              onSelectionFeedback={insertFeedbackTemplate}
+              onSelectionGoal={(text, ed) => insertGoalTemplate(ed, text)}
               onEditorReady={(ed) => { feedbackEditorRef.current = ed }}
               onCreateAction={handleInlineAction}
             />
