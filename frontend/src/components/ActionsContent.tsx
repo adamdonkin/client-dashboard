@@ -14,7 +14,10 @@ import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 
-function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSelectAction: (action: ActionItem, clientName: string) => void }) {
+type SelectAction = (action: ActionItem, clientName: string) => void
+type ActionChanged = (updated: ActionItem) => void
+
+function ClientGroup({ group, onSelectAction, onActionChanged }: { group: ClientActionGroup; onSelectAction: SelectAction; onActionChanged: ActionChanged }) {
   const [expanded, setExpanded] = useState(group.actions.length > 0)
   const [copied, setCopied] = useState(false)
   const router = useRouter()
@@ -84,6 +87,7 @@ function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSe
                   key={action.id}
                   action={action}
                   onSelect={(a) => onSelectAction(a, group.client_name)}
+                  onChanged={onActionChanged}
                   showSource
                 />
               ))}
@@ -95,7 +99,7 @@ function ClientGroup({ group, onSelectAction }: { group: ClientActionGroup; onSe
   )
 }
 
-function DueThisWeekView({ groups, onSelectAction }: { groups: ClientActionGroup[]; onSelectAction: (action: ActionItem, clientName: string) => void }) {
+function DueThisWeekView({ groups, onSelectAction, onActionChanged }: { groups: ClientActionGroup[]; onSelectAction: SelectAction; onActionChanged: ActionChanged }) {
   const router = useRouter()
 
   const dueThisWeek = useMemo(() => {
@@ -141,6 +145,7 @@ function DueThisWeekView({ groups, onSelectAction }: { groups: ClientActionGroup
                     <ActionRow
                       action={action}
                       onSelect={(a) => onSelectAction(a, action.client_name)}
+                      onChanged={onActionChanged}
                       showSource
                     />
                   </div>
@@ -162,7 +167,7 @@ function DueThisWeekView({ groups, onSelectAction }: { groups: ClientActionGroup
   )
 }
 
-function MyActionsGroup({ actions, onSelectAction }: { actions: ClientAction[]; onSelectAction: (action: ActionItem, clientName: string) => void }) {
+function MyActionsGroup({ actions, onSelectAction, onActionChanged }: { actions: ClientAction[]; onSelectAction: SelectAction; onActionChanged: ActionChanged }) {
   const [expanded, setExpanded] = useState(true)
 
   return (
@@ -193,6 +198,7 @@ function MyActionsGroup({ actions, onSelectAction }: { actions: ClientAction[]; 
                   <ActionRow
                     action={a}
                     onSelect={(action) => onSelectAction(action, (a as any).client_name || 'Client')}
+                    onChanged={onActionChanged}
                     showSource
                   />
                 </div>
@@ -224,6 +230,16 @@ export function ActionsContent() {
   const handleSelectAction = useCallback((action: ActionItem, clientName: string) => {
     setSelectedAction(action)
     setSelectedClientName(clientName)
+  }, [])
+
+  // ActionRow resyncs from the action it's given, so a tick that isn't written back
+  // here is undone on the next render. Completed actions stay listed until the next
+  // load so a mis-click can be unticked.
+  const handleActionChanged = useCallback((updated: ActionItem) => {
+    const patch = (list: ClientAction[]) =>
+      list.map(a => a.id === updated.id ? { ...a, ...updated } as ClientAction : a)
+    setGroups(prev => prev.map(g => ({ ...g, actions: patch(g.actions) })))
+    setMyActions(prev => patch(prev))
   }, [])
 
   const fetchActions = useCallback(async () => {
@@ -309,7 +325,7 @@ export function ActionsContent() {
           <span className="ml-3 text-muted-foreground">Loading actions...</span>
         </div>
       ) : viewTab === 'due_this_week' ? (
-        <DueThisWeekView groups={groups} onSelectAction={handleSelectAction} />
+        <DueThisWeekView groups={groups} onSelectAction={handleSelectAction} onActionChanged={handleActionChanged} />
       ) : filteredGroups.length === 0 ? (
         <Card>
           <CardContent className="py-12">
@@ -329,10 +345,10 @@ export function ActionsContent() {
           </p>
           <div className="space-y-3">
             {myActions.length > 0 && (
-              <MyActionsGroup actions={myActions} onSelectAction={handleSelectAction} />
+              <MyActionsGroup actions={myActions} onSelectAction={handleSelectAction} onActionChanged={handleActionChanged} />
             )}
             {filteredGroups.map((group) => (
-              <ClientGroup key={group.client_id || group.company_name} group={group} onSelectAction={handleSelectAction} />
+              <ClientGroup key={group.client_id || group.company_name} group={group} onSelectAction={handleSelectAction} onActionChanged={handleActionChanged} />
             ))}
           </div>
         </>

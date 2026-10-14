@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Check, Ban } from 'lucide-react'
 import { format, isPast, isToday, parseISO } from 'date-fns'
@@ -136,10 +137,16 @@ export function ActionRow({
     const updated = { ...action, status: newStatus }
     setAction(updated)
     onChanged?.(updated)
-    await supabase
+    const { error } = await supabase
       .from('client_actions')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', action.id)
+    if (error) {
+      console.error('Error updating action status:', error)
+      setAction(action)
+      onChanged?.(action)
+      toast.error('Could not update the action. Try again.')
+    }
   }
 
   const handleDateChange = (newDate: string) => {
