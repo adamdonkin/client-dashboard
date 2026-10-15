@@ -13,6 +13,7 @@ import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
+import { MagicQuestionsRoundPanel } from '@/components/magic/MagicQuestionsPanel'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 import { fetchGoal, type Goal } from '@/lib/goals'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
@@ -244,6 +245,13 @@ export function ActionsContent() {
     setSelectedGoal(goal)
   }, [supabase])
 
+  const [magicRound, setMagicRound] = useState<{ clientId: string; sessionNoteId: string } | null>(null)
+  const openMagicQuestions = useCallback((action: ActionItem) => {
+    if (!action.client_id || !action.session_note_id) return
+    setSelectedAction(null)
+    setMagicRound({ clientId: action.client_id, sessionNoteId: action.session_note_id })
+  }, [])
+
   // ActionRow resyncs from the action it's given, so a tick that isn't written back
   // here is undone on the next render. Completed actions stay listed until the next
   // load so a mis-click can be unticked.
@@ -381,6 +389,16 @@ export function ActionsContent() {
             fetchActions()
           }}
           onGoalSelect={openGoal}
+          onMagicQuestionsSelect={openMagicQuestions}
+        />
+      )}
+
+      {magicRound && (
+        <MagicQuestionsRoundPanel
+          key={magicRound.sessionNoteId}
+          clientId={magicRound.clientId}
+          sessionNoteId={magicRound.sessionNoteId}
+          onClose={() => setMagicRound(null)}
         />
       )}
 

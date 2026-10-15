@@ -27,6 +27,7 @@ export interface ActionItem {
   client_id?: string | null
   goal_id?: string | null
   goal?: ActionGoal | null
+  from_magic_questions?: boolean
 }
 
 export interface ActionGoal {
@@ -35,10 +36,22 @@ export interface ActionGoal {
   title: string
 }
 
-export const ACTION_COLUMNS = 'id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to, client_id, goal_id, goal:client_goals!client_actions_goal_id_fkey(id, priority, title)'
+export const ACTION_COLUMNS = 'id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to, client_id, goal_id, from_magic_questions, goal:client_goals!client_actions_goal_id_fkey(id, priority, title)'
 
 export function goalBadgeLabel(goal: ActionGoal): string {
   return goal.priority ? `#${goal.priority} ${goal.title}` : goal.title
+}
+
+export function MagicQuestionsBadge({ onSelect }: { onSelect?: () => void }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn('text-[10px] px-1.5 py-0 border-chart-5/30 text-chart-5 font-medium', onSelect && 'cursor-pointer hover:bg-chart-5/10')}
+      onClick={onSelect ? (e) => { e.stopPropagation(); onSelect() } : undefined}
+    >
+      Magic Questions
+    </Badge>
+  )
 }
 
 export function GoalBadge({ goal, onSelect }: { goal: ActionGoal, onSelect?: (goalId: string) => void }) {
@@ -130,6 +143,7 @@ interface ActionRowProps {
   /** Shows the goal badge; left out where the rows are already a goal's actions */
   showGoal?: boolean
   onGoalSelect?: (goalId: string) => void
+  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export function ActionRow({
@@ -143,13 +157,14 @@ export function ActionRow({
   highlightCompleted = false,
   showGoal = true,
   onGoalSelect,
+  onMagicQuestionsSelect,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const [action, setAction] = useState(initialAction)
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Keep in sync if parent passes new data
-  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || initialAction.goal_id !== action.goal_id || initialAction.goal?.title !== action.goal?.title || initialAction.goal?.priority !== action.goal?.priority || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
+  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || initialAction.goal_id !== action.goal_id || initialAction.from_magic_questions !== action.from_magic_questions || initialAction.goal?.title !== action.goal?.title || initialAction.goal?.priority !== action.goal?.priority || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
     setAction(initialAction)
   }
 
@@ -257,6 +272,11 @@ export function ActionRow({
           {showGoal && action.goal && (
             <span className="max-sm:hidden">
               <GoalBadge goal={action.goal} onSelect={onGoalSelect} />
+            </span>
+          )}
+          {action.from_magic_questions && (
+            <span className="max-sm:hidden">
+              <MagicQuestionsBadge onSelect={onMagicQuestionsSelect && action.session_note_id ? () => onMagicQuestionsSelect(action) : undefined} />
             </span>
           )}
           {showSource && action.source && (

@@ -25,7 +25,8 @@ import {
   Timer,
   Phone,
   Plus,
-  Copy
+  Copy,
+  ChevronRight
 } from "lucide-react";
 import { Client } from "@/components/types";
 import { formatLastSessionDate } from "@/components/utils/date-utils";
@@ -41,6 +42,8 @@ import { GoalsSection } from '@/components/goals/GoalsSection';
 import type { GoalsSectionHandle } from '@/components/goals/GoalsSection';
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel';
 import { GOAL_COLUMNS, GOAL_TITLE_PLACEHOLDER, fetchGoal, toGoal, type Goal } from '@/lib/goals';
+import { fetchMagicQuestions, type MagicQuestionsRound } from '@/lib/magicQuestions';
+import { MagicQuestionsPanel, formatRoundDate } from '@/components/magic/MagicQuestionsPanel';
 import { getTimeOffset } from '@/lib/timezoneRegions';
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -114,6 +117,23 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     setSelectedGoal(goal)
   }
   const [goalCount, setGoalCount] = useState(0)
+
+  const [magicRounds, setMagicRounds] = useState<MagicQuestionsRound[]>([])
+  const [magicIndex, setMagicIndex] = useState<number | null>(null)
+  useEffect(() => {
+    fetchMagicQuestions(supabase, client.id).then(setMagicRounds)
+  }, [client.id, supabase])
+
+  const openMagicQuestions = (action: ActionItem) => {
+    const at = magicRounds.findIndex(r => r.sessionNoteId === action.session_note_id)
+    if (at < 0) {
+      toast('That session no longer has a Magic Questions section')
+      return
+    }
+    setSelectedAction(null)
+    setSelectedGoal(null)
+    setMagicIndex(at)
+  }
 
   const handleAddGoal = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -943,7 +963,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                 <span className="text-border max-sm:hidden">·</span>
                 <button
                   onClick={() => router.push(`/sessions/new?clientId=${client.id}`)}
-                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors cursor-pointer"
                 >
                   Start Session
                 </button>
@@ -1641,6 +1661,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
               onActionChanged={handleActionChanged}
               onActionRemoved={handleActionRemoved}
               onGoalSelect={openGoal}
+              onMagicQuestionsSelect={openMagicQuestions}
             />
           </CardContent>
         </Card>
@@ -1668,6 +1689,29 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             />
           </CardContent>
         </Card>
+
+        {/* Magic Questions rounds from session notes, hidden until there's one */}
+        {magicRounds.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Magic Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {magicRounds.map((round, i) => (
+                  <button
+                    key={round.sessionNoteId}
+                    onClick={() => setMagicIndex(i)}
+                    className="w-full flex items-center justify-between gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer text-left"
+                  >
+                    <span className="text-[14px] !leading-[16px]">{formatRoundDate(round.sessionDate)}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Session History */}
         <Card>
@@ -1739,6 +1783,16 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
             reviewSectionRef.current?.applyRemoved(id)
           }}
           onGoalSelect={openGoal}
+          onMagicQuestionsSelect={openMagicQuestions}
+        />
+      )}
+
+      {magicIndex !== null && (
+        <MagicQuestionsPanel
+          rounds={magicRounds}
+          index={magicIndex}
+          onIndexChange={setMagicIndex}
+          onClose={() => setMagicIndex(null)}
         />
       )}
 

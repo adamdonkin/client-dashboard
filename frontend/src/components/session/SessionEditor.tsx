@@ -90,10 +90,16 @@ import { ActionBlock } from './ActionBlockExtension'
 import { IssueCopy } from './IssueCopyExtension'
 import { GoalHeading } from './GoalHeadingExtension'
 import { goalIdAt } from '@/lib/goals'
+import { inMagicQuestionsAt } from '@/lib/magicQuestions'
 
 export type SlashCommandHandler = (command: SlashCommandItem, editor: any) => void
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+export interface ActionContext {
+  goalId: string | null
+  fromMagicQuestions: boolean
+}
 
 interface SessionEditorProps {
   content: any
@@ -110,8 +116,8 @@ interface SessionEditorProps {
   onSelectionIssue?: (selectedText: string, editor: any) => void
   onSelectionGoal?: (selectedText: string, editor: any) => void
   onEditorReady?: (editor: any) => void
-  /** goalId is the goal whose template the action was written in, if any */
-  onCreateAction?: (title: string, goalId: string | null) => void
+  /** Where in the note the action was written: inside a goal's template, or a Magic Questions section */
+  onCreateAction?: (title: string, context: ActionContext) => void
   showActionButtons?: boolean
   /** Keeps an empty line after a closing list so there's somewhere to click below it */
   trailingParagraph?: boolean
@@ -507,7 +513,10 @@ export function SessionEditor({
 
     const title = ed.state.doc.textBetween(from, to, ' ').trim()
     if (!title) return
-    const goalId = goalIdAt(ed.state.doc, from)
+    const context: ActionContext = {
+      goalId: goalIdAt(ed.state.doc, from),
+      fromMagicQuestions: inMagicQuestionsAt(ed.state.doc, from),
+    }
 
     ed.chain()
       .focus()
@@ -515,7 +524,7 @@ export function SessionEditor({
       .insertContentAt(from, `[ ] ${title}`)
       .run()
 
-    onCreateActionRef.current?.(title, goalId)
+    onCreateActionRef.current?.(title, context)
   }
 
   const handleBubbleAction = () => {

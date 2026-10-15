@@ -14,6 +14,7 @@ interface ActionReviewSectionProps {
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
   onGoalSelect?: (goalId: string) => void
+  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export interface ActionReviewSectionHandle {
@@ -22,7 +23,7 @@ export interface ActionReviewSectionHandle {
   getActions: () => ActionItem[]
 }
 
-export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect }, ref) {
+export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect, onMagicQuestionsSelect }, ref) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
@@ -133,6 +134,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           reviewSessionNoteId={sessionNoteId}
           highlightCompleted
           onGoalSelect={onGoalSelect}
+          onMagicQuestionsSelect={onMagicQuestionsSelect}
         />
       ))}
 
@@ -157,6 +159,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
               onSelect={onActionSelect}
               showSource
               onGoalSelect={onGoalSelect}
+              onMagicQuestionsSelect={onMagicQuestionsSelect}
             />
           ))}
         </div>

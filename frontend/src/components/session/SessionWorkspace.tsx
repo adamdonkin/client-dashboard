@@ -6,7 +6,7 @@ import { Copy, Check, Lock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { copyTiptapContent } from '@/utils/tiptap-clipboard'
-import { SessionEditor, SlashCommandHandler } from './SessionEditor'
+import { SessionEditor, SlashCommandHandler, type ActionContext } from './SessionEditor'
 import { ActionReviewSection } from './ActionReviewSection'
 import type { ActionReviewSectionHandle } from './ActionReviewSection'
 import { ActionsSidebar } from './ActionsSidebar'
@@ -18,7 +18,9 @@ import { ACTION_COLUMNS, type ActionItem } from '@/components/ActionRow'
 import { GoalsSection } from '@/components/goals/GoalsSection'
 import type { GoalsSectionHandle } from '@/components/goals/GoalsSection'
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
+import { MagicQuestionsRoundPanel } from '@/components/magic/MagicQuestionsPanel'
 import { GOAL_TITLE_PLACEHOLDER, docHasText, fetchGoal, goalNodes, goalNumbersInDoc, goalPrefix, goalsInNote, type Goal } from '@/lib/goals'
+import { CAREER_VISION_QUESTION, MAGIC_QUESTIONS_HEADING, careerVisionOf, fetchMagicQuestions } from '@/lib/magicQuestions'
 import { toast } from 'sonner'
 
 interface CalendarEvent {
@@ -93,6 +95,18 @@ export function SessionWorkspace({
     }
     load()
   }, [sessionNoteId, supabase])
+
+  // The vision rarely changes, so /magic starts from the last one given in another session
+  const previousVisionRef = useRef<any | null>(null)
+  useEffect(() => {
+    if (clientView) return
+    fetchMagicQuestions(supabase, calendarEvent.client_id).then(rounds => {
+      previousVisionRef.current = rounds
+        .filter(r => r.sessionNoteId !== sessionNoteId)
+        .map(r => careerVisionOf(r.content))
+        .find(Boolean) ?? null
+    })
+  }, [calendarEvent.client_id, sessionNoteId, clientView, supabase])
 
   // Goals written in this note follow the note until they're first updated
   // from the goal panel; after that the panel's version wins.
@@ -186,7 +200,15 @@ export function SessionWorkspace({
     setSelectedGoal(goal)
   }, [supabase])
 
-  const handleInlineAction = useCallback(async (title: string, goalId: string | null) => {
+  const [magicRoundNoteId, setMagicRoundNoteId] = useState<string | null>(null)
+  const openMagicQuestions = useCallback((action: ActionItem) => {
+    if (!action.session_note_id) return
+    setSelectedAction(null)
+    setSelectedGoal(null)
+    setMagicRoundNoteId(action.session_note_id)
+  }, [])
+
+  const handleInlineAction = useCallback(async (title: string, { goalId, fromMagicQuestions }: ActionContext) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
@@ -209,6 +231,7 @@ export function SessionWorkspace({
         due_date: dueDateStr,
         session_note_id: sessionNoteId,
         goal_id,
+        from_magic_questions: fromMagicQuestions,
       })
       .select(ACTION_COLUMNS)
       .single()
@@ -264,10 +287,10 @@ export function SessionWorkspace({
 
   const bold = (text: string) => ({ type: 'text', marks: [{ type: 'bold' }], text })
   const emptyBullets = () => ({ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] })
-  const magicQuestionsTemplateContent = [
-    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Magic Questions' }] },
+  const magicQuestionsTemplateContent = (vision: any | null) => [
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: MAGIC_QUESTIONS_HEADING }] },
     { type: 'bulletList', content: [
-      { type: 'listItem', content: [{ type: 'paragraph', content: [bold('What is your five-year career vision?')] }, emptyBullets()] },
+      { type: 'listItem', content: [{ type: 'paragraph', content: [bold(CAREER_VISION_QUESTION)] }, vision ?? emptyBullets()] },
       ...[
         'Is what you are doing now at work leading toward your career vision, 1-5?',
         'How are you feeling about your life at work, 1-5?',
@@ -311,16 +334,19 @@ export function SessionWorkspace({
   const insertMagicQuestionsTemplate = (editor: any) => {
     editor.chain().focus().setTextSelection(editor.state.selection.to).run()
     const insertPos = editor.state.selection.from
-    editor.chain().focus().insertContent(magicQuestionsTemplateContent).run()
-    // Land the cursor in the answer bullet under the career vision question
+    const vision = previousVisionRef.current
+    editor.chain().focus().insertContent(magicQuestionsTemplateContent(vision)).run()
+    // With last time's vision filled in, start at the first rating; otherwise in the vision answer
     setTimeout(() => {
       let target: number | null = null
       editor.state.doc.descendants((node: any, nodePos: number) => {
-        if (target !== null) return false
-        if (nodePos >= insertPos - 1 && node.type.name === 'listItem' && node.textContent === '') {
+        if (target !== null || nodePos < insertPos - 1) return target === null
+        if (vision && node.type.name === 'paragraph' && node.textContent.startsWith('Is what you are doing now')) {
+          target = nodePos + 1 + node.content.size
+        } else if (!vision && node.type.name === 'listItem' && node.textContent === '') {
           target = nodePos + 2
-          return false
         }
+        return target === null
       })
       if (target !== null) editor.chain().focus().setTextSelection(target).run()
     }, 10)
@@ -728,6 +754,7 @@ export function SessionWorkspace({
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
             onGoalSelect={openGoal}
+            onMagicQuestionsSelect={openMagicQuestions}
           />
         </section>
 
@@ -831,6 +858,7 @@ export function SessionWorkspace({
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
             onGoalSelect={openGoal}
+            onMagicQuestionsSelect={openMagicQuestions}
           />
         </section>
       </div>
@@ -852,6 +880,16 @@ export function SessionWorkspace({
             actionsSidebarRef.current?.applyRemoved(id)
           }}
           onGoalSelect={openGoal}
+          onMagicQuestionsSelect={openMagicQuestions}
+        />
+      )}
+
+      {magicRoundNoteId && (
+        <MagicQuestionsRoundPanel
+          key={magicRoundNoteId}
+          clientId={calendarEvent.client_id}
+          sessionNoteId={magicRoundNoteId}
+          onClose={() => setMagicRoundNoteId(null)}
         />
       )}
 

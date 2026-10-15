@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
-import { X, Trash2, Check, Copy, MoreHorizontal, XCircle, User, ChevronRight, Target } from 'lucide-react'
+import { X, Trash2, Check, Copy, MoreHorizontal, XCircle, User, ChevronRight, Target, Sparkles } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ActionDatePicker } from './ActionDatePicker'
 import { SessionEditor } from './SessionEditor'
@@ -21,6 +21,7 @@ interface ActionDetailPanelProps {
   onUpdated?: (updated: ActionItem) => void
   onDeleted?: (id: string) => void
   onGoalSelect?: (goalId: string) => void
+  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export function ActionDetailPanel({
@@ -30,6 +31,7 @@ export function ActionDetailPanel({
   onUpdated,
   onDeleted,
   onGoalSelect,
+  onMagicQuestionsSelect,
 }: ActionDetailPanelProps) {
   const supabase = createClientComponentClient()
   const [title, setTitle] = useState(action.title)
@@ -324,6 +326,33 @@ export function ActionDetailPanel({
                     <span className="flex items-center gap-1.5 min-w-0 px-2">
                       <Target className="h-3 w-3 text-muted-foreground shrink-0" />
                       <span className="truncate">{goalBadgeLabel(action.goal)}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="border-t border-border/40" />
+              </>
+            )}
+
+            {/* Magic Questions round the action came from */}
+            {action.from_magic_questions && action.session_note_id && (
+              <>
+                <div className="h-[48px] flex items-center gap-3 text-[13px] px-5">
+                  <span className="text-muted-foreground">From</span>
+                  {onMagicQuestionsSelect ? (
+                    <button
+                      onClick={() => onMagicQuestionsSelect(action)}
+                      className="flex items-center gap-1.5 min-w-0 text-[13px] px-2 py-0.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                      title="Open Magic Questions"
+                    >
+                      <Sparkles className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="underline underline-offset-2 decoration-muted-foreground/40">Magic Questions</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1.5 px-2">
+                      <Sparkles className="h-3 w-3 text-muted-foreground shrink-0" />
+                      Magic Questions
                     </span>
                   )}
                 </div>
