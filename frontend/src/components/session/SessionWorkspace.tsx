@@ -243,6 +243,7 @@ export function SessionWorkspace({
   ]
 
   const feedbackTemplateContent = [
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Feedback' }] },
     { type: 'bulletList', content: [
       { type: 'listItem', content: [
         { type: 'paragraph', content: [
@@ -261,6 +262,33 @@ export function SessionWorkspace({
     ]},
   ]
 
+  const bold = (text: string) => ({ type: 'text', marks: [{ type: 'bold' }], text })
+  const emptyBullets = () => ({ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] })
+  const magicQuestionsTemplateContent = [
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Magic Questions' }] },
+    { type: 'bulletList', content: [
+      { type: 'listItem', content: [{ type: 'paragraph', content: [bold('What is your five-year career vision?')] }, emptyBullets()] },
+      ...[
+        'Is what you are doing now at work leading toward your career vision, 1-5?',
+        'How are you feeling about your life at work, 1-5?',
+        'How are you feeling about your personal life, 1-5?',
+        'How are we performing as a company, 1-5?',
+        'What is it like to work with your peers, 1-5?',
+      ].map(q => ({ type: 'listItem', content: [{ type: 'paragraph', content: [bold(q), { type: 'text', text: ' ' }] }] })),
+    ]},
+    // Keeps the two lists apart, which would otherwise join into one
+    { type: 'paragraph' },
+    { type: 'bulletList', content: [
+      { type: 'listItem', content: [
+        { type: 'paragraph', content: [bold('Lowest score:'), { type: 'text', text: ' ' }] },
+        { type: 'bulletList', content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'What would get this to the next level?' }] }, emptyBullets()] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Actions' }] }, emptyBullets()] },
+        ]},
+      ]},
+    ]},
+  ]
+
   const insertFeedbackTemplate = (editor: any) => {
     // Collapse first so a highlighted passage isn't replaced by the template
     editor.chain().focus().setTextSelection(editor.state.selection.to).run()
@@ -273,6 +301,24 @@ export function SessionWorkspace({
         if (target !== null) return false
         if (node.type.name === 'paragraph' && nodePos >= insertPos - 1 && node.textContent.startsWith('Rating, 1-5?')) {
           target = nodePos + 1 + node.content.size
+          return false
+        }
+      })
+      if (target !== null) editor.chain().focus().setTextSelection(target).run()
+    }, 10)
+  }
+
+  const insertMagicQuestionsTemplate = (editor: any) => {
+    editor.chain().focus().setTextSelection(editor.state.selection.to).run()
+    const insertPos = editor.state.selection.from
+    editor.chain().focus().insertContent(magicQuestionsTemplateContent).run()
+    // Land the cursor in the answer bullet under the career vision question
+    setTimeout(() => {
+      let target: number | null = null
+      editor.state.doc.descendants((node: any, nodePos: number) => {
+        if (target !== null) return false
+        if (nodePos >= insertPos - 1 && node.type.name === 'listItem' && node.textContent === '') {
+          target = nodePos + 2
           return false
         }
       })
@@ -487,6 +533,8 @@ export function SessionWorkspace({
       insertGoalTemplate(editor)
     } else if (item.id === 'feedback') {
       insertFeedbackTemplate(editor)
+    } else if (item.id === 'magic') {
+      insertMagicQuestionsTemplate(editor)
     }
   }
 
