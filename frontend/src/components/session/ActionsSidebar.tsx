@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Plus, Copy, Check } from 'lucide-react'
-import { ActionRow } from '@/components/ActionRow'
+import { ACTION_COLUMNS, ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 import { ActionCreateForm } from './ActionCreateForm'
@@ -15,6 +15,7 @@ interface ActionsSidebarProps {
   onActionSelect?: (action: ActionItem | null) => void
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
+  onGoalSelect?: (goalId: string) => void
 }
 
 export interface ActionsSidebarHandle {
@@ -22,7 +23,7 @@ export interface ActionsSidebarHandle {
   applyRemoved: (id: string) => void
 }
 
-export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarProps>(function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
+export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarProps>(function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect }, ref) {
   const supabase = createClientComponentClient()
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,11 +32,11 @@ export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarPro
   const fetchSessionActions = useCallback(async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .eq('session_note_id', sessionNoteId)
       .order('created_at', { ascending: true })
 
-    setSessionActions(data || [])
+    setSessionActions((data as unknown as ActionItem[]) || [])
     setLoading(false)
   }, [sessionNoteId, supabase])
 
@@ -143,6 +144,7 @@ export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarPro
                 onChanged={handleChanged}
                 onRemoved={handleRemoved}
                 onSelect={onActionSelect}
+                onGoalSelect={onGoalSelect}
               />
             ))}
           </div>

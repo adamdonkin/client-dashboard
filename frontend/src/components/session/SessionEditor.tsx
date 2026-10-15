@@ -88,6 +88,8 @@ import { ATTACHMENT_BUCKET, attachmentSrc } from '@/lib/attachments'
 import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu'
 import { ActionBlock } from './ActionBlockExtension'
 import { IssueCopy } from './IssueCopyExtension'
+import { GoalHeading } from './GoalHeadingExtension'
+import { goalIdAt } from '@/lib/goals'
 
 export type SlashCommandHandler = (command: SlashCommandItem, editor: any) => void
 
@@ -108,8 +110,11 @@ interface SessionEditorProps {
   onSelectionIssue?: (selectedText: string, editor: any) => void
   onSelectionGoal?: (selectedText: string, editor: any) => void
   onEditorReady?: (editor: any) => void
-  onCreateAction?: (title: string) => void
+  /** goalId is the goal whose template the action was written in, if any */
+  onCreateAction?: (title: string, goalId: string | null) => void
   showActionButtons?: boolean
+  /** Keeps an empty line after a closing list so there's somewhere to click below it */
+  trailingParagraph?: boolean
 }
 
 export function SessionEditor({
@@ -129,6 +134,7 @@ export function SessionEditor({
   onEditorReady,
   onCreateAction,
   showActionButtons = true,
+  trailingParagraph = true,
 }: SessionEditorProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const pendingSaveRef = useRef(false)
@@ -267,11 +273,13 @@ export function SessionEditor({
         bulletList: false,
         orderedList: false,
         listItem: false,
+        ...(trailingParagraph ? {} : { trailingNode: false as const }),
       }),
       IssueHeadingShortcut,
       ListKit,
       ListAutoJoin,
       IssueCopy,
+      GoalHeading,
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -499,6 +507,7 @@ export function SessionEditor({
 
     const title = ed.state.doc.textBetween(from, to, ' ').trim()
     if (!title) return
+    const goalId = goalIdAt(ed.state.doc, from)
 
     ed.chain()
       .focus()
@@ -506,7 +515,7 @@ export function SessionEditor({
       .insertContentAt(from, `[ ] ${title}`)
       .run()
 
-    onCreateActionRef.current?.(title)
+    onCreateActionRef.current?.(title, goalId)
   }
 
   const handleBubbleAction = () => {
@@ -611,13 +620,15 @@ export function SessionEditor({
                 <Zap className="h-3.5 w-3.5" />
                 Action
               </button>
-              <button
-                onClick={handleBubbleIssue}
-                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Issue
-              </button>
+              {onSelectionIssue && (
+                <button
+                  onClick={handleBubbleIssue}
+                  className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors text-muted-foreground text-[13px]"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Issue
+                </button>
+              )}
               {onSelectionGoal && (
                 <button
                   onClick={handleBubbleGoal}

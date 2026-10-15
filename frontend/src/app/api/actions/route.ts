@@ -21,6 +21,8 @@ export interface ClientAction {
   role: string | null
   synced_at: string
   created_at: string | null
+  goal_id: string | null
+  goal: { id: string; priority: number | null; title: string } | null
 }
 
 export interface ClientActionGroup {
@@ -48,7 +50,8 @@ export async function GET(request: NextRequest) {
       .from('client_actions')
       .select(`
         id, title, description, description_content, source, status, due_date, created_date, created_at,
-        note_title, source_url, session_note_id, synced_at, client_id, assigned_to,
+        note_title, source_url, session_note_id, synced_at, client_id, assigned_to, goal_id,
+        goal:client_goals!client_actions_goal_id_fkey ( id, priority, title ),
         clients!client_actions_client_id_fkey (
           name, company_name, role
         )
@@ -117,6 +120,8 @@ export async function GET(request: NextRequest) {
         role: client?.role || null,
         synced_at: action.synced_at,
         created_at: action.created_at,
+        goal_id: action.goal_id,
+        goal: action.goal as unknown as ClientAction['goal'],
       }
 
       if (action.assigned_to) {

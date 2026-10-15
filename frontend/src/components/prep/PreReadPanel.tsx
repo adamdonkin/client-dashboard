@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
-import { ActionRow, ActionItem } from '@/components/ActionRow'
+import { ACTION_COLUMNS, ActionRow, ActionItem } from '@/components/ActionRow'
 
 interface PreReadPanelProps {
   clientName: string
@@ -46,12 +46,12 @@ export function PreReadPanel({
     console.log('[PreReadPanel] Fetching actions for clientId:', clientId)
     const { data, error } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .eq('client_id', clientId)
       .eq('status', 'to_do')
       .order('due_date', { ascending: true, nullsFirst: false })
     console.log('[PreReadPanel] Actions result:', { count: data?.length, error })
-    if (data) setActions(data)
+    if (data) setActions(data as unknown as ActionItem[])
   }, [clientId, supabase])
 
   useEffect(() => {

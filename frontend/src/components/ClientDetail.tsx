@@ -37,6 +37,10 @@ import type { ActionReviewSectionHandle } from '@/components/session/ActionRevie
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
 import type { ActionItem } from '@/components/ActionRow';
 import { copyActionsToClipboard } from '@/utils/copy-actions';
+import { GoalsSection } from '@/components/goals/GoalsSection';
+import type { GoalsSectionHandle } from '@/components/goals/GoalsSection';
+import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel';
+import { GOAL_COLUMNS, GOAL_TITLE_PLACEHOLDER, fetchGoal, toGoal, type Goal } from '@/lib/goals';
 import { getTimeOffset } from '@/lib/timezoneRegions';
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -98,6 +102,41 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
   const handleActionRemoved = (id: string) => {
     setSelectedAction(prev => prev?.id === id ? null : prev)
+  }
+
+  const goalsSectionRef = useRef<GoalsSectionHandle>(null)
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
+
+  const openGoal = async (goalId: string) => {
+    const goal = await fetchGoal(supabase, goalId)
+    if (!goal) return
+    setSelectedAction(null)
+    setSelectedGoal(goal)
+  }
+  const [goalCount, setGoalCount] = useState(0)
+
+  const handleAddGoal = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const open = (goalsSectionRef.current?.getGoals() ?? []).filter(g => g.status === 'open')
+    const { data, error } = await supabase
+      .from('client_goals')
+      .insert({
+        user_id: session.user.id,
+        client_id: client.id,
+        priority: Math.max(0, ...open.map(g => g.priority ?? 0)) + 1,
+        title: GOAL_TITLE_PLACEHOLDER,
+        owner: (currentClient?.client_name || client.client_name)?.split(' ')[0] || null,
+      })
+      .select(GOAL_COLUMNS)
+      .single()
+    if (error || !data) {
+      console.error('Error creating goal:', error)
+      return
+    }
+    const goal = toGoal(data)
+    goalsSectionRef.current?.applyChanged(goal)
+    setSelectedGoal(goal)
   }
 
   const [loading, setLoading] = useState(true);
@@ -1601,6 +1640,31 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
               onActionSelect={setSelectedAction}
               onActionChanged={handleActionChanged}
               onActionRemoved={handleActionRemoved}
+              onGoalSelect={openGoal}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Goals, hidden until the client has some */}
+        <Card className={goalCount ? '' : 'hidden'}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Goals</CardTitle>
+              <button
+                onClick={handleAddGoal}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Add goal"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <GoalsSection
+              ref={goalsSectionRef}
+              clientId={client.id}
+              onGoalSelect={setSelectedGoal}
+              onCountChange={setGoalCount}
             />
           </CardContent>
         </Card>
@@ -1673,6 +1737,27 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           onDeleted={(id) => {
             setSelectedAction(null)
             reviewSectionRef.current?.applyRemoved(id)
+          }}
+          onGoalSelect={openGoal}
+        />
+      )}
+
+      {selectedGoal && (
+        <GoalDetailPanel
+          key={selectedGoal.id}
+          goal={selectedGoal}
+          clientName={currentClient?.client_name || client.client_name}
+          onActionCreated={() => setActionRefreshKey(k => k + 1)}
+          onActionChanged={(updated) => reviewSectionRef.current?.applyChanged(updated)}
+          onActionRemoved={(id) => reviewSectionRef.current?.applyRemoved(id)}
+          onClose={() => setSelectedGoal(null)}
+          onUpdated={(updated) => {
+            setSelectedGoal(prev => prev?.id === updated.id ? updated : prev)
+            goalsSectionRef.current?.applyChanged(updated)
+          }}
+          onDeleted={(id) => {
+            setSelectedGoal(null)
+            goalsSectionRef.current?.applyRemoved(id)
           }}
         />
       )}

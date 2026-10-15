@@ -14,7 +14,12 @@ import type { ActionsSidebarHandle } from './ActionsSidebar'
 import { ActionCreatePanel } from './ActionCreatePanel'
 import { ActionDetailPanel } from './ActionDetailPanel'
 import { ShareNoteButton } from './ShareNoteButton'
-import type { ActionItem } from '@/components/ActionRow'
+import { ACTION_COLUMNS, type ActionItem } from '@/components/ActionRow'
+import { GoalsSection } from '@/components/goals/GoalsSection'
+import type { GoalsSectionHandle } from '@/components/goals/GoalsSection'
+import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
+import { GOAL_TITLE_PLACEHOLDER, docHasText, fetchGoal, goalNodes, goalNumbersInDoc, goalPrefix, goalsInNote, type Goal } from '@/lib/goals'
+import { toast } from 'sonner'
 
 interface CalendarEvent {
   id: string
@@ -58,6 +63,9 @@ export function SessionWorkspace({
   const topicsEditorRef = useRef<any>(null)
   const feedbackEditorRef = useRef<any>(null)
   const [copiedSection, setCopiedSection] = useState<string | null>(null)
+  const goalsSectionRef = useRef<GoalsSectionHandle>(null)
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
+  const [goalCount, setGoalCount] = useState(0)
 
   const handleCopySection = async (editorRef: React.RefObject<any>, sectionName: string) => {
     const ed = editorRef.current
@@ -86,29 +94,71 @@ export function SessionWorkspace({
     load()
   }, [sessionNoteId, supabase])
 
+  // Goals written in this note follow the note until they're first updated
+  // from the goal panel; after that the panel's version wins.
+  const syncedGoalsRef = useRef(new Map<string, string>())
+  const goalCreatesRef = useRef(new Map<string, Promise<void>>())
+  // Goals whose update from this note has been saved, so clearing the answers clears it too
+  const noteUpdatesRef = useRef(new Set<string>())
+  const syncGoalsFromNote = useCallback((content: any) => {
+    goalsInNote(content).forEach(async (fields, goalId) => {
+      const serialized = JSON.stringify(fields)
+      if (syncedGoalsRef.current.get(goalId) === serialized) return
+      await goalCreatesRef.current.get(goalId)
+      const now = new Date().toISOString()
+      const { priority, title, owner, due_date, ...update } = fields
+      const { data, error } = await supabase
+        .from('client_goals')
+        .update({ priority, title, owner, due_date, updated_at: now })
+        .eq('id', goalId)
+        .eq('session_note_id', sessionNoteId)
+        .is('last_reviewed_at', null)
+        .select('user_id')
+      if (error) return console.error('Error saving goal from notes:', error)
+      if (!data?.length) return
+
+      // The answers under the template are this session's update, once there's something in them
+      const hasUpdate = update.health || docHasText(update.whats_good) || docHasText(update.whats_not_good) || docHasText(update.fix_plan)
+      if (hasUpdate || noteUpdatesRef.current.has(goalId)) {
+        const { error: updateError } = await supabase
+          .from('goal_updates')
+          .upsert(
+            { ...update, goal_id: goalId, user_id: data[0].user_id, session_note_id: sessionNoteId, from_notes: true, updated_at: now },
+            { onConflict: 'goal_id,session_note_id' },
+          )
+        if (updateError) return console.error('Error saving goal update from notes:', updateError)
+        noteUpdatesRef.current.add(goalId)
+      }
+      syncedGoalsRef.current.set(goalId, serialized)
+    })
+  }, [sessionNoteId, supabase])
+
   const handleConnectionUpdate = useCallback(async (content: any) => {
+    syncGoalsFromNote(content)
     const { error } = await supabase
       .from('session_notes')
       .update({ connection_notes: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase])
+  }, [sessionNoteId, supabase, syncGoalsFromNote])
 
   const handleTopicsUpdate = useCallback(async (content: any) => {
+    syncGoalsFromNote(content)
     const { error } = await supabase
       .from('session_notes')
       .update({ topics_content: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase])
+  }, [sessionNoteId, supabase, syncGoalsFromNote])
 
   const handleFeedbackUpdate = useCallback(async (content: any) => {
+    syncGoalsFromNote(content)
     const { error } = await supabase
       .from('session_notes')
       .update({ feedback_content: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase])
+  }, [sessionNoteId, supabase, syncGoalsFromNote])
 
   const noopActionCallback = useCallback((_actionId: string) => {
     setActionRefreshKey(k => k + 1)
@@ -129,7 +179,14 @@ export function SessionWorkspace({
     setSelectedAction(prev => prev?.id === id ? null : prev)
   }, [])
 
-  const handleInlineAction = useCallback(async (title: string) => {
+  const openGoal = useCallback(async (goalId: string) => {
+    const goal = await fetchGoal(supabase, goalId)
+    if (!goal) return
+    setSelectedAction(null)
+    setSelectedGoal(goal)
+  }, [supabase])
+
+  const handleInlineAction = useCallback(async (title: string, goalId: string | null) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
@@ -137,7 +194,10 @@ export function SessionWorkspace({
     dueDate.setDate(dueDate.getDate() + 7)
     const dueDateStr = dueDate.toISOString().slice(0, 10)
 
-    const { data } = await supabase
+    // A goal written moments ago may still be on its way to the database
+    if (goalId) await goalCreatesRef.current.get(goalId)
+
+    const insert = (goal_id: string | null) => supabase
       .from('client_actions')
       .insert({
         user_id: session.user.id,
@@ -148,14 +208,24 @@ export function SessionWorkspace({
         status: 'to_do',
         due_date: dueDateStr,
         session_note_id: sessionNoteId,
+        goal_id,
       })
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .single()
+
+    let { data, error } = await insert(goalId)
+    // The heading can outlive its goal, e.g. after the goal is deleted; keep the action anyway
+    if (error?.code === '23503' && goalId) ({ data, error } = await insert(null))
+    if (error) {
+      console.error('Error creating action:', error)
+      toast.error('Could not save the action. Try again.')
+      return
+    }
 
     setActionRefreshKey(k => k + 1)
 
     // Open the panel so the due date can be agreed on with the client
-    if (data) setSelectedAction(data)
+    if (data) setSelectedAction(data as unknown as ActionItem)
   }, [calendarEvent.client_id, sessionNoteId, supabase])
 
   const issueTemplateContent = [
@@ -337,70 +407,56 @@ export function SessionWorkspace({
       .run()
   }
 
-  const GOAL_TITLE_PLACEHOLDER = 'Goal you intend to accomplish'
-
-  const nextGoalNumber = (doc: any) => {
-    let max = 0
-    doc.forEach((node: any) => {
-      if (node.type.name !== 'heading') return
-      const match = node.textContent.match(/^#(\d+)\./)
-      if (match) max = Math.max(max, Number(match[1]))
-    })
-    return max + 1
+  // A new goal takes the next priority after the client's open goals and any
+  // goals already written in this note
+  const nextGoalPriority = () => {
+    const numbers = [
+      ...[connectionEditorRef, topicsEditorRef, feedbackEditorRef].flatMap(r => goalNumbersInDoc(r.current?.getJSON())),
+      ...(goalsSectionRef.current?.getGoals() ?? []).filter(g => g.status === 'open').map(g => g.priority ?? 0),
+    ]
+    return Math.max(0, ...numbers) + 1
   }
 
-  const goalTemplateContent = (prefix: string, title: string) => {
-    const bold = (text: string, extra: any[] = []) => ({ type: 'text', marks: [{ type: 'bold' }, ...extra], text })
-    const item = (content: any[], withSubBullet = false) => ({
-      type: 'listItem',
-      content: [
-        { type: 'paragraph', content },
-        ...(withSubBullet ? [{ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] }] : []),
-      ],
+  const createGoal = async (id: string, priority: number, title: string, owner: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { error } = await supabase.from('client_goals').insert({
+      id,
+      user_id: session.user.id,
+      client_id: calendarEvent.client_id,
+      session_note_id: sessionNoteId,
+      priority,
+      title,
+      owner: owner || null,
     })
-    const owner = client?.name?.split(' ')[0] ?? ''
-    return [
-      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: `${prefix}${title}` }] },
-      { type: 'bulletList', content: [
-        item([{ type: 'text', text: owner ? `Owner: ${owner}` : 'Owner: ' }]),
-        item([{ type: 'text', text: 'Due: ' }]),
-        item([{ type: 'text', text: 'Status: 🔴 Off track  |  🟡 At risk  |  🟢 On track' }]),
-        item([bold('What’s good?')], true),
-        item([bold('What’s not good?')], true),
-        item([bold('What will you do to fix the '), bold('not good', [{ type: 'italic' }]), bold('?')], true),
-      ]},
-    ]
+    if (error) {
+      console.error('Error creating goal:', error)
+      toast.error('Could not save the goal to the client. Try again.')
+    }
   }
 
   const insertGoalTemplate = (editor: any, title?: string) => {
     const { from, to } = editor.state.selection
     const doc = editor.state.doc
-    const prefix = `#${nextGoalNumber(doc)}. `
     const goalTitle = title?.trim()
+    const id = crypto.randomUUID()
+    const priority = nextGoalPriority()
+    const owner = client?.name?.split(' ')[0] ?? ''
+    const content = goalNodes({ id, priority, title: goalTitle || GOAL_TITLE_PLACEHOLDER, owner })
+    goalCreatesRef.current.set(id, createGoal(id, priority, goalTitle || GOAL_TITLE_PLACEHOLDER, owner))
 
     if (!goalTitle) {
-      editor.chain().focus().insertContent(goalTemplateContent(prefix, GOAL_TITLE_PLACEHOLDER)).run()
+      editor.chain().focus().insertContent(content).run()
       setTimeout(() => {
-        let headingPos: number | null = null
-        editor.state.doc.descendants((node: any, nodePos: number) => {
-          if (headingPos !== null) return false
-          if (node.type.name === 'heading' && nodePos >= from - 1) {
-            headingPos = nodePos
-            return false
-          }
+        editor.state.doc.forEach((node: any, offset: number) => {
+          if (node.type.name !== 'heading' || node.attrs.goalId !== id) return
+          const titleStart = offset + 1 + goalPrefix(priority).length
+          editor.chain().focus().setTextSelection({ from: titleStart, to: offset + 1 + node.content.size }).run()
         })
-        if (headingPos !== null) {
-          const headingNode = editor.state.doc.nodeAt(headingPos)
-          if (headingNode) {
-            const hFrom = headingPos + 1 + prefix.length
-            editor.chain().focus().setTextSelection({ from: hFrom, to: headingPos + 1 + headingNode.content.size }).run()
-          }
-        }
       }, 10)
       return
     }
 
-    const content = goalTemplateContent(prefix, goalTitle)
     const $from = doc.resolve(from)
     const $to = doc.resolve(to)
     const blockStart = $from.before(1)
@@ -462,6 +518,25 @@ export function SessionWorkspace({
       { key: 'feedback', title: 'Feedback', content: feedbackContent, ref: feedbackEditorRef },
     ].filter(s => hasDocContent(s.content))
 
+    // The client's open goals, read-only, after Connection as on the coach's page
+    const renderClientGoals = (hrBefore: boolean, hrAfter: boolean) => (
+      <div className={goalCount ? 'space-y-10' : 'hidden'}>
+        {hrBefore && <hr className="border-border/50" />}
+        <section>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Goals
+          </h2>
+          <GoalsSection
+            clientId={calendarEvent.client_id}
+            excludeSessionNoteId={sessionNoteId}
+            onCountChange={setGoalCount}
+            openOnly
+          />
+        </section>
+        {hrAfter && <hr className="border-border/50" />}
+      </div>
+    )
+
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <div className="border-b border-border/50 sticky top-0 bg-background z-10">
@@ -477,6 +552,7 @@ export function SessionWorkspace({
           {dataLoaded && sections.length === 0 && (
             <p className="text-[13px] text-muted-foreground text-center">There are no notes for this session yet.</p>
           )}
+          {dataLoaded && sections[0]?.key !== 'connection' && renderClientGoals(false, sections.length > 0)}
           {dataLoaded && sections.map((section, i) => (
             <Fragment key={section.key}>
               {i > 0 && <hr className="border-border/50" />}
@@ -502,6 +578,7 @@ export function SessionWorkspace({
                   onEditorReady={(ed) => { section.ref.current = ed }}
                 />
               </section>
+              {section.key === 'connection' && renderClientGoals(true, false)}
             </Fragment>
           ))}
         </div>
@@ -602,6 +679,22 @@ export function SessionWorkspace({
             onActionSelect={setSelectedAction}
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
+            onGoalSelect={openGoal}
+          />
+        </section>
+
+        {/* Goals from earlier sessions, hidden until the client has some */}
+        <hr className={goalCount ? 'border-border/50' : 'hidden'} />
+        <section className={goalCount ? '' : 'hidden'}>
+          <h2 className="text-[13px] font-medium text-muted-foreground uppercase tracking-widest mb-4">
+            Goals
+          </h2>
+          <GoalsSection
+            ref={goalsSectionRef}
+            clientId={calendarEvent.client_id}
+            excludeSessionNoteId={sessionNoteId}
+            onGoalSelect={(goal) => { setSelectedAction(null); setSelectedGoal(goal) }}
+            onCountChange={setGoalCount}
           />
         </section>
 
@@ -689,6 +782,7 @@ export function SessionWorkspace({
             onActionSelect={setSelectedAction}
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
+            onGoalSelect={openGoal}
           />
         </section>
       </div>
@@ -708,6 +802,34 @@ export function SessionWorkspace({
             setSelectedAction(null)
             reviewSectionRef.current?.applyRemoved(id)
             actionsSidebarRef.current?.applyRemoved(id)
+          }}
+          onGoalSelect={openGoal}
+        />
+      )}
+
+      {selectedGoal && (
+        <GoalDetailPanel
+          key={selectedGoal.id}
+          goal={selectedGoal}
+          sessionNoteId={sessionNoteId}
+          clientName={clientName}
+          onActionCreated={() => setActionRefreshKey(k => k + 1)}
+          onActionChanged={(updated) => {
+            reviewSectionRef.current?.applyChanged(updated)
+            actionsSidebarRef.current?.applyChanged(updated)
+          }}
+          onActionRemoved={(id) => {
+            reviewSectionRef.current?.applyRemoved(id)
+            actionsSidebarRef.current?.applyRemoved(id)
+          }}
+          onClose={() => setSelectedGoal(null)}
+          onUpdated={(updated) => {
+            setSelectedGoal(prev => prev?.id === updated.id ? updated : prev)
+            goalsSectionRef.current?.applyChanged(updated)
+          }}
+          onDeleted={(id) => {
+            setSelectedGoal(null)
+            goalsSectionRef.current?.applyRemoved(id)
           }}
         />
       )}

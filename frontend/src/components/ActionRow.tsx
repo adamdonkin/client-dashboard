@@ -25,6 +25,33 @@ export interface ActionItem {
   created_at?: string | null
   assigned_to?: string | null
   client_id?: string | null
+  goal_id?: string | null
+  goal?: ActionGoal | null
+}
+
+export interface ActionGoal {
+  id: string
+  priority: number | null
+  title: string
+}
+
+export const ACTION_COLUMNS = 'id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to, client_id, goal_id, goal:client_goals!client_actions_goal_id_fkey(id, priority, title)'
+
+export function goalBadgeLabel(goal: ActionGoal): string {
+  return goal.priority ? `#${goal.priority} ${goal.title}` : goal.title
+}
+
+export function GoalBadge({ goal, onSelect }: { goal: ActionGoal, onSelect?: (goalId: string) => void }) {
+  return (
+    <Badge
+      variant="outline"
+      title={goalBadgeLabel(goal)}
+      className={cn('text-[10px] px-1.5 py-0 border-chart-2/30 text-chart-2 font-medium max-w-[160px] truncate block', onSelect && 'cursor-pointer hover:bg-chart-2/10')}
+      onClick={onSelect ? (e) => { e.stopPropagation(); onSelect(goal.id) } : undefined}
+    >
+      {goalBadgeLabel(goal)}
+    </Badge>
+  )
 }
 
 export function formatDueDate(dateStr: string | null): string {
@@ -100,6 +127,9 @@ interface ActionRowProps {
   className?: string
   reviewSessionNoteId?: string
   highlightCompleted?: boolean
+  /** Shows the goal badge; left out where the rows are already a goal's actions */
+  showGoal?: boolean
+  onGoalSelect?: (goalId: string) => void
 }
 
 export function ActionRow({
@@ -111,13 +141,15 @@ export function ActionRow({
   className,
   reviewSessionNoteId,
   highlightCompleted = false,
+  showGoal = true,
+  onGoalSelect,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const [action, setAction] = useState(initialAction)
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Keep in sync if parent passes new data
-  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
+  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || initialAction.goal_id !== action.goal_id || initialAction.goal?.title !== action.goal?.title || initialAction.goal?.priority !== action.goal?.priority || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
     setAction(initialAction)
   }
 
@@ -168,13 +200,13 @@ export function ActionRow({
   const handleReviewUpdated = async () => {
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .eq('id', action.id)
       .single()
 
     if (data) {
-      setAction(data)
-      onChanged?.(data)
+      setAction(data as unknown as ActionItem)
+      onChanged?.(data as unknown as ActionItem)
     }
   }
 
@@ -222,6 +254,11 @@ export function ActionRow({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {showGoal && action.goal && (
+            <span className="max-sm:hidden">
+              <GoalBadge goal={action.goal} onSelect={onGoalSelect} />
+            </span>
+          )}
           {showSource && action.source && (
             <span className="max-sm:hidden">
               <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />

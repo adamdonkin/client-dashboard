@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { ActionRow } from '@/components/ActionRow'
+import { ACTION_COLUMNS, ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 
 interface ActionReviewSectionProps {
@@ -13,6 +13,7 @@ interface ActionReviewSectionProps {
   onActionSelect?: (action: ActionItem | null) => void
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
+  onGoalSelect?: (goalId: string) => void
 }
 
 export interface ActionReviewSectionHandle {
@@ -21,7 +22,7 @@ export interface ActionReviewSectionHandle {
   getActions: () => ActionItem[]
 }
 
-export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
+export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect }, ref) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
@@ -31,7 +32,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
   const fetchActions = useCallback(async () => {
     let query = supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .eq('client_id', clientId)
       .eq('status', 'to_do')
 
@@ -43,7 +44,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
 
     // Actions ticked off during this review stay in place until the page is reloaded
     setActions(prev => {
-      const next: ActionItem[] = [...(data || [])]
+      const next = [...((data as unknown as ActionItem[]) || [])]
       prev.forEach((action, index) => {
         if (action.status === 'completed' && !next.some(a => a.id === action.id)) {
           next.splice(Math.min(index, next.length), 0, action)
@@ -60,13 +61,13 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
 
     const { data } = await supabase
       .from('client_actions')
-      .select('id, title, description, description_content, source, source_url, session_note_id, due_date, status, review_history, created_at, assigned_to')
+      .select(ACTION_COLUMNS)
       .eq('client_id', clientId)
       .in('status', ['completed', 'cancelled'])
       .gte('updated_at', since.toISOString())
       .order('updated_at', { ascending: false })
 
-    setCompletedActions(data || [])
+    setCompletedActions((data as unknown as ActionItem[]) || [])
   }, [clientId, supabase])
 
   useEffect(() => {
@@ -131,6 +132,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           showSource
           reviewSessionNoteId={sessionNoteId}
           highlightCompleted
+          onGoalSelect={onGoalSelect}
         />
       ))}
 
@@ -154,6 +156,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
               onRemoved={handleRemoved}
               onSelect={onActionSelect}
               showSource
+              onGoalSelect={onGoalSelect}
             />
           ))}
         </div>

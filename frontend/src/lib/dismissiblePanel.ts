@@ -32,10 +32,14 @@ export function panelSlideClass(closing: boolean): string {
  * Callers unmount the panel when `onClose` fires, so the slide-out is played first and
  * `onClose` is deferred until it finishes. `onBeforeClose` runs synchronously at the
  * start of that sequence, which is where a panel flushes anything still unsaved.
+ *
+ * `paused` hands dismissal to a panel opened on top of this one, so backing out of
+ * that panel doesn't close both.
  */
 export function useDismissiblePanel<T extends HTMLElement>(
   onClose: () => void,
   onBeforeClose?: () => void,
+  paused = false,
 ) {
   const panelRef = useRef<T>(null)
   const [closing, setClosing] = useState(false)
@@ -59,6 +63,7 @@ export function useDismissiblePanel<T extends HTMLElement>(
   }, [])
 
   useEffect(() => {
+    if (paused) return
     const handleKeyDown = (e: KeyboardEvent) => {
       // A date picker or dialog opened from inside the panel takes the keystroke
       // first, so backing out of one of those doesn't also dismiss the panel.
@@ -83,7 +88,7 @@ export function useDismissiblePanel<T extends HTMLElement>(
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('mousedown', handleMouseDown)
     }
-  }, [requestClose])
+  }, [requestClose, paused])
 
   return { panelRef, closing, requestClose }
 }

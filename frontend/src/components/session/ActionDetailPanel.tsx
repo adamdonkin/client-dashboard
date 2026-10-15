@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
-import { X, Trash2, Check, Copy, MoreHorizontal, XCircle, User } from 'lucide-react'
+import { X, Trash2, Check, Copy, MoreHorizontal, XCircle, User, ChevronRight, Target } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ActionDatePicker } from './ActionDatePicker'
 import { SessionEditor } from './SessionEditor'
-import { SourceBadge } from '@/components/ActionRow'
+import { SourceBadge, goalBadgeLabel } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { cn } from '@/lib/utils'
 import { copyActionToClipboard } from '@/utils/copy-actions'
@@ -20,6 +20,7 @@ interface ActionDetailPanelProps {
   onClose: () => void
   onUpdated?: (updated: ActionItem) => void
   onDeleted?: (id: string) => void
+  onGoalSelect?: (goalId: string) => void
 }
 
 export function ActionDetailPanel({
@@ -28,6 +29,7 @@ export function ActionDetailPanel({
   onClose,
   onUpdated,
   onDeleted,
+  onGoalSelect,
 }: ActionDetailPanelProps) {
   const supabase = createClientComponentClient()
   const [title, setTitle] = useState(action.title)
@@ -302,6 +304,33 @@ export function ActionDetailPanel({
             </div>
 
             <div className="border-t border-border/40" />
+
+            {/* Goal the action came from, if any */}
+            {action.goal && (
+              <>
+                <div className="h-[48px] flex items-center gap-3 text-[13px] px-5">
+                  <span className="text-muted-foreground">Goal</span>
+                  {onGoalSelect ? (
+                    <button
+                      onClick={() => onGoalSelect(action.goal!.id)}
+                      className="flex items-center gap-1.5 min-w-0 text-[13px] px-2 py-0.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                      title="Open goal"
+                    >
+                      <Target className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate underline underline-offset-2 decoration-muted-foreground/40">{goalBadgeLabel(action.goal)}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1.5 min-w-0 px-2">
+                      <Target className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate">{goalBadgeLabel(action.goal)}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="border-t border-border/40" />
+              </>
+            )}
 
             {/* Created date & source */}
             <div className="h-[48px] flex items-center justify-between px-5">

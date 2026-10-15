@@ -12,7 +12,10 @@ import { parseISO, isThisWeek } from 'date-fns'
 import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel'
+import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
+import { fetchGoal, type Goal } from '@/lib/goals'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 type SelectAction = (action: ActionItem, clientName: string) => void
 type ActionChanged = (updated: ActionItem) => void
@@ -232,6 +235,15 @@ export function ActionsContent() {
     setSelectedClientName(clientName)
   }, [])
 
+  const supabase = createClientComponentClient()
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
+  const openGoal = useCallback(async (goalId: string) => {
+    const goal = await fetchGoal(supabase, goalId)
+    if (!goal) return
+    setSelectedAction(null)
+    setSelectedGoal(goal)
+  }, [supabase])
+
   // ActionRow resyncs from the action it's given, so a tick that isn't written back
   // here is undone on the next render. Completed actions stay listed until the next
   // load so a mis-click can be unticked.
@@ -368,6 +380,20 @@ export function ActionsContent() {
             setSelectedAction(null)
             fetchActions()
           }}
+          onGoalSelect={openGoal}
+        />
+      )}
+
+      {selectedGoal && (
+        <GoalDetailPanel
+          key={selectedGoal.id}
+          goal={selectedGoal}
+          clientName={selectedClientName}
+          onClose={() => setSelectedGoal(null)}
+          onUpdated={(updated) => setSelectedGoal(prev => prev?.id === updated.id ? updated : prev)}
+          onActionCreated={fetchActions}
+          onActionChanged={handleActionChanged}
+          onActionRemoved={fetchActions}
         />
       )}
     </div>
