@@ -80,7 +80,7 @@ export const GoalsSection = forwardRef<GoalsSectionHandle, GoalsSectionProps>(fu
           className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer pt-1"
         >
           {showClosed ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          {showClosed ? 'Hide completed & dropped' : 'Show completed & dropped'}
+          {showClosed ? 'Hide completed & cancelled' : 'Show completed & cancelled'}
         </button>
       )}
 

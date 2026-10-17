@@ -9,7 +9,8 @@ import { format, isPast, isToday, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ActionDatePicker } from '@/components/session/ActionDatePicker'
-import { ActionReviewDialog } from '@/components/session/ActionReviewDialog'
+import { NotDoneReview } from '@/components/session/NotDoneReview'
+import { notDoneCount } from '@/lib/actionReview'
 
 export interface ActionItem {
   id: string
@@ -209,29 +210,24 @@ export function ActionRow({
 
   const handleNotDone = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setReviewOpen(true)
+    setReviewOpen(open => !open)
   }
 
-  const handleReviewUpdated = async () => {
-    const { data } = await supabase
-      .from('client_actions')
-      .select(ACTION_COLUMNS)
-      .eq('id', action.id)
-      .single()
-
-    if (data) {
-      setAction(data as unknown as ActionItem)
-      onChanged?.(data as unknown as ActionItem)
-    }
+  const handleReviewUpdated = (updated: ActionItem) => {
+    setAction(updated)
+    onChanged?.(updated)
   }
+
+  const timesNotDone = action.status === 'to_do' ? notDoneCount(action) : 0
 
   return (
-    <>
+    <div>
       <div
         onClick={handleRowClick}
         className={cn(
           'group flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 transition-colors cursor-pointer hover:bg-muted/50',
           isResolved && 'opacity-50',
+          reviewOpen && 'rounded-b-none border-border bg-muted/50',
           className,
         )}
       >
@@ -285,6 +281,16 @@ export function ActionRow({
             </span>
           )}
 
+          {timesNotDone > 0 && (
+            <Badge
+              variant="outline"
+              title={`Reviewed not done ${timesNotDone} time${timesNotDone === 1 ? '' : 's'}`}
+              className="text-[10px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 font-medium"
+            >
+              Not done {timesNotDone}×
+            </Badge>
+          )}
+
           {isResolved && action.status === 'cancelled' && (
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cancelled</span>
           )}
@@ -308,7 +314,10 @@ export function ActionRow({
               </button>
               <button
                 onClick={handleNotDone}
-                className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-danger transition-colors cursor-pointer"
+                className={cn(
+                  'p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-danger transition-colors cursor-pointer',
+                  reviewOpen && 'bg-red-100 dark:bg-red-900/30 text-danger',
+                )}
                 title="Not done"
               >
                 <Ban className="h-3.5 w-3.5" />
@@ -319,14 +328,13 @@ export function ActionRow({
       </div>
 
       {reviewOpen && (
-        <ActionReviewDialog
+        <NotDoneReview
           action={action}
-          open={reviewOpen}
-          onOpenChange={setReviewOpen}
-          onActionUpdated={handleReviewUpdated}
           sessionNoteId={reviewSessionNoteId}
+          onUpdated={handleReviewUpdated}
+          onClose={() => setReviewOpen(false)}
         />
       )}
-    </>
+    </div>
   )
 }

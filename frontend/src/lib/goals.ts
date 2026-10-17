@@ -97,6 +97,7 @@ export const emptySubBullet = () => ({ type: 'bulletList', content: [{ type: 'li
 /** The Goal template as Tiptap nodes, filled in from a goal. */
 export function goalNodes(goal: {
   id?: string
+  draft?: boolean
   priority: number | null
   title: string
   owner?: string | null
@@ -115,7 +116,7 @@ export function goalNodes(goal: {
   return [
     {
       type: 'heading',
-      attrs: { level: 3, ...(goal.id ? { goalId: goal.id } : {}) },
+      attrs: { level: 3, ...(goal.id ? { goalId: goal.id } : {}), ...(goal.draft ? { goalDraft: true } : {}) },
       content: [{ type: 'text', text: `${goalPrefix(goal.priority)}${goal.title}` }],
     },
     { type: 'bulletList', content: [
@@ -190,6 +191,8 @@ function parseHealth(text: string): GoalHealth | null {
 }
 
 export interface GoalFromNote {
+  /** Not saved to the client yet; it's created once something's filled in */
+  draft: boolean
   priority: number | null
   title: string
   owner: string | null
@@ -215,6 +218,7 @@ export function goalsInNote(doc: any): Map<string, GoalFromNote> {
     const headingText = nodeText(node).trim()
     const match = headingText.match(/^#(\d+)\.\s*(.*)$/)
     const goal: GoalFromNote = {
+      draft: !!node.attrs?.goalDraft,
       priority: match ? Number(match[1]) : null,
       title: (match ? match[2] : headingText).trim() || GOAL_TITLE_PLACEHOLDER,
       owner: null,

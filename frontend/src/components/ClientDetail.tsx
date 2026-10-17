@@ -36,6 +36,7 @@ import { ActionCreateForm } from '@/components/session/ActionCreateForm';
 import { ActionReviewSection } from '@/components/session/ActionReviewSection';
 import type { ActionReviewSectionHandle } from '@/components/session/ActionReviewSection';
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
+import { BlockersSection } from '@/components/BlockersSection';
 import type { ActionItem } from '@/components/ActionRow';
 import { copyActionsToClipboard } from '@/utils/copy-actions';
 import { GoalsSection } from '@/components/goals/GoalsSection';
@@ -99,8 +100,12 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null);
   const reviewSectionRef = useRef<ActionReviewSectionHandle>(null)
 
+  const [blockerCount, setBlockerCount] = useState(0)
+  const [blockersRefreshKey, setBlockersRefreshKey] = useState(0)
+
   const handleActionChanged = (updated: ActionItem) => {
     setSelectedAction(prev => prev?.id === updated.id ? updated : prev)
+    setBlockersRefreshKey(k => k + 1)
   }
 
   const handleActionRemoved = (id: string) => {
@@ -1690,6 +1695,21 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           </CardContent>
         </Card>
 
+        {/* "What blocked you?" answers from not-done reviews, hidden until there's one */}
+        <Card className={blockerCount ? '' : 'hidden'}>
+          <CardHeader>
+            <CardTitle>Blockers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BlockersSection
+              clientId={client.id}
+              refreshKey={blockersRefreshKey}
+              onActionSelect={setSelectedAction}
+              onCountChange={setBlockerCount}
+            />
+          </CardContent>
+        </Card>
+
         {/* Magic Questions rounds from session notes, hidden until there's one */}
         {magicRounds.length > 0 && (
           <Card>
@@ -1777,6 +1797,7 @@ Use Markdown: **bold**, *italic*, - bullets, # headers"
           onUpdated={(updated) => {
             setSelectedAction(updated)
             reviewSectionRef.current?.applyChanged(updated)
+            setBlockersRefreshKey(k => k + 1)
           }}
           onDeleted={(id) => {
             setSelectedAction(null)

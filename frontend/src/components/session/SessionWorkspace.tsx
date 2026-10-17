@@ -114,13 +114,53 @@ export function SessionWorkspace({
   const goalCreatesRef = useRef(new Map<string, Promise<void>>())
   // Goals whose update from this note has been saved, so clearing the answers clears it too
   const noteUpdatesRef = useRef(new Set<string>())
+  // Once a draft goal is saved, its heading stops being a draft so it's never created twice
+  const clearGoalDraft = useCallback((goalId: string) => {
+    for (const ed of [connectionEditorRef.current, topicsEditorRef.current, feedbackEditorRef.current]) {
+      if (!ed || ed.isDestroyed) continue
+      ed.state.doc.forEach((node: any, offset: number) => {
+        if (node.type.name !== 'heading' || node.attrs.goalId !== goalId || !node.attrs.goalDraft) return
+        ed.view.dispatch(ed.state.tr.setNodeMarkup(offset, undefined, { ...node.attrs, goalDraft: false }).setMeta('addToHistory', false))
+      })
+    }
+  }, [])
+
+  const createGoal = useCallback(async (id: string, fields: { priority: number | null, title: string, owner: string | null, due_date: string | null }) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { error } = await supabase.from('client_goals').insert({
+      id,
+      user_id: session.user.id,
+      client_id: calendarEvent.client_id,
+      session_note_id: sessionNoteId,
+      ...fields,
+    })
+    // 23505: already saved by an earlier sync
+    if (error && error.code !== '23505') {
+      console.error('Error creating goal:', error)
+      toast.error('Could not save the goal to the client. Try again.')
+      goalCreatesRef.current.delete(id)
+      return
+    }
+    clearGoalDraft(id)
+  }, [calendarEvent.client_id, sessionNoteId, supabase, clearGoalDraft])
+
   const syncGoalsFromNote = useCallback((content: any) => {
     goalsInNote(content).forEach(async (fields, goalId) => {
       const serialized = JSON.stringify(fields)
       if (syncedGoalsRef.current.get(goalId) === serialized) return
+      const { draft, priority, title, owner, due_date, ...update } = fields
+      if (draft) {
+        // A goal written with /goal isn't saved to the client until something's filled in
+        const filledIn = title !== GOAL_TITLE_PLACEHOLDER || due_date || update.health
+          || docHasText(update.whats_good) || docHasText(update.whats_not_good) || docHasText(update.fix_plan)
+        if (!filledIn) return
+        if (!goalCreatesRef.current.has(goalId)) {
+          goalCreatesRef.current.set(goalId, createGoal(goalId, { priority, title, owner, due_date }))
+        }
+      }
       await goalCreatesRef.current.get(goalId)
       const now = new Date().toISOString()
-      const { priority, title, owner, due_date, ...update } = fields
       const { data, error } = await supabase
         .from('client_goals')
         .update({ priority, title, owner, due_date, updated_at: now })
@@ -145,7 +185,7 @@ export function SessionWorkspace({
       }
       syncedGoalsRef.current.set(goalId, serialized)
     })
-  }, [sessionNoteId, supabase])
+  }, [sessionNoteId, supabase, createGoal])
 
   const handleConnectionUpdate = useCallback(async (content: any) => {
     syncGoalsFromNote(content)
@@ -489,24 +529,6 @@ export function SessionWorkspace({
     return Math.max(0, ...numbers) + 1
   }
 
-  const createGoal = async (id: string, priority: number, title: string, owner: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const { error } = await supabase.from('client_goals').insert({
-      id,
-      user_id: session.user.id,
-      client_id: calendarEvent.client_id,
-      session_note_id: sessionNoteId,
-      priority,
-      title,
-      owner: owner || null,
-    })
-    if (error) {
-      console.error('Error creating goal:', error)
-      toast.error('Could not save the goal to the client. Try again.')
-    }
-  }
-
   const insertGoalTemplate = (editor: any, title?: string) => {
     const { from, to } = editor.state.selection
     const doc = editor.state.doc
@@ -514,8 +536,7 @@ export function SessionWorkspace({
     const id = crypto.randomUUID()
     const priority = nextGoalPriority()
     const owner = client?.name?.split(' ')[0] ?? ''
-    const content = goalNodes({ id, priority, title: goalTitle || GOAL_TITLE_PLACEHOLDER, owner })
-    goalCreatesRef.current.set(id, createGoal(id, priority, goalTitle || GOAL_TITLE_PLACEHOLDER, owner))
+    const content = goalNodes({ id, draft: true, priority, title: goalTitle || GOAL_TITLE_PLACEHOLDER, owner })
 
     if (!goalTitle) {
       editor.chain().focus().insertContent(content).run()

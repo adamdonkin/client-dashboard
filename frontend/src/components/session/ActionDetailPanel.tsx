@@ -13,6 +13,23 @@ import type { ActionItem } from '@/components/ActionRow'
 import { cn } from '@/lib/utils'
 import { copyActionToClipboard } from '@/utils/copy-actions'
 import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
+import { AVOID_QUESTION, BLOCKED_QUESTION, type ReviewEntry } from '@/lib/actionReview'
+
+function ReviewAnswer({ question, text }: { question: string, text: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className="mt-1.5">
+      <p className="text-[12px]">{question}</p>
+      {lines.length === 1 ? (
+        <p className="text-[14px] text-foreground">{lines[0]}</p>
+      ) : (
+        <ul className="list-disc pl-5 text-[14px] text-foreground">
+          {lines.map((line, i) => <li key={i}>{line}</li>)}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 interface ActionDetailPanelProps {
   action: ActionItem
@@ -389,28 +406,26 @@ export function ActionDetailPanel({
 
           {/* Review history */}
           {history.length > 0 && (
-            <div className="px-5 pt-3 pb-5 border-t border-border/50 max-h-[200px] overflow-y-auto space-y-2">
-              <p className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">Review History</p>
-              {history.map((entry: any, i: number) => (
-                <div key={i} className="text-[13px] text-muted-foreground space-y-0.5">
+            <div className="px-5 pt-3 pb-5 border-t border-border/50 max-h-[280px] overflow-y-auto">
+              <p className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Not done</p>
+              {[...history].reverse().map((entry: ReviewEntry, i: number) => (
+                <div key={i} className="py-2 border-t border-border/30 first-of-type:border-t-0 text-[13px] text-muted-foreground">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">
-                      {entry.outcome === 'extended' ? 'Extended' : entry.outcome === 'cancelled' ? 'Cancelled' : entry.outcome}
-                    </span>
-                    <span>{format(new Date(entry.date), 'MMM d, yyyy')}</span>
-                    {entry.new_due_date && (
-                      <span>→ {format(parseISO(entry.new_due_date), 'MMM d')}</span>
-                    )}
+                    <span className="font-medium text-foreground">{format(new Date(entry.date), 'MMM d, yyyy')}</span>
+                    {entry.outcome === 'cancelled' ? (
+                      <span>Cancelled</span>
+                    ) : entry.new_due_date ? (
+                      <span>
+                        {entry.previous_due_date ? `${format(parseISO(entry.previous_due_date.slice(0, 10)), 'MMM d')} → ` : '→ '}
+                        {format(parseISO(entry.new_due_date), 'MMM d')}
+                      </span>
+                    ) : null}
                   </div>
                   {entry.notes && (
-                    <p className="whitespace-pre-wrap text-[13px] text-muted-foreground">{entry.notes}</p>
+                    <p className="whitespace-pre-wrap text-[13px] mt-1">{entry.notes}</p>
                   )}
-                  {entry.blocked_by && (
-                    <p className="text-[13px]">Blocked: {entry.blocked_by}</p>
-                  )}
-                  {entry.will_do && (
-                    <p className="text-[13px]">Will do: {entry.will_do}</p>
-                  )}
+                  {entry.blocked_by && <ReviewAnswer question={BLOCKED_QUESTION} text={entry.blocked_by} />}
+                  {entry.will_do && <ReviewAnswer question={AVOID_QUESTION} text={entry.will_do} />}
                 </div>
               ))}
             </div>

@@ -60,7 +60,7 @@ export function GoalRow({ goal, onSelect }: GoalRowProps) {
 
       <div className="flex items-center gap-3 shrink-0 text-[13px] text-muted-foreground">
         {goal.status === 'dropped' && (
-          <span className="text-[10px] font-semibold uppercase tracking-wider">Dropped</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider">Cancelled</span>
         )}
         {updatedAt && goal.status === 'open' && (
           <span className={cn('max-sm:hidden', updatedToday && 'text-success')}>
