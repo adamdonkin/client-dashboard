@@ -20,7 +20,7 @@ import type { GoalsSectionHandle } from '@/components/goals/GoalsSection'
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
 import { MagicQuestionsRoundPanel } from '@/components/magic/MagicQuestionsPanel'
 import { GOAL_TITLE_PLACEHOLDER, docHasText, fetchGoal, goalNodes, goalNumbersInDoc, goalPrefix, goalsInNote, type Goal } from '@/lib/goals'
-import { CAREER_VISION_QUESTION, MAGIC_QUESTIONS_HEADING, careerVisionOf, fetchMagicQuestions } from '@/lib/magicQuestions'
+import { CAREER_VISION_QUESTION, MAGIC_QUESTIONS_HEADING, careerVisionOf, fetchMagicQuestions, latestSavedVision, magicQuestionsSection, saveMagicRound } from '@/lib/magicQuestions'
 import { toast } from 'sonner'
 
 interface CalendarEvent {
@@ -100,13 +100,39 @@ export function SessionWorkspace({
   const previousVisionRef = useRef<any | null>(null)
   useEffect(() => {
     if (clientView) return
-    fetchMagicQuestions(supabase, calendarEvent.client_id).then(rounds => {
+    latestSavedVision(supabase, calendarEvent.client_id, sessionNoteId).then(async saved => {
+      if (saved) {
+        previousVisionRef.current = saved
+        return
+      }
+      // Rounds written before they were saved, until the client page saves them
+      const rounds = await fetchMagicQuestions(supabase, calendarEvent.client_id)
       previousVisionRef.current = rounds
         .filter(r => r.sessionNoteId !== sessionNoteId)
         .map(r => careerVisionOf(r.content))
         .find(Boolean) ?? null
     })
   }, [calendarEvent.client_id, sessionNoteId, clientView, supabase])
+
+  // The round in this note is saved as it's written, like goals
+  const savedRoundRef = useRef<string | null>(null)
+  const syncMagicRound = useCallback(() => {
+    if (clientView) return
+    const section = [connectionEditorRef, topicsEditorRef, feedbackEditorRef]
+      .map(r => magicQuestionsSection(r.current?.getJSON()))
+      .find(Boolean) ?? null
+    const serialized = JSON.stringify(section)
+    if (savedRoundRef.current === serialized) return
+    // Nothing to remove unless a round was seen in this note
+    if (!section && savedRoundRef.current === null) return
+    savedRoundRef.current = serialized
+    saveMagicRound(supabase, {
+      clientId: calendarEvent.client_id,
+      sessionNoteId,
+      sessionDate: calendarEvent.start_time,
+      section,
+    })
+  }, [calendarEvent.client_id, calendarEvent.start_time, sessionNoteId, clientView, supabase])
 
   // Goals written in this note follow the note until they're first updated
   // from the goal panel; after that the panel's version wins.
@@ -189,30 +215,33 @@ export function SessionWorkspace({
 
   const handleConnectionUpdate = useCallback(async (content: any) => {
     syncGoalsFromNote(content)
+    syncMagicRound()
     const { error } = await supabase
       .from('session_notes')
       .update({ connection_notes: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase, syncGoalsFromNote])
+  }, [sessionNoteId, supabase, syncGoalsFromNote, syncMagicRound])
 
   const handleTopicsUpdate = useCallback(async (content: any) => {
     syncGoalsFromNote(content)
+    syncMagicRound()
     const { error } = await supabase
       .from('session_notes')
       .update({ topics_content: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase, syncGoalsFromNote])
+  }, [sessionNoteId, supabase, syncGoalsFromNote, syncMagicRound])
 
   const handleFeedbackUpdate = useCallback(async (content: any) => {
     syncGoalsFromNote(content)
+    syncMagicRound()
     const { error } = await supabase
       .from('session_notes')
       .update({ feedback_content: content, updated_at: new Date().toISOString() })
       .eq('id', sessionNoteId)
     if (error) throw error
-  }, [sessionNoteId, supabase, syncGoalsFromNote])
+  }, [sessionNoteId, supabase, syncGoalsFromNote, syncMagicRound])
 
   const noopActionCallback = useCallback((_actionId: string) => {
     setActionRefreshKey(k => k + 1)

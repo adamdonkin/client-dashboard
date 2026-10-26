@@ -36,15 +36,16 @@ import { ActionCreateForm } from '@/components/session/ActionCreateForm';
 import { ActionReviewSection } from '@/components/session/ActionReviewSection';
 import type { ActionReviewSectionHandle } from '@/components/session/ActionReviewSection';
 import { ActionDetailPanel } from '@/components/session/ActionDetailPanel';
-import { BlockersSection } from '@/components/BlockersSection';
 import type { ActionItem } from '@/components/ActionRow';
 import { copyActionsToClipboard } from '@/utils/copy-actions';
 import { GoalsSection } from '@/components/goals/GoalsSection';
 import type { GoalsSectionHandle } from '@/components/goals/GoalsSection';
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel';
 import { GOAL_COLUMNS, GOAL_TITLE_PLACEHOLDER, fetchGoal, toGoal, type Goal } from '@/lib/goals';
-import { fetchMagicQuestions, type MagicQuestionsRound } from '@/lib/magicQuestions';
+import { SCORE_QUESTIONS, editCurrentVision, loadMagicHistory, visionText, visionVersions, type MagicRoundWithScores } from '@/lib/magicQuestions';
 import { MagicQuestionsPanel, formatRoundDate } from '@/components/magic/MagicQuestionsPanel';
+import { VisionPanel } from '@/components/magic/VisionPanel';
+import { ScoreChip } from '@/components/magic/ScoreChip';
 import { getTimeOffset } from '@/lib/timezoneRegions';
 import { SessionEditor, type SaveStatus } from '@/components/session/SessionEditor';
 import { docToMarkdown, markdownToDoc } from '@/lib/clientNotes';
@@ -99,12 +100,8 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   const [selectedAction, setSelectedAction] = useState<ActionItem | null>(null);
   const reviewSectionRef = useRef<ActionReviewSectionHandle>(null)
 
-  const [blockerCount, setBlockerCount] = useState(0)
-  const [blockersRefreshKey, setBlockersRefreshKey] = useState(0)
-
   const handleActionChanged = (updated: ActionItem) => {
     setSelectedAction(prev => prev?.id === updated.id ? updated : prev)
-    setBlockersRefreshKey(k => k + 1)
   }
 
   const handleActionRemoved = (id: string) => {
@@ -122,11 +119,19 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
   }
   const [goalCount, setGoalCount] = useState(0)
 
-  const [magicRounds, setMagicRounds] = useState<MagicQuestionsRound[]>([])
+  const [magicRounds, setMagicRounds] = useState<MagicRoundWithScores[]>([])
   const [magicIndex, setMagicIndex] = useState<number | null>(null)
+  const [visionOpen, setVisionOpen] = useState(false)
   useEffect(() => {
-    fetchMagicQuestions(supabase, client.id).then(setMagicRounds)
+    loadMagicHistory(supabase, client.id).then(setMagicRounds)
   }, [client.id, supabase])
+  const visions = visionVersions(magicRounds)
+  const openVision = () => {
+    setSelectedAction(null)
+    setSelectedGoal(null)
+    setMagicIndex(null)
+    setVisionOpen(true)
+  }
 
   const openMagicQuestions = (action: ActionItem) => {
     const at = magicRounds.findIndex(r => r.sessionNoteId === action.session_note_id)
@@ -136,6 +141,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     }
     setSelectedAction(null)
     setSelectedGoal(null)
+    setVisionOpen(false)
     setMagicIndex(at)
   }
 
@@ -1632,22 +1638,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             />
           </CardContent>
         </Card>
-
-        {/* "What blocked you?" answers from not-done reviews, hidden until there's one */}
-        <Card className={blockerCount ? '' : 'hidden'}>
-          <CardHeader>
-            <CardTitle>Blockers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BlockersSection
-              clientId={client.id}
-              refreshKey={blockersRefreshKey}
-              onActionSelect={setSelectedAction}
-              onCountChange={setBlockerCount}
-            />
-          </CardContent>
-        </Card>
-
         {/* Magic Questions rounds from session notes, hidden until there's one */}
         {magicRounds.length > 0 && (
           <Card>
@@ -1655,15 +1645,48 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               <CardTitle>Magic Questions</CardTitle>
             </CardHeader>
             <CardContent>
+              {visions[0] && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={openVision}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVision() } }}
+                  className="action-panel-editor rounded-md -mx-2 px-2 py-1 mb-4 hover:bg-muted/50 transition-colors cursor-pointer [&_.ProseMirror]:cursor-pointer"
+                  title="See how the vision has changed"
+                >
+                  <p className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Five-year vision</p>
+                  <SessionEditor
+                    key={visionText(visions[0].vision)}
+                    content={{ type: 'doc', content: [visions[0].vision] }}
+                    onUpdate={async () => {}}
+                    readOnly
+                    dimWhenReadOnly={false}
+                    placeholder=""
+                    showActionButtons={false}
+                    trailingParagraph={false}
+                  />
+                  <p className="text-[12px] text-muted-foreground mt-1">Last changed {formatRoundDate(visions[0].from)}</p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 {magicRounds.map((round, i) => (
                   <button
                     key={round.sessionNoteId}
-                    onClick={() => setMagicIndex(i)}
-                    className="w-full flex items-center justify-between gap-2 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer text-left"
+                    onClick={() => { setVisionOpen(false); setMagicIndex(i) }}
+                    className="w-full flex items-center gap-3 py-1.5 px-3 rounded-md bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer text-left"
                   >
-                    <span className="text-[14px] !leading-[16px]">{formatRoundDate(round.sessionDate)}</span>
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-[14px] !leading-[16px] w-[104px] shrink-0">{formatRoundDate(round.sessionDate)}</span>
+                    <span className="flex items-center gap-1">
+                      {SCORE_QUESTIONS.map(q => (
+                        <ScoreChip
+                          key={q.key}
+                          score={round.scores[q.key]}
+                          lowest={round.lowest === q.key}
+                          title={`${q.label}: ${round.scores[q.key] ?? 'no score'}`}
+                        />
+                      ))}
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
                   </button>
                 ))}
               </div>
@@ -1735,7 +1758,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           onUpdated={(updated) => {
             setSelectedAction(updated)
             reviewSectionRef.current?.applyChanged(updated)
-            setBlockersRefreshKey(k => k + 1)
           }}
           onDeleted={(id) => {
             setSelectedAction(null)
@@ -1743,6 +1765,24 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           }}
           onGoalSelect={openGoal}
           onMagicQuestionsSelect={openMagicQuestions}
+        />
+      )}
+
+      {visionOpen && (
+        <VisionPanel
+          versions={visions}
+          onVersionSelect={(sessionNoteId) => {
+            const at = magicRounds.findIndex(r => r.sessionNoteId === sessionNoteId)
+            setVisionOpen(false)
+            if (at >= 0) setMagicIndex(at)
+          }}
+          onEditCurrent={async (vision) => {
+            const saved = await editCurrentVision(supabase, client.id, magicRounds, vision)
+            if (!saved) toast.error("Couldn't save the vision to every session")
+            setMagicRounds(await loadMagicHistory(supabase, client.id))
+            return saved
+          }}
+          onClose={() => setVisionOpen(false)}
         />
       )}
 
