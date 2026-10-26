@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,8 @@ import { GOAL_COLUMNS, GOAL_TITLE_PLACEHOLDER, fetchGoal, toGoal, type Goal } fr
 import { fetchMagicQuestions, type MagicQuestionsRound } from '@/lib/magicQuestions';
 import { MagicQuestionsPanel, formatRoundDate } from '@/components/magic/MagicQuestionsPanel';
 import { getTimeOffset } from '@/lib/timezoneRegions';
-import { Textarea } from "@/components/ui/textarea";
+import { SessionEditor, type SaveStatus } from '@/components/session/SessionEditor';
+import { docToMarkdown, markdownToDoc } from '@/lib/clientNotes';
 import {
   Select,
   SelectContent,
@@ -54,8 +55,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { ClientStatus } from "@/components/types";
 
 interface Session {
@@ -166,9 +165,9 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState(client.notes || '');
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesInitial, setNotesInitial] = useState<any | null>(null);
+  const [notesSaveStatus, setNotesSaveStatus] = useState<SaveStatus>('idle');
   
   // Edit details state
   const [isEditingDetails, setIsEditingDetails] = useState(false);
@@ -375,7 +374,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
       // Fetch client details
       const { data, error } = await supabase
         .from('clients')
-        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, office_street, office_city, office_state, office_zip, monthly_fee, notes, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id, exclude_from_pre_writes')
+        .select('user_id, ea_name, ea_email, ea_slack, defacto_meeting, role, is_active, status, location, office_street, office_city, office_state, office_zip, monthly_fee, notes, notes_content, phone, cadence, session_duration, personal_details, referral_source, referred_by, auth_user_id, exclude_from_pre_writes')
         .eq('id', client.id)
         .single();
       
@@ -418,6 +417,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
           last_session_event_id: lastSessionData?.id || null,
         };
         setCurrentClient(prev => prev ? ({ ...prev, ...clientData }) : clientData as Client);
+        setNotesInitial((prev: any) => prev ?? (data.notes_content ?? markdownToDoc(data.notes || '')));
         if (user && data.user_id === user.id) {
           setIsOwner(true)
         }
@@ -430,38 +430,18 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
     }
   }, [client.id, user]);
 
-  // Sync notes state when client changes
-  useEffect(() => {
-    setNotes(currentClient?.notes || '');
-  }, [currentClient?.notes]);
-
-  // Save notes when exiting edit mode
-  const saveNotes = async () => {
-    if (notes === (currentClient?.notes || '')) return;
-    
-    try {
-      setIsSaving(true);
-      const { error: updateError } = await supabase
-        .from('clients')
-        .update({ notes })
-        .eq('id', client.id);
-
-      if (updateError) {
-        console.error('Error saving notes:', updateError);
-      } else {
-        setCurrentClient(prev => prev ? { ...prev, notes } : prev);
-      }
-    } catch (err) {
-      console.error('Error saving notes:', err);
-    } finally {
-      setIsSaving(false);
+  const saveNotes = useCallback(async (content: any) => {
+    const notes = docToMarkdown(content);
+    const { error: updateError } = await supabase
+      .from('clients')
+      .update({ notes_content: content, notes })
+      .eq('id', client.id);
+    if (updateError) {
+      console.error('Error saving notes:', updateError);
+      throw updateError;
     }
-  };
-
-  const handleDoneEditing = () => {
-    saveNotes();
-    setIsEditingNotes(false);
-  };
+    setCurrentClient(prev => prev ? { ...prev, notes } : prev);
+  }, [client.id, supabase]);
 
   // The city-to-region mapping lives in the get_clients_by_region RPC, which is also what
   // the Timezones page reads, so the two views can never disagree about where a client is.
@@ -980,62 +960,20 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg">Notes</CardTitle>
-            <div className="flex items-center gap-2">
-              {isSaving && (
-                <span className="text-xs text-muted-foreground">Saving...</span>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => isEditingNotes ? handleDoneEditing() : setIsEditingNotes(true)}
-              >
-                {isEditingNotes ? (
-                  <>
-                    <Check className="h-4 w-4 mr-1" />
-                    Done
-                  </>
-                ) : (
-                  <>
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
-                  </>
-                )}
-              </Button>
-            </div>
+            <span className="text-xs text-muted-foreground">
+              {notesSaveStatus === 'saving' ? 'Saving…' : notesSaveStatus === 'saved' ? 'Saved' : notesSaveStatus === 'error' ? 'Not saved' : ''}
+            </span>
           </CardHeader>
           <CardContent>
-            {isEditingNotes ? (
-              <Textarea
-                autoFocus
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    handleDoneEditing();
-                  }
-                }}
-                placeholder="Jot down important themes, insights, patterns...
-
-Use Markdown: **bold**, *italic*, - bullets, # headers"
-                className="min-h-[150px] text-sm"
+            {notesInitial && (
+              <SessionEditor
+                key={client.id}
+                content={notesInitial}
+                onUpdate={saveNotes}
+                onSaveStatusChange={setNotesSaveStatus}
+                placeholder="Jot down themes, insights, patterns… Paste or drop images like org charts."
+                showActionButtons={false}
               />
-            ) : notes ? (
-              <div 
-                onClick={() => setIsEditingNotes(true)}
-                className="text-sm cursor-pointer hover:bg-accent/50 rounded -m-2 p-2 transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_p]:my-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline"
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {notes}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <p 
-                onClick={() => setIsEditingNotes(true)}
-                className="text-muted-foreground text-sm cursor-pointer hover:text-foreground transition-colors"
-              >
-                No notes yet. Click to add notes.
-              </p>
             )}
           </CardContent>
         </Card>
