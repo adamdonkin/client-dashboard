@@ -124,12 +124,19 @@ function roundRow(parsed: ParsedRound) {
   }
 }
 
-const ROUND_COLUMNS = 'session_note_id, vision, score_vision, score_work, score_personal, score_company, score_peers, lowest'
+const ROUND_COLUMNS = 'session_note_id, vision, score_vision, score_work, score_personal, score_company, score_peers, lowest, vision_edited_at'
 
 /** Saves a session note's round, or removes it when the note no longer has one */
 export async function saveMagicRound(
   supabase: SupabaseClient,
-  { clientId, sessionNoteId, sessionDate, section }: { clientId: string; sessionNoteId: string; sessionDate: string; section: any | null },
+  { clientId, sessionNoteId, sessionDate, section, visionEditedAt }: {
+    clientId: string
+    sessionNoteId: string
+    sessionDate: string
+    section: any | null
+    /** Set only when the vision was edited from the client page */
+    visionEditedAt?: string
+  },
 ) {
   if (!section) {
     const { error } = await supabase.from('magic_question_rounds').delete().eq('session_note_id', sessionNoteId)
@@ -145,6 +152,7 @@ export async function saveMagicRound(
       session_note_id: sessionNoteId,
       session_date: sessionDate,
       ...roundRow(parseRound(section)),
+      ...(visionEditedAt && { vision_edited_at: visionEditedAt }),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'session_note_id' },
@@ -166,7 +174,9 @@ export async function latestSavedVision(supabase: SupabaseClient, clientId: stri
   return data?.[0]?.vision ?? null
 }
 
-export interface MagicRoundWithScores extends MagicQuestionsRound, ParsedRound {}
+export interface MagicRoundWithScores extends MagicQuestionsRound, ParsedRound {
+  visionEditedAt: string | null
+}
 
 /**
  * Rounds from session notes with their scores, newest first. Saves any round
@@ -181,7 +191,11 @@ export async function loadMagicHistory(supabase: SupabaseClient, clientId: strin
   if (saved.error) console.error('Error loading saved Magic Questions:', saved.error)
   const savedByNote = new Map((saved.data ?? []).map((r: any) => [r.session_note_id, r]))
 
-  const withScores = rounds.map(r => ({ ...r, ...parseRound(r.content) }))
+  const withScores = rounds.map(r => ({
+    ...r,
+    ...parseRound(r.content),
+    visionEditedAt: savedByNote.get(r.sessionNoteId)?.vision_edited_at ?? null,
+  }))
 
   const stale = withScores.filter(r => {
     const row = savedByNote.get(r.sessionNoteId)
@@ -210,7 +224,11 @@ export interface VisionVersion {
   from: string
   /** When the next version replaced it; null for the current one */
   to: string | null
+  /** The last time it was edited from the client page, if ever */
+  editedAt: string | null
 }
+
+const later = (a: string | null, b: string | null) => (!a ? b : !b ? a : new Date(a) > new Date(b) ? a : b)
 
 /** Each distinct vision, newest first. Rounds that repeat the previous vision or skip it aren't new versions. */
 export function visionVersions(rounds: MagicRoundWithScores[]): VisionVersion[] {
@@ -218,19 +236,32 @@ export function visionVersions(rounds: MagicRoundWithScores[]): VisionVersion[] 
   for (const round of [...rounds].reverse()) {
     if (!round.vision) continue
     const last = versions[versions.length - 1]
-    if (last && visionText(last.vision) === visionText(round.vision)) continue
+    if (last && visionText(last.vision) === visionText(round.vision)) {
+      last.editedAt = later(last.editedAt, round.visionEditedAt)
+      continue
+    }
     if (last) last.to = round.sessionDate
-    versions.push({ vision: round.vision, sessionNoteId: round.sessionNoteId, from: round.sessionDate, to: null })
+    versions.push({
+      vision: round.vision,
+      sessionNoteId: round.sessionNoteId,
+      from: round.sessionDate,
+      to: null,
+      editedAt: round.visionEditedAt,
+    })
   }
   return versions.reverse()
 }
 
-/** The vision bullets from an edited doc: its lists' items, plus any loose paragraphs as items */
+/** When a version last changed: its edit on the client page, or the session it was written in */
+export function versionChangedAt(version: VisionVersion): string {
+  return later(version.from, version.editedAt)!
+}
+
+/** The vision bullets from an edited doc: its lists' items, plus any loose paragraphs as items, without empty bullets */
 export function visionFromDoc(doc: any): any | null {
-  const items = (doc?.content ?? []).flatMap((node: any) => {
-    if (node.type === 'bulletList') return node.content ?? []
-    return nodeText(node).trim() ? [{ type: 'listItem', content: [node] }] : []
-  })
+  const items = (doc?.content ?? []).flatMap((node: any) =>
+    node.type === 'bulletList' ? node.content ?? [] : [{ type: 'listItem', content: [node] }],
+  ).filter((item: any) => nodeText(item).trim())
   const vision = { type: 'bulletList', content: items }
   return nodeText(vision).trim() ? vision : null
 }
@@ -269,6 +300,7 @@ export async function editCurrentVision(
   if (!current) return false
   const currentText = visionText(current.vision)
   const since = new Date(current.from).getTime()
+  const editedAt = new Date().toISOString()
   const carrying = rounds.filter(r => new Date(r.sessionDate).getTime() >= since && visionText(r.vision) === currentText)
 
   const results = await Promise.all(carrying.map(async round => {
@@ -297,6 +329,7 @@ export async function editCurrentVision(
       sessionNoteId: round.sessionNoteId,
       sessionDate: round.sessionDate,
       section: magicQuestionsSection(updated),
+      visionEditedAt: editedAt,
     })
     return true
   }))

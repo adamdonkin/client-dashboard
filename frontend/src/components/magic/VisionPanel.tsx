@@ -69,6 +69,9 @@ export function VisionPanel({ versions, onVersionSelect, onEditCurrent, onClose 
                       {formatRoundDate(version.from)} – {version.to ? formatRoundDate(version.to) : 'now'}
                     </button>
                     {!version.to && <span className="text-[13px] text-muted-foreground"> · current</span>}
+                    {version.editedAt && (
+                      <span className="text-[13px] text-muted-foreground"> · edited {formatRoundDate(version.editedAt)}</span>
+                    )}
                   </div>
                   {i === 0 && !editing && (
                     <button

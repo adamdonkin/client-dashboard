@@ -42,7 +42,7 @@ import { GoalsSection } from '@/components/goals/GoalsSection';
 import type { GoalsSectionHandle } from '@/components/goals/GoalsSection';
 import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel';
 import { GOAL_COLUMNS, GOAL_TITLE_PLACEHOLDER, fetchGoal, toGoal, type Goal } from '@/lib/goals';
-import { SCORE_QUESTIONS, editCurrentVision, loadMagicHistory, visionText, visionVersions, type MagicRoundWithScores } from '@/lib/magicQuestions';
+import { SCORE_QUESTIONS, editCurrentVision, loadMagicHistory, versionChangedAt, visionText, visionVersions, type MagicRoundWithScores } from '@/lib/magicQuestions';
 import { MagicQuestionsPanel, formatRoundDate } from '@/components/magic/MagicQuestionsPanel';
 import { VisionPanel } from '@/components/magic/VisionPanel';
 import { ScoreChip } from '@/components/magic/ScoreChip';
@@ -1665,7 +1665,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                     showActionButtons={false}
                     trailingParagraph={false}
                   />
-                  <p className="text-[12px] text-muted-foreground mt-1">Last changed {formatRoundDate(visions[0].from)}</p>
+                  <p className="text-[12px] text-muted-foreground mt-1">Last changed {formatRoundDate(versionChangedAt(visions[0]))}</p>
                 </div>
               )}
               <div className="space-y-1.5">
