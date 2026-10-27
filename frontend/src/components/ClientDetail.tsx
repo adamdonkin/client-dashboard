@@ -962,28 +962,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             </CardContent>
         </Card>
 
-        {/* Notes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-lg">Notes</CardTitle>
-            <span className="text-xs text-muted-foreground">
-              {notesSaveStatus === 'saving' ? 'Saving…' : notesSaveStatus === 'saved' ? 'Saved' : notesSaveStatus === 'error' ? 'Not saved' : ''}
-            </span>
-          </CardHeader>
-          <CardContent>
-            {notesInitial && (
-              <SessionEditor
-                key={client.id}
-                content={notesInitial}
-                onUpdate={saveNotes}
-                onSaveStatusChange={setNotesSaveStatus}
-                placeholder="Jot down themes, insights, patterns… Paste or drop images like org charts."
-                showActionButtons={false}
-              />
-            )}
-          </CardContent>
-        </Card>
-
         {/* Two Column Layout - Compact */}
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Contact & Communication */}
@@ -1693,6 +1671,28 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             </CardContent>
           </Card>
         )}
+
+        {/* Notes */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle>Notes</CardTitle>
+            <span className="text-xs text-muted-foreground">
+              {notesSaveStatus === 'saving' ? 'Saving…' : notesSaveStatus === 'saved' ? 'Saved' : notesSaveStatus === 'error' ? 'Not saved' : ''}
+            </span>
+          </CardHeader>
+          <CardContent className="action-panel-editor">
+            {notesInitial && (
+              <SessionEditor
+                key={client.id}
+                content={notesInitial}
+                onUpdate={saveNotes}
+                onSaveStatusChange={setNotesSaveStatus}
+                placeholder="Jot down themes, insights, patterns… Paste or drop images like org charts."
+                showActionButtons={false}
+              />
+            )}
+          </CardContent>
+        </Card>
 
         {/* Session History */}
         <Card>
