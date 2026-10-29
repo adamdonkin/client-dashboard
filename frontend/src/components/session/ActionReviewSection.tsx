@@ -90,7 +90,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
     } else if (updated.status === 'completed' || updated.status === 'cancelled') {
       setActions(prev => prev.filter(a => a.id !== updated.id))
       setCompletedActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
-    } else if (updated.status === 'to_do') {
+    } else if (updated.status === 'to_do' && !(sessionNoteId && updated.session_note_id === sessionNoteId)) {
       setCompletedActions(prev => prev.filter(a => a.id !== updated.id))
       setActions(prev => [updated, ...prev.filter(a => a.id !== updated.id)])
     } else {
