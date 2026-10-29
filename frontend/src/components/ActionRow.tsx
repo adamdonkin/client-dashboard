@@ -165,7 +165,7 @@ export function ActionRow({
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Keep in sync if parent passes new data
-  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.description !== action.description || initialAction.goal_id !== action.goal_id || initialAction.from_magic_questions !== action.from_magic_questions || initialAction.goal?.title !== action.goal?.title || initialAction.goal?.priority !== action.goal?.priority || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
+  if (initialAction.id !== action.id || initialAction.status !== action.status || initialAction.due_date !== action.due_date || initialAction.title !== action.title || initialAction.assigned_to !== action.assigned_to || initialAction.description !== action.description || initialAction.goal_id !== action.goal_id || initialAction.from_magic_questions !== action.from_magic_questions || initialAction.goal?.title !== action.goal?.title || initialAction.goal?.priority !== action.goal?.priority || JSON.stringify(initialAction.description_content) !== JSON.stringify(action.description_content)) {
     setAction(initialAction)
   }
 
