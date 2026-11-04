@@ -340,7 +340,7 @@
   border-radius: 4px;
   color: var(--muted-foreground);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.4;
   transform: rotate(90deg);
   transition: opacity 150ms, color 150ms, transform 150ms;
 }
@@ -368,7 +368,7 @@
 
 @media (hover: none) {
   .session-editor .ProseMirror .heading-toggle {
-    opacity: 0.6;
+    opacity: 0.7;
   }
 }
 

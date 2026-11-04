@@ -11,6 +11,8 @@ const CHEVRON_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height=
 const toggleHeadingKey = new PluginKey('toggleHeading')
 
 interface Section {
+  /** Index among the doc's top-level children, which survives typing in the way a position does not */
+  index: number
   headingPos: number
   blocks: { from: number; to: number }[]
   collapsed: boolean
@@ -38,7 +40,7 @@ function sections(doc: PMNode): Section[] {
     }
     if (!blocks.length) return
 
-    found.push({ headingPos: offset, blocks, collapsed: !!node.attrs.collapsed })
+    found.push({ index, headingPos: offset, blocks, collapsed: !!node.attrs.collapsed })
   })
   return found
 }
@@ -72,14 +74,13 @@ function setCollapsed(view: EditorView, section: Section, collapsed: boolean) {
   view.focus()
 }
 
-function toggleButton(section: Section) {
-  return (view: EditorView) => {
-    const hidden = section.blocks.length
+function toggleButton(collapsed: boolean, hidden: number) {
+  return (view: EditorView, getPos: () => number | undefined) => {
     const button = document.createElement('button')
     button.type = 'button'
     button.contentEditable = 'false'
-    button.className = section.collapsed ? 'heading-toggle is-collapsed' : 'heading-toggle'
-    button.title = section.collapsed
+    button.className = collapsed ? 'heading-toggle is-collapsed' : 'heading-toggle'
+    button.title = collapsed
       ? `Expand section (${hidden} ${hidden === 1 ? 'block' : 'blocks'} hidden)`
       : 'Collapse section'
     button.innerHTML = CHEVRON_ICON
@@ -88,7 +89,13 @@ function toggleButton(section: Section) {
     button.addEventListener('click', (e) => {
       e.preventDefault()
       e.stopPropagation()
-      setCollapsed(view, section, !section.collapsed)
+      const pos = getPos()
+      if (pos === undefined) return
+      // Keyed so this button survives edits elsewhere in the note, which means
+      // it outlives the state it was built from. Find the section fresh.
+      const index = view.state.doc.resolve(pos).index(0)
+      const section = sections(view.state.doc).find(s => s.index === index)
+      if (section) setCollapsed(view, section, !section.collapsed)
     })
 
     return button
@@ -164,11 +171,14 @@ export const ToggleHeading = Extension.create({
 
             for (const section of sections(state.doc)) {
               decorations.push(
-                Decoration.widget(section.headingPos + 1, toggleButton(section), {
+                // Keyed on the heading's index rather than its position, so
+                // typing earlier in the note doesn't tear the button down and
+                // restart its fade on every keystroke.
+                Decoration.widget(section.headingPos + 1, toggleButton(section.collapsed, section.blocks.length), {
                   side: -1,
                   ignoreSelection: true,
                   stopEvent: () => true,
-                  key: `heading-toggle-${section.headingPos}-${section.collapsed}-${section.blocks.length}`,
+                  key: `heading-toggle-${section.index}-${section.collapsed}-${section.blocks.length}`,
                 })
               )
 
