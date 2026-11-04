@@ -89,7 +89,7 @@ import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu
 import { ActionBlock } from './ActionBlockExtension'
 import { IssueCopy } from './IssueCopyExtension'
 import { GoalHeading } from './GoalHeadingExtension'
-import { ToggleHeading } from './ToggleHeadingExtension'
+import { ToggleHeading, collapsedSectionEnd } from './ToggleHeadingExtension'
 import { goalIdAt } from '@/lib/goals'
 import { inMagicQuestionsAt } from '@/lib/magicQuestions'
 
@@ -348,7 +348,14 @@ export function SessionEditor({
             const isAtEnd = $from.parentOffset === $from.parent.content.size
             if (isAtEnd) {
               event.preventDefault()
-              ed.chain().focus().insertContentAt(ed.state.selection.to, { type: 'paragraph' }).focus().run()
+              // A paragraph placed after a folded section still counts as part of
+              // it, so it would be hidden and drag the fold back open. A heading
+              // ends the section instead, leaving it shut and the caret visible.
+              const foldEnd = collapsedSectionEnd(ed.state.doc, $from.before())
+              const next = foldEnd === null
+                ? { type: 'paragraph' }
+                : { type: 'heading', attrs: { level: $from.parent.attrs.level } }
+              ed.chain().focus().insertContentAt(foldEnd ?? ed.state.selection.to, next).focus().run()
               return true
             }
           }

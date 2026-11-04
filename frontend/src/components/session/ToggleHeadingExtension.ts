@@ -45,6 +45,17 @@ function sections(doc: PMNode): Section[] {
   return found
 }
 
+/**
+ * End of the region a folded heading hides, or null when the heading is open.
+ * Nothing can sit between a section and the next heading, so callers adding
+ * content below a fold have to put a heading here rather than a paragraph.
+ */
+export function collapsedSectionEnd(doc: PMNode, headingPos: number): number | null {
+  const index = doc.resolve(headingPos).index(0)
+  const section = sections(doc).find(s => s.index === index)
+  return section?.collapsed ? sectionEnd(section) : null
+}
+
 function foldedSectionAt(doc: PMNode, pos: number): Section | null {
   return sections(doc).find(s => s.collapsed && pos >= sectionStart(s) && pos <= sectionEnd(s)) ?? null
 }
