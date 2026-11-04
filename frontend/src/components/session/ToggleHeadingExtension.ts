@@ -117,11 +117,42 @@ function toggleButton(collapsed: boolean, hidden: number) {
 // Opening the section instead costs one extra keystroke and makes the content
 // visible before anything is removed.
 function guardDelete(editor: Editor, direction: -1 | 1) {
-  const { doc, selection, tr } = editor.state
+  const { doc, selection } = editor.state
   if (!selection.empty) return false
 
   const section = foldedSectionAt(doc, selection.from + direction)
   if (!section) return false
+
+  const tr = editor.state.tr
+  const $pos = selection.$from
+
+  // Backspacing out of the empty heading Enter just made should take that
+  // heading back, not reveal the section it sits below. Only an empty block
+  // qualifies, so no keystroke here can remove text.
+  if (
+    direction === -1 &&
+    $pos.depth === 1 &&
+    $pos.parentOffset === 0 &&
+    $pos.parent.content.size === 0 &&
+    $pos.before() === sectionEnd(section)
+  ) {
+    const heading = doc.nodeAt(section.headingPos)!
+    let to = $pos.after()
+    // Enter also prompted TipTap to append a fresh trailing paragraph. Take it
+    // with us, or repeating Enter then Backspace silts the fold up with blanks.
+    const trailing = doc.nodeAt(to)
+    if (
+      trailing?.type.name === 'paragraph' &&
+      trailing.content.size === 0 &&
+      to + trailing.nodeSize === doc.content.size
+    ) {
+      to += trailing.nodeSize
+    }
+    tr.delete($pos.before(), to)
+    tr.setSelection(TextSelection.create(tr.doc, section.headingPos + 1 + heading.content.size))
+    editor.view.dispatch(tr)
+    return true
+  }
 
   markCollapsed(tr, doc, section.headingPos, false)
   editor.view.dispatch(tr.setMeta('addToHistory', false))
