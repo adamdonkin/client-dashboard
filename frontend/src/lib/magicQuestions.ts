@@ -22,7 +22,13 @@ export function magicQuestionsSection(doc: any): any | null {
   if (start < 0) return null
   let end = start + 1
   while (end < nodes.length && nodes[end].type !== 'heading') end++
-  return { type: 'doc', content: nodes.slice(start, end) }
+  const content = nodes.slice(start, end)
+  // Whether the heading is folded is a view preference, not part of the round.
+  // Leaving it in would make the section look edited every time it's toggled,
+  // and syncMagicRound would save a round on each fold.
+  const attrs = { ...(content[0].attrs ?? {}) }
+  delete attrs.collapsed
+  return { type: 'doc', content: [{ ...content[0], attrs }, ...content.slice(1)] }
 }
 
 /** Whether a position sits in a Magic Questions section: under its heading, up to the next heading. Takes a ProseMirror doc. */

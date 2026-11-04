@@ -89,6 +89,7 @@ import { SlashCommandMenu, COMMANDS, SlashCommandItem } from './SlashCommandMenu
 import { ActionBlock } from './ActionBlockExtension'
 import { IssueCopy } from './IssueCopyExtension'
 import { GoalHeading } from './GoalHeadingExtension'
+import { ToggleHeading } from './ToggleHeadingExtension'
 import { goalIdAt } from '@/lib/goals'
 import { inMagicQuestionsAt } from '@/lib/magicQuestions'
 
@@ -286,6 +287,7 @@ export function SessionEditor({
       ListAutoJoin,
       IssueCopy,
       GoalHeading,
+      ToggleHeading,
       Link.configure({
         openOnClick: false,
         autolink: true,

@@ -321,6 +321,57 @@
   }
 }
 
+/* Collapsed sections: the blocks stay in the document, they just stop rendering */
+.session-editor .ProseMirror .section-collapsed {
+  display: none;
+}
+
+.session-editor .ProseMirror :is(h1, h2, h3):has(.heading-toggle) {
+  position: relative;
+}
+
+/* Hangs in the left margin so folding never shifts the heading text */
+.session-editor .ProseMirror .heading-toggle {
+  position: absolute;
+  left: -1.4rem;
+  top: calc(0.8em - 11px);
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transform: rotate(90deg);
+  transition: opacity 150ms, color 150ms, transform 150ms;
+}
+
+.session-editor .ProseMirror .heading-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+/* A folded section has to advertise itself even when the heading isn't hovered */
+.session-editor .ProseMirror .heading-toggle.is-collapsed {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.session-editor .ProseMirror :is(h1, h2, h3):hover .heading-toggle,
+.session-editor .ProseMirror .heading-toggle:focus-visible {
+  opacity: 1;
+}
+
+.session-editor .ProseMirror .heading-toggle:hover {
+  color: var(--foreground);
+}
+
+@media (hover: none) {
+  .session-editor .ProseMirror .heading-toggle {
+    opacity: 0.6;
+  }
+}
+
 /* Action block nodes use sans-serif UI font, not the editor's serif */
 .session-editor .ProseMirror [data-node-view-wrapper] {
   font-family: var(--font-geist-sans), sans-serif;
