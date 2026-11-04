@@ -1583,6 +1583,7 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
             <ActionReviewSection
               ref={reviewSectionRef}
               clientId={client.id}
+              assignedToUserId={user && client.auth_user_id === user.id ? user.id : null}
               refreshKey={actionRefreshKey}
               onActionSelect={setSelectedAction}
               onActionChanged={handleActionChanged}

@@ -8,6 +8,12 @@ import type { ActionItem } from '@/components/ActionRow'
 
 interface ActionReviewSectionProps {
   clientId: string
+  /**
+   * Set on the client record that stands for a real person using the app, so
+   * their page also collects the actions they assigned themselves while
+   * coaching someone else. Those actions stay on the other client too.
+   */
+  assignedToUserId?: string | null
   sessionNoteId?: string
   refreshKey?: number
   onActionSelect?: (action: ActionItem | null) => void
@@ -23,19 +29,28 @@ export interface ActionReviewSectionHandle {
   getActions: () => ActionItem[]
 }
 
-export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect, onMagicQuestionsSelect }, ref) {
+export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, assignedToUserId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect, onMagicQuestionsSelect }, ref) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showCompleted, setShowCompleted] = useState(false)
 
+  // Borrowed actions need their own client's name, since it is not the one on screen
+  const columns = assignedToUserId
+    ? `${ACTION_COLUMNS}, client:clients!client_actions_client_id_fkey(name)`
+    : ACTION_COLUMNS
+  const scope = assignedToUserId
+    ? `client_id.eq.${clientId},assigned_to.eq.${assignedToUserId}`
+    : null
+
   const fetchActions = useCallback(async () => {
     let query = supabase
       .from('client_actions')
-      .select(ACTION_COLUMNS)
-      .eq('client_id', clientId)
+      .select(columns)
       .eq('status', 'to_do')
+
+    query = scope ? query.or(scope) : query.eq('client_id', clientId)
 
     if (sessionNoteId) {
       query = query.or(`session_note_id.is.null,session_note_id.neq.${sessionNoteId}`)
@@ -54,22 +69,24 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
       return next
     })
     setLoading(false)
-  }, [clientId, sessionNoteId, supabase])
+  }, [clientId, columns, scope, sessionNoteId, supabase])
 
   const fetchCompleted = useCallback(async () => {
     const since = new Date()
     since.setDate(since.getDate() - 7)
 
-    const { data } = await supabase
+    let query = supabase
       .from('client_actions')
-      .select(ACTION_COLUMNS)
-      .eq('client_id', clientId)
+      .select(columns)
       .in('status', ['completed', 'cancelled'])
       .gte('updated_at', since.toISOString())
-      .order('updated_at', { ascending: false })
+
+    query = scope ? query.or(scope) : query.eq('client_id', clientId)
+
+    const { data } = await query.order('updated_at', { ascending: false })
 
     setCompletedActions((data as unknown as ActionItem[]) || [])
-  }, [clientId, supabase])
+  }, [clientId, columns, scope, supabase])
 
   useEffect(() => {
     fetchActions()
@@ -121,9 +138,18 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
     return <p className="text-[15px] text-muted-foreground">No open actions</p>
   }
 
+  // An action picked up from another client reads as a non sequitur without saying whose session it came from
+  const withOrigin = (action: ActionItem, row: React.ReactNode) =>
+    action.client_id && action.client_id !== clientId && action.client?.name ? (
+      <div key={action.id} className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">{row}</div>
+        <span className="text-xs text-muted-foreground shrink-0">{action.client.name}</span>
+      </div>
+    ) : row
+
   return (
     <div className="space-y-1.5">
-      {actions.map(action => (
+      {actions.map(action => withOrigin(action, (
         <ActionRow
           key={action.id}
           action={action}
@@ -136,7 +162,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           onGoalSelect={onGoalSelect}
           onMagicQuestionsSelect={onMagicQuestionsSelect}
         />
-      ))}
+      )))}
 
       <button
         onClick={() => setShowCompleted(prev => !prev)}
@@ -150,7 +176,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
 
       {showCompleted && completedInSection.length > 0 && (
         <div className="space-y-1.5 opacity-60">
-          {completedInSection.map(action => (
+          {completedInSection.map(action => withOrigin(action, (
             <ActionRow
               key={action.id}
               action={action}
@@ -161,7 +187,7 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
               onGoalSelect={onGoalSelect}
               onMagicQuestionsSelect={onMagicQuestionsSelect}
             />
-          ))}
+          )))}
         </div>
       )}
 

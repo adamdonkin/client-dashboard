@@ -11,6 +11,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ActionDatePicker } from '@/components/session/ActionDatePicker'
 import { NotDoneReview } from '@/components/session/NotDoneReview'
 import { notDoneCount } from '@/lib/actionReview'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 export interface ActionItem {
   id: string
@@ -26,6 +27,8 @@ export interface ActionItem {
   created_at?: string | null
   assigned_to?: string | null
   client_id?: string | null
+  /** Only selected where an action may belong to a client other than the one on screen */
+  client?: { name: string } | null
   goal_id?: string | null
   goal?: ActionGoal | null
   from_magic_questions?: boolean
@@ -161,6 +164,7 @@ export function ActionRow({
   onMagicQuestionsSelect,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
+  const { user } = useAuth()
   const [action, setAction] = useState(initialAction)
   const [reviewOpen, setReviewOpen] = useState(false)
 
@@ -257,7 +261,7 @@ export function ActionRow({
           >
             {action.title}
           </span>
-          {action.assigned_to && (
+          {action.assigned_to && action.assigned_to === user?.id && (
             <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/30 text-amber-600 dark:text-amber-400 font-medium shrink-0">
               Me
             </Badge>

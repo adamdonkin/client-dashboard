@@ -126,7 +126,9 @@ export async function GET(request: NextRequest) {
         from_magic_questions: action.from_magic_questions,
       }
 
-      if (action.assigned_to) {
+      // Teammates with team_access assign actions to themselves on the coach's
+      // data, so an action is only mine when it names me specifically.
+      if (action.assigned_to === session.user.id) {
         myActions.push(mapped)
         continue
       }

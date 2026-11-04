@@ -64,6 +64,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
         ea_slack: data.ea_slack,
         cadence: data.cadence,
         session_duration: data.session_duration,
+        auth_user_id: data.auth_user_id,
       }
 
       setClient(clientData)
