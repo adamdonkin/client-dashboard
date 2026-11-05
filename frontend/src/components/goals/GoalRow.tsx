@@ -1,7 +1,6 @@
 'use client'
 
 import { Check, Ban } from 'lucide-react'
-import { format, isToday, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { GOAL_HEALTH_META, formatGoalDue, type Goal, type GoalHealth } from '@/lib/goals'
 
@@ -26,8 +25,6 @@ interface GoalRowProps {
 export function GoalRow({ goal, onSelect }: GoalRowProps) {
   const isClosed = goal.status !== 'open'
   const due = formatGoalDue(goal.due_date)
-  const updatedAt = goal.latest_update ? parseISO(goal.latest_update.created_at) : null
-  const updatedToday = updatedAt ? isToday(updatedAt) : false
 
   return (
     <div
@@ -61,11 +58,6 @@ export function GoalRow({ goal, onSelect }: GoalRowProps) {
       <div className="flex items-center gap-3 shrink-0 text-[13px] text-muted-foreground">
         {goal.status === 'dropped' && (
           <span className="text-[10px] font-semibold uppercase tracking-wider">Cancelled</span>
-        )}
-        {updatedAt && goal.status === 'open' && (
-          <span className={cn('max-sm:hidden', updatedToday && 'text-success')}>
-            {updatedToday ? 'Updated today' : `Updated ${format(updatedAt, 'MMM d')}`}
-          </span>
         )}
         {goal.owner && <span className="max-sm:hidden">{goal.owner}</span>}
         {due && <span>{due}</span>}
