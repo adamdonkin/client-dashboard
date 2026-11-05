@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ActionDatePicker } from '@/components/session/ActionDatePicker'
 import { NotDoneReview } from '@/components/session/NotDoneReview'
-import { notDoneCount } from '@/lib/actionReview'
 import { useAuth } from '@/components/auth/AuthProvider'
 
 export interface ActionItem {
@@ -44,31 +43,6 @@ export const ACTION_COLUMNS = 'id, title, description, description_content, sour
 
 export function goalBadgeLabel(goal: ActionGoal): string {
   return goal.priority ? `#${goal.priority} ${goal.title}` : goal.title
-}
-
-export function MagicQuestionsBadge({ onSelect }: { onSelect?: () => void }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn('text-[10px] px-1.5 py-0 border-chart-5/30 text-chart-5 font-medium', onSelect && 'cursor-pointer hover:bg-chart-5/10')}
-      onClick={onSelect ? (e) => { e.stopPropagation(); onSelect() } : undefined}
-    >
-      Magic Questions
-    </Badge>
-  )
-}
-
-export function GoalBadge({ goal, onSelect }: { goal: ActionGoal, onSelect?: (goalId: string) => void }) {
-  return (
-    <Badge
-      variant="outline"
-      title={goalBadgeLabel(goal)}
-      className={cn('text-[10px] px-1.5 py-0 border-chart-2/30 text-chart-2 font-medium max-w-[160px] truncate block', onSelect && 'cursor-pointer hover:bg-chart-2/10')}
-      onClick={onSelect ? (e) => { e.stopPropagation(); onSelect(goal.id) } : undefined}
-    >
-      {goalBadgeLabel(goal)}
-    </Badge>
-  )
 }
 
 export function formatDueDate(dateStr: string | null): string {
@@ -140,14 +114,9 @@ interface ActionRowProps {
   onChanged?: (updated: ActionItem) => void
   onRemoved?: (id: string) => void
   onSelect?: (action: ActionItem) => void
-  showSource?: boolean
   className?: string
   reviewSessionNoteId?: string
   highlightCompleted?: boolean
-  /** Shows the goal badge; left out where the rows are already a goal's actions */
-  showGoal?: boolean
-  onGoalSelect?: (goalId: string) => void
-  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export function ActionRow({
@@ -155,13 +124,9 @@ export function ActionRow({
   onChanged,
   onRemoved,
   onSelect,
-  showSource = false,
   className,
   reviewSessionNoteId,
   highlightCompleted = false,
-  showGoal = true,
-  onGoalSelect,
-  onMagicQuestionsSelect,
 }: ActionRowProps) {
   const supabase = createClientComponentClient()
   const { user } = useAuth()
@@ -222,8 +187,6 @@ export function ActionRow({
     onChanged?.(updated)
   }
 
-  const timesNotDone = action.status === 'to_do' ? notDoneCount(action) : 0
-
   return (
     <div>
       <div
@@ -269,32 +232,6 @@ export function ActionRow({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {showGoal && action.goal && (
-            <span className="max-sm:hidden">
-              <GoalBadge goal={action.goal} onSelect={onGoalSelect} />
-            </span>
-          )}
-          {action.from_magic_questions && (
-            <span className="max-sm:hidden">
-              <MagicQuestionsBadge onSelect={onMagicQuestionsSelect && action.session_note_id ? () => onMagicQuestionsSelect(action) : undefined} />
-            </span>
-          )}
-          {showSource && action.source && (
-            <span className="max-sm:hidden">
-              <SourceBadge source={action.source} sourceUrl={action.source_url} sessionNoteId={action.session_note_id} />
-            </span>
-          )}
-
-          {timesNotDone > 0 && (
-            <Badge
-              variant="outline"
-              title={`Reviewed not done ${timesNotDone} time${timesNotDone === 1 ? '' : 's'}`}
-              className="text-[10px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 font-medium"
-            >
-              Not done {timesNotDone}×
-            </Badge>
-          )}
-
           {isResolved && action.status === 'cancelled' && (
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cancelled</span>
           )}

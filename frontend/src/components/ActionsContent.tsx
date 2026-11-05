@@ -92,7 +92,6 @@ function ClientGroup({ group, onSelectAction, onActionChanged }: { group: Client
                   action={action}
                   onSelect={(a) => onSelectAction(a, group.client_name)}
                   onChanged={onActionChanged}
-                  showSource
                 />
               ))}
             </div>
@@ -150,7 +149,6 @@ function DueThisWeekView({ groups, onSelectAction, onActionChanged }: { groups: 
                       action={action}
                       onSelect={(a) => onSelectAction(a, action.client_name)}
                       onChanged={onActionChanged}
-                      showSource
                     />
                   </div>
                   <span
@@ -203,7 +201,6 @@ function MyActionsGroup({ actions, onSelectAction, onActionChanged }: { actions:
                     action={a}
                     onSelect={(action) => onSelectAction(action, (a as any).client_name || 'Client')}
                     onChanged={onActionChanged}
-                    showSource
                   />
                 </div>
                 {(a as any).client_name && (a as any).client_name !== 'Unmatched' && (

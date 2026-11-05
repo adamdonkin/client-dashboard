@@ -19,8 +19,6 @@ interface ActionReviewSectionProps {
   onActionSelect?: (action: ActionItem | null) => void
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
-  onGoalSelect?: (goalId: string) => void
-  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export interface ActionReviewSectionHandle {
@@ -29,7 +27,7 @@ export interface ActionReviewSectionHandle {
   getActions: () => ActionItem[]
 }
 
-export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, assignedToUserId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect, onMagicQuestionsSelect }, ref) {
+export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionReviewSectionProps>(function ActionReviewSection({ clientId, assignedToUserId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
   const supabase = createClientComponentClient()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [completedActions, setCompletedActions] = useState<ActionItem[]>([])
@@ -156,11 +154,8 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
           onChanged={handleChanged}
           onRemoved={handleRemoved}
           onSelect={onActionSelect}
-          showSource
           reviewSessionNoteId={sessionNoteId}
           highlightCompleted
-          onGoalSelect={onGoalSelect}
-          onMagicQuestionsSelect={onMagicQuestionsSelect}
         />
       )))}
 
@@ -183,9 +178,6 @@ export const ActionReviewSection = forwardRef<ActionReviewSectionHandle, ActionR
               onChanged={handleChanged}
               onRemoved={handleRemoved}
               onSelect={onActionSelect}
-              showSource
-              onGoalSelect={onGoalSelect}
-              onMagicQuestionsSelect={onMagicQuestionsSelect}
             />
           )))}
         </div>

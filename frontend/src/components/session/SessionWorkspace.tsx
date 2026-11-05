@@ -803,8 +803,6 @@ export function SessionWorkspace({
             onActionSelect={setSelectedAction}
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
-            onGoalSelect={openGoal}
-            onMagicQuestionsSelect={openMagicQuestions}
           />
         </section>
 
@@ -907,8 +905,6 @@ export function SessionWorkspace({
             onActionSelect={setSelectedAction}
             onActionChanged={handleActionChanged}
             onActionRemoved={handleActionRemoved}
-            onGoalSelect={openGoal}
-            onMagicQuestionsSelect={openMagicQuestions}
           />
         </section>
       </div>

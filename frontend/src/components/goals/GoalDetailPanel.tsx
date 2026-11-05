@@ -537,7 +537,6 @@ export function GoalDetailPanel({
                     onRemoved={applyActionRemoved}
                     onSelect={setSelectedAction}
                     reviewSessionNoteId={sessionNoteId}
-                    showGoal={false}
                   />
                 ))}
                 {openActions.length === 0 && (
@@ -562,7 +561,6 @@ export function GoalDetailPanel({
                           onChanged={applyActionChanged}
                           onRemoved={applyActionRemoved}
                           onSelect={setSelectedAction}
-                          showGoal={false}
                         />
                       ))}
                     </div>

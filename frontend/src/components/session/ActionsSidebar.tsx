@@ -15,8 +15,6 @@ interface ActionsSidebarProps {
   onActionSelect?: (action: ActionItem | null) => void
   onActionChanged?: (updated: ActionItem) => void
   onActionRemoved?: (id: string) => void
-  onGoalSelect?: (goalId: string) => void
-  onMagicQuestionsSelect?: (action: ActionItem) => void
 }
 
 export interface ActionsSidebarHandle {
@@ -24,7 +22,7 @@ export interface ActionsSidebarHandle {
   applyRemoved: (id: string) => void
 }
 
-export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarProps>(function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved, onGoalSelect, onMagicQuestionsSelect }, ref) {
+export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarProps>(function ActionsSidebar({ clientId, sessionNoteId, refreshKey, onActionSelect, onActionChanged, onActionRemoved }, ref) {
   const supabase = createClientComponentClient()
   const [sessionActions, setSessionActions] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -145,8 +143,6 @@ export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarPro
                 onChanged={handleChanged}
                 onRemoved={handleRemoved}
                 onSelect={onActionSelect}
-                onGoalSelect={onGoalSelect}
-                onMagicQuestionsSelect={onMagicQuestionsSelect}
               />
             ))}
           </div>

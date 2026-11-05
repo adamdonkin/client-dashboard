@@ -1588,8 +1588,6 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
               onActionSelect={setSelectedAction}
               onActionChanged={handleActionChanged}
               onActionRemoved={handleActionRemoved}
-              onGoalSelect={openGoal}
-              onMagicQuestionsSelect={openMagicQuestions}
             />
           </CardContent>
         </Card>
