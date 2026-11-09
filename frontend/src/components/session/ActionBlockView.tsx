@@ -8,6 +8,7 @@ import { ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { ActionDetailPanel } from './ActionDetailPanel'
 import { ActionCreateForm } from './ActionCreateForm'
+import { ownerIdForClient } from '@/lib/clientAccess'
 
 export function ActionBlockView({ node, updateAttributes, deleteNode, getPos, editor, extension }: any) {
   const supabase = createClientComponentClient()
@@ -36,10 +37,11 @@ export function ActionBlockView({ node, updateAttributes, deleteNode, getPos, ed
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    const ownerId = await ownerIdForClient(supabase, clientId, session.user.id)
     const { data } = await supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,

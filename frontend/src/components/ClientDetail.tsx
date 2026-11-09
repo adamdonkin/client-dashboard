@@ -49,6 +49,7 @@ import { ScoreChip } from '@/components/magic/ScoreChip';
 import { getTimeOffset } from '@/lib/timezoneRegions';
 import { SessionEditor, type SaveStatus } from '@/components/session/SessionEditor';
 import { docToMarkdown, markdownToDoc } from '@/lib/clientNotes';
+import { ownerIdForClient } from '@/lib/clientAccess';
 import {
   Select,
   SelectContent,
@@ -1562,10 +1563,11 @@ const ClientDetail = ({ client, onBack, onClientUpdate }: ClientDetailProps) => 
                   onSubmit={async (title, dueDate) => {
                     const { data: { session } } = await supabase.auth.getSession()
                     if (!session) return
+                    const ownerId = await ownerIdForClient(supabase, client.id, session.user.id)
                     await supabase
                       .from('client_actions')
                       .insert({
-                        user_id: session.user.id,
+                        user_id: ownerId,
                         client_id: client.id,
                         source: 'manual',
                         source_id: `manual-${Date.now()}`,

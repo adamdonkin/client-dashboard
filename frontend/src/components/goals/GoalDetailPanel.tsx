@@ -13,6 +13,7 @@ import { ACTION_COLUMNS, ActionRow, type ActionItem } from '@/components/ActionR
 import { cn } from '@/lib/utils'
 import { copyTiptapContent } from '@/utils/tiptap-clipboard'
 import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
+import { ownerIdForClient } from '@/lib/clientAccess'
 import { GoalHealthDot } from './GoalRow'
 import {
   DEFAULT_GOAL_HEALTH,
@@ -156,10 +157,11 @@ export function GoalDetailPanel({
     if (!session) return
     const due = new Date()
     due.setDate(due.getDate() + 7)
+    const ownerId = await ownerIdForClient(supabase, goalRef.current.client_id, session.user.id)
     const { data, error } = await supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: goalRef.current.client_id,
         source: sessionNoteId ? 'session' : 'manual',
         source_id: sessionNoteId ? `session-${sessionNoteId}-${Date.now()}` : `manual-${Date.now()}`,

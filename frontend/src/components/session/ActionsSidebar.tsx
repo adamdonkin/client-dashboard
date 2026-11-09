@@ -7,6 +7,7 @@ import { ACTION_COLUMNS, ActionRow } from '@/components/ActionRow'
 import type { ActionItem } from '@/components/ActionRow'
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 import { ActionCreateForm } from './ActionCreateForm'
+import { ownerIdForClient } from '@/lib/clientAccess'
 
 interface ActionsSidebarProps {
   clientId: string
@@ -51,10 +52,11 @@ export const ActionsSidebar = forwardRef<ActionsSidebarHandle, ActionsSidebarPro
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    const ownerId = await ownerIdForClient(supabase, clientId, session.user.id)
     const { data } = await supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,

@@ -21,6 +21,7 @@ import { GoalDetailPanel } from '@/components/goals/GoalDetailPanel'
 import { MagicQuestionsRoundPanel } from '@/components/magic/MagicQuestionsPanel'
 import { GOAL_TITLE_PLACEHOLDER, docHasText, fetchGoal, goalNodes, goalNumbersInDoc, goalPrefix, goalsInNote, type Goal } from '@/lib/goals'
 import { CAREER_VISION_QUESTION, MAGIC_QUESTIONS_HEADING, careerVisionOf, fetchMagicQuestions, latestSavedVision, magicQuestionsSection, saveMagicRound } from '@/lib/magicQuestions'
+import { ownerIdForClient } from '@/lib/clientAccess'
 import { toast } from 'sonner'
 
 interface CalendarEvent {
@@ -288,10 +289,12 @@ export function SessionWorkspace({
     // A goal written moments ago may still be on its way to the database
     if (goalId) await goalCreatesRef.current.get(goalId)
 
+    const ownerId = await ownerIdForClient(supabase, calendarEvent.client_id, session.user.id)
+
     const insert = (goal_id: string | null) => supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: calendarEvent.client_id,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,

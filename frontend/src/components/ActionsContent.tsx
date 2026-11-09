@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, Search, Copy, Check } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Calendar, AlertCircle, Search, Copy, Check, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import type { ClientActionGroup, ClientAction } from '@/app/api/actions/route'
 import { formatRelativeDate } from '@/utils/date-utils'
 import { parseISO, isThisWeek } from 'date-fns'
@@ -17,6 +18,8 @@ import { MagicQuestionsRoundPanel } from '@/components/magic/MagicQuestionsPanel
 import { copyActionsToClipboard } from '@/utils/copy-actions'
 import { fetchGoal, type Goal } from '@/lib/goals'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { ActionCreateForm } from '@/components/session/ActionCreateForm'
+import { ownerIdForClient } from '@/lib/clientAccess'
 
 type SelectAction = (action: ActionItem, clientName: string) => void
 type ActionChanged = (updated: ActionItem) => void
@@ -169,8 +172,39 @@ function DueThisWeekView({ groups, onSelectAction, onActionChanged }: { groups: 
   )
 }
 
-function MyActionsGroup({ actions, onSelectAction, onActionChanged }: { actions: ClientAction[]; onSelectAction: SelectAction; onActionChanged: ActionChanged }) {
+function MyActionsGroup({ actions, myClientId, onSelectAction, onActionChanged, onCreated }: { actions: ClientAction[]; myClientId: string | null; onSelectAction: SelectAction; onActionChanged: ActionChanged; onCreated: () => void }) {
   const [expanded, setExpanded] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const supabase = createClientComponentClient()
+
+  // Someone whose own actions all hang off one client record gains nothing from
+  // seeing that name repeated on every line. It only earns its place when the
+  // actions came from different clients' sessions.
+  const clientNames = new Set(actions.map(a => a.client_name).filter(n => n && n !== 'Unmatched'))
+  const showClientName = clientNames.size > 1
+
+  const createAction = async (title: string, dueDate: string) => {
+    if (!myClientId) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const ownerId = await ownerIdForClient(supabase, myClientId, session.user.id)
+    const { error } = await supabase.from('client_actions').insert({
+      user_id: ownerId,
+      client_id: myClientId,
+      source: 'manual',
+      source_id: `manual-${Date.now()}`,
+      title,
+      status: 'to_do',
+      due_date: dueDate,
+    })
+    if (error) {
+      console.error('Error creating action:', error)
+      toast.error('Could not add the action. Try again.')
+      return
+    }
+    setCreating(false)
+    onCreated()
+  }
 
   return (
     <Card className="border-amber-500/20">
@@ -186,25 +220,41 @@ function MyActionsGroup({ actions, onSelectAction, onActionChanged }: { actions:
             }
             <CardTitle className="text-base">My Actions</CardTitle>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            {actions.length} {actions.length === 1 ? 'action' : 'actions'}
-          </Badge>
+          <div className="flex items-center gap-3">
+            {myClientId && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setExpanded(true); setCreating(true) }}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Add an action"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       {expanded && (
         <CardContent className="pt-3 pb-2">
+          {creating && (
+            <div className="mb-1.5">
+              <ActionCreateForm onSubmit={createAction} onCancel={() => setCreating(false)} />
+            </div>
+          )}
           <div className="space-y-1">
             {actions.map(a => (
               <div key={a.id} className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <ActionRow
                     action={a}
-                    onSelect={(action) => onSelectAction(action, (a as any).client_name || 'Client')}
+                    onSelect={(action) => onSelectAction(action, a.client_name || 'Client')}
                     onChanged={onActionChanged}
                   />
                 </div>
-                {(a as any).client_name && (a as any).client_name !== 'Unmatched' && (
-                  <span className="text-xs text-muted-foreground shrink-0">{(a as any).client_name}</span>
+                {showClientName && a.client_name && a.client_name !== 'Unmatched' && (
+                  <span className="text-xs text-muted-foreground shrink-0">{a.client_name}</span>
                 )}
               </div>
             ))}
@@ -220,6 +270,7 @@ type ViewTab = 'by_client' | 'due_this_week'
 export function ActionsContent() {
   const [groups, setGroups] = useState<ClientActionGroup[]>([])
   const [myActions, setMyActions] = useState<ClientAction[]>([])
+  const [myClientId, setMyClientId] = useState<string | null>(null)
   const [totalActions, setTotalActions] = useState(0)
   const [loading, setLoading] = useState(true)
   const [viewTab, setViewTab] = useState<ViewTab>('by_client')
@@ -268,6 +319,7 @@ export function ActionsContent() {
       const data = await response.json()
       setGroups(data.groups || [])
       setMyActions(data.my_actions || [])
+      setMyClientId(data.my_client_id || null)
       setTotalActions(data.total_actions || 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -361,8 +413,14 @@ export function ActionsContent() {
             {myActions.length > 0 && ` · ${myActions.length} for me`}
           </p>
           <div className="space-y-3">
-            {myActions.length > 0 && (
-              <MyActionsGroup actions={myActions} onSelectAction={handleSelectAction} onActionChanged={handleActionChanged} />
+            {(myActions.length > 0 || myClientId) && (
+              <MyActionsGroup
+                actions={myActions}
+                myClientId={myClientId}
+                onSelectAction={handleSelectAction}
+                onActionChanged={handleActionChanged}
+                onCreated={fetchActions}
+              />
             )}
             {filteredGroups.map((group) => (
               <ClientGroup key={group.client_id || group.company_name} group={group} onSelectAction={handleSelectAction} onActionChanged={handleActionChanged} />

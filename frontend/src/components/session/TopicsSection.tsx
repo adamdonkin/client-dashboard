@@ -7,6 +7,7 @@ import { SessionEditor, SlashCommandHandler } from './SessionEditor'
 import { SlashCommandItem } from './SlashCommandMenu'
 import { ActionRow } from '@/components/ActionRow'
 import { ActionCreateForm } from './ActionCreateForm'
+import { ownerIdForClient } from '@/lib/clientAccess'
 
 interface Topic {
   id: string
@@ -233,10 +234,11 @@ function TopicBlock({
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    const ownerId = await ownerIdForClient(supabase, clientId, session.user.id)
     const { data, error } = await supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,

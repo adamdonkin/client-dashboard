@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { ActionDatePicker } from './ActionDatePicker'
 import { cn } from '@/lib/utils'
 import { PANEL_MOBILE_CLASS } from '@/lib/dismissiblePanel'
+import { ownerIdForClient } from '@/lib/clientAccess'
 
 interface ActionCreatePanelProps {
   clientId: string
@@ -49,10 +50,11 @@ export function ActionCreatePanel({
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    const ownerId = await ownerIdForClient(supabase, clientId, session.user.id)
     const { data } = await supabase
       .from('client_actions')
       .insert({
-        user_id: session.user.id,
+        user_id: ownerId,
         client_id: clientId,
         source: 'session',
         source_id: `session-${sessionNoteId}-${Date.now()}`,

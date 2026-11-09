@@ -47,6 +47,16 @@ export async function GET(request: NextRequest) {
 
     const status = request.nextUrl.searchParams.get('status') || 'to_do'
 
+    // A teammate works inside the coach's data, so their own actions are owned
+    // by the coach. Scoping by user_id would hide the shared set from them and
+    // their own work from the coach; RLS already limits this to accessible_user_ids().
+    const { data: linkedClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle()
+    const myClientId = linkedClient?.id ?? null
+
     const { data: actions, error } = await supabase
       .from('client_actions')
       .select(`
@@ -57,7 +67,6 @@ export async function GET(request: NextRequest) {
           name, company_name, role
         )
       `)
-      .eq('user_id', session.user.id)
       .eq('status', status)
       .order('created_date', { ascending: false })
 
@@ -126,11 +135,12 @@ export async function GET(request: NextRequest) {
         from_magic_questions: action.from_magic_questions,
       }
 
-      // Teammates with team_access assign actions to themselves on the coach's
-      // data, so an action is only mine when it names me specifically.
-      if (action.assigned_to === session.user.id) {
+      // Mine when it names me, or when it sits on the client record that is me:
+      // a teammate's own work lives on their client and is rarely assigned.
+      // It stays in the client group below as well, so nothing goes missing
+      // from the place someone would look for it.
+      if (action.assigned_to === session.user.id || (myClientId && action.client_id === myClientId)) {
         myActions.push(mapped)
-        continue
       }
 
       const key = action.client_id || 'unmatched'
@@ -163,7 +173,6 @@ export async function GET(request: NextRequest) {
     const { data: syncRow } = await supabase
       .from('client_actions')
       .select('synced_at')
-      .eq('user_id', session.user.id)
       .order('synced_at', { ascending: false })
       .limit(1)
       .single()
@@ -171,6 +180,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       groups,
       my_actions: myActions,
+      // Lets the page add an action to the viewer's own client record
+      my_client_id: myClientId,
       total_actions: totalActions,
       last_synced: syncRow?.synced_at || null
     })

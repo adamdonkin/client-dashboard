@@ -13,6 +13,20 @@ export async function isTeamMember(supabase: SupabaseClient, userId: string) {
   return (data?.length ?? 0) > 0
 }
 
+// The user whose dataset a client belongs to. Teammates work inside the
+// coach's data, so rows they create have to be stamped with the coach's id:
+// access runs one way, and a row stamped with the teammate is invisible to
+// the coach who owns everything around it.
+export async function ownerIdForClient(
+  supabase: SupabaseClient,
+  clientId: string | null | undefined,
+  fallbackUserId: string,
+): Promise<string> {
+  if (!clientId) return fallbackUserId
+  const { data } = await supabase.from('clients').select('user_id').eq('id', clientId).maybeSingle()
+  return data?.user_id ?? fallbackUserId
+}
+
 // Links a signed-in client to the coach's client record whose email matches
 // their Google account. Only Google identities are trusted, because Google
 // verifies email ownership; password sign-ups are not verified.

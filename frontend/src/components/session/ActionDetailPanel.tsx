@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { copyActionToClipboard } from '@/utils/copy-actions'
 import { PANEL_MOBILE_CLASS, panelSlideClass, useDismissiblePanel } from '@/lib/dismissiblePanel'
 import { AVOID_QUESTION, BLOCKED_QUESTION, type ReviewEntry } from '@/lib/actionReview'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 function ReviewAnswer({ question, text }: { question: string, text: string }) {
   const lines = text.split('\n')
@@ -51,6 +52,7 @@ export function ActionDetailPanel({
   onMagicQuestionsSelect,
 }: ActionDetailPanelProps) {
   const supabase = createClientComponentClient()
+  const { user } = useAuth()
   const [title, setTitle] = useState(action.title)
   const [dueDate, setDueDate] = useState(action.due_date || '')
   const titleDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -304,7 +306,6 @@ export function ActionDetailPanel({
               <span className="text-muted-foreground">For</span>
               <button
                 onClick={async () => {
-                  const newVal = action.assigned_to ? null : action.assigned_to === null ? 'self' : null
                   const { data: { session } } = await supabase.auth.getSession()
                   if (!session) return
                   const assignedTo = action.assigned_to ? null : session.user.id
@@ -318,7 +319,8 @@ export function ActionDetailPanel({
                 className="flex items-center gap-1.5 text-[13px] px-2 py-0.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
               >
                 <User className="h-3 w-3 text-muted-foreground" />
-                <span>{action.assigned_to ? 'Me (Adam)' : (clientName || 'Client')}</span>
+                {/* Named after the viewer, not the coach: a teammate sees their own actions here too */}
+                <span>{action.assigned_to === user?.id ? 'Me' : action.assigned_to ? 'Teammate' : (clientName || 'Client')}</span>
               </button>
             </div>
 
