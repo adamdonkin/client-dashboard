@@ -1,7 +1,7 @@
 'use client'
 
-import { useEditor, EditorContent, Extension, textblockTypeInputRule } from '@tiptap/react'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { useEditor, EditorContent, Extension, InputRule, textblockTypeInputRule } from '@tiptap/react'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { canJoin } from '@tiptap/pm/transform'
 import StarterKit from '@tiptap/starter-kit'
 import { ListKit } from '@tiptap/extension-list'
@@ -32,6 +32,46 @@ const IssueHeadingShortcut = Extension.create({
         find: /^#{1,3}\s$/,
         type: this.editor.schema.nodes.heading,
         getAttributes: { level: 3 },
+      }),
+    ]
+  },
+})
+
+// "1. " in an empty bullet switches it, and any bullets after it, to a numbered
+// list. Earlier bullets stay bullets. Without this, the list kit nests a
+// numbered list inside the bullet instead.
+const BulletToNumbered = Extension.create({
+  name: 'bulletToNumbered',
+  priority: 1000,
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /^1\.\s$/,
+        handler: ({ state, range }) => {
+          const { tr, schema } = state
+          const $start = state.doc.resolve(range.from)
+          const depth = $start.depth
+          if (depth < 2) return null
+          const item = $start.node(depth - 1)
+          const list = $start.node(depth - 2)
+          if (item.type.name !== 'listItem' || list.type.name !== 'bulletList') return null
+          if ($start.index(depth - 1) !== 0 || $start.parent.textContent !== '1.') return null
+
+          const index = $start.index(depth - 2)
+          const listStart = $start.before(depth - 2)
+
+          tr.delete(range.from, range.to)
+          const cleared = tr.doc.nodeAt(listStart)!
+          const items: any[] = []
+          cleared.forEach(child => { items.push(child) })
+          const before = index > 0 ? schema.nodes.bulletList.create(list.attrs, items.slice(0, index)) : null
+          const numbered = schema.nodes.orderedList.create({ start: 1 }, items.slice(index))
+
+          tr.replaceWith(listStart, listStart + cleared.nodeSize, before ? [before, numbered] : [numbered])
+          // Into the numbered list, its first item and that item's paragraph
+          tr.setSelection(TextSelection.create(tr.doc, listStart + (before?.nodeSize ?? 0) + 3))
+        },
       }),
     ]
   },
@@ -283,6 +323,7 @@ export function SessionEditor({
         ...(trailingParagraph ? {} : { trailingNode: false as const }),
       }),
       IssueHeadingShortcut,
+      BulletToNumbered,
       ListKit,
       ListAutoJoin,
       IssueCopy,
